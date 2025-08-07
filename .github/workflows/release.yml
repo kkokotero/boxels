@@ -1,0 +1,48 @@
+name: Release & Publish
+
+on:
+  release:
+    types: [created] # se ejecuta para releases y pre-releases
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      - name: 📥 Install dependencies
+        run: npm ci
+
+      - name: 🔢 Extract version from Git tag
+        id: version
+        run: |
+          echo "RELEASE_VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+
+      - name: 📝 Update package.json version
+        run: |
+          node -e "let pkg = require('./package.json'); pkg.version = process.env.RELEASE_VERSION; require('fs').writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');"
+
+      - name: ✅ Type check
+        run: npm run typecheck
+
+      - name: 🧹 Lint
+        run: npm run lint
+
+      - name: 🧪 Test
+        run: npm run test -- --coverage
+
+      - name: 🛠️ Build
+        run: npm run build
+
+      - name: 🚀 Publish to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public

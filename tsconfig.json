@@ -1,0 +1,51 @@
+{
+	"compilerOptions": {
+		/* Language and Environment */
+		"target": "ES2022",
+		"lib": ["ES2022", "DOM", "DOM.Iterable"],
+		"useDefineForClassFields": true,
+
+		/* Module Resolution */
+		"module": "es2022",
+		"moduleResolution": "bundler",
+		"allowImportingTsExtensions": true,
+		"verbatimModuleSyntax": true,
+		"moduleDetection": "force",
+		"skipLibCheck": true,
+		"noEmit": true,
+
+		/* Experimental Features */
+		"experimentalDecorators": true,
+		"emitDecoratorMetadata": true,
+
+		/* Declarations */
+		"declaration": true,
+		"declarationDir": "./types",
+		"types": ["./types/index.d.ts"],
+
+		/* Strictness */
+		"strict": true,
+
+		/* Path Mapping */
+		"baseUrl": "./",
+		"rootDir": "./",
+		"allowJs": true,
+		
+		/* JSX */
+		"jsx": "react-jsx",
+		"jsxImportSource": "src/runtime",
+
+		"paths": {
+			"@testing/*": ["src/testing/*"],
+			"@core/*": ["src/core/*"],
+			"@hooks/*": ["src/hooks/*"],
+			"@data/*": ["src/data/*"],
+			"@dom/*": ["src/dom/*"],
+			"@runtime/*": ["src/runtime/*"],
+			"@events/*": ["src/dom/attributes/handlers/*"],
+			"@components/*": ["src/components/*"],
+			"@runtime": ["src/runtime/"],
+		}
+	},
+	"include": ["src", "test", "types", "examples", "types/index.d.ts"],
+}

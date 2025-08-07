@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: ⬇️ Checkout code
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm install
+
+      - name: 🧹 Lint code (biome)
+        run: npm run lint
+
+      - name: 🧪 Run tests with coverage
+        run: npm run test -- --coverage
+
+      - name: 🔎 Type check
+        run: npm run typecheck
+
+      - name: 🛠️ Build project (tsup)
+        run: npm run build
