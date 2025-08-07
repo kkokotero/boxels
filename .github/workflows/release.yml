@@ -15,11 +15,10 @@ jobs:
       - name: ⚙️ Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 18
-          cache: 'npm'
+          node-version: 20
 
       - name: 📥 Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: 🔢 Extract version from Git tag
         id: version
