@@ -98,11 +98,19 @@ Consulta la [guía de contribución](./CONTRIBUTING.md) para más detalles.
 
 ## Colaboradores
 
-Gracias a estas personas por hacer que Boxels sea posible:
+Agradecemos a todas las personas que han contribuido a Boxels:
 
-<a href="https://github.com/kkokotero/boxels/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=kkokotero/boxels" alt="Contributors" />
-</a>
+<table>
+  <tr>
+    <td align="center">
+      <a href="https://github.com/kkokotero">
+        <img src="https://github.com/kkokotero.png" width="100px;" alt="kkokotero"/>
+        <br />
+        <sub><b>kkokotero</b></sub>
+      </a>
+    </td>
+  </tr>
+</table>
 
 ¿Quieres aparecer aquí? ¡Envía tu PR!
 

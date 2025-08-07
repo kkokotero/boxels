@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import { signal } from '../../../src/core/reactive/signal';
-import { effect } from '../../../src/core/reactive/effect';
-import { flushNow } from '../../../src/testing/scheduler-test';
+import { signal } from '../../src/core/reactive/signal';
+import { effect } from '../../src/core/reactive/effect';
+import { flushNow } from '../../src/testing/scheduler-test';
 
 describe('Effect', () => {
 	describe('Ejecución inicial', () => {

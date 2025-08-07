@@ -1,0 +1,52 @@
+name: Update Contributors
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Ejecutar diariamente a medianoche
+  workflow_dispatch:  # Permite ejecutar manualmente
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/contributors/**'
+
+jobs:
+  update-contributors:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Contributors Section
+        run: |
+          # Obtener lista de contribuidores
+          contributors=$(gh api repos/${{ github.repository }}/contributors --jq 'map({login: .login, avatar_url: .avatar_url, html_url: .html_url})')
+          
+          # Inicio de la sección de contribuidores
+          content="## Colaboradores\n\nAgradecemos a todas las personas que han contribuido a Boxels:\n\n<table>\n  <tr>"
+          
+          # Procesar cada contribuidor
+          echo "$contributors" | jq -c '.[]' | while read -r contributor; do
+            login=$(echo "$contributor" | jq -r '.login')
+            avatar=$(echo "$contributor" | jq -r '.avatar_url')
+            profile=$(echo "$contributor" | jq -r '.html_url')
+            
+            content="$content\n    <td align=\"center\">\n      <a href=\"$profile\">\n        <img src=\"$avatar\" width=\"100px;\" alt=\"$login\"/>\n        <br />\n        <sub><b>$login</b></sub>\n      </a>\n    </td>"
+          done
+          
+          # Cerrar la tabla
+          content="$content\n  </tr>\n</table>\n\n¿Quieres aparecer aquí? ¡Envía tu PR!\n"
+          
+          # Reemplazar la sección en el README
+          sed -i "/^## Colaboradores/,/^## /c\\$content\n## " README.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Commit changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add README.md
+          git diff --quiet && git diff --staged --quiet || git commit -m "docs: actualiza lista de contribuidores"
+          git push

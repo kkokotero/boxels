@@ -4,7 +4,7 @@
 /**
  * Tipo que representa una tarea. Puede ser una función sincrónica o una que retorne una promesa.
  */
-export type Task = () => void | Promise<void>;
+export type Task = () => any | Promise<any>;
 
 /**
  * Estado interno del scheduler (planificador).

@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { signal } from '../../../src/core/reactive/signal';
-import { captureSignal } from '../../../src/testing/signal-test';
-import type { ReactiveSignal } from '../../../src/core/reactive/types';
-import { flushNow } from '../../../src/testing/scheduler-test';
+import { signal } from '../../src/core/reactive/signal';
+import { captureSignal } from '../../src/testing/signal-test';
+import type { ReactiveSignal } from '../../src/core/reactive/types';
+import { flushNow } from '../../src/testing/scheduler-test';
 
 describe('Signal', () => {
   describe('Creación y valor inicial', () => {

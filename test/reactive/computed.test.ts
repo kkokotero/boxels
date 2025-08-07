@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { signal } from '../../../src/core/reactive/signal';
-import { computed } from '../../../src/core/reactive/computed';
-import { captureSignal } from '../../../src/testing/signal-test';
-import { flushNow } from '../../../src/testing/scheduler-test';
+import { signal } from '../../src/core/reactive/signal';
+import { computed } from '../../src/core/reactive/computed';
+import { captureSignal } from '../../src/testing/signal-test';
+import { flushNow } from '../../src/testing/scheduler-test';
 
 describe('Computed', () => {
   describe('Cálculo inicial', () => {
