@@ -82,7 +82,6 @@
   },
   "files": [
     "dist/",
-    "misc/",
     "README.md",
     "LICENSE.txt",
     "CHANGELOG.md",
