@@ -2,10 +2,10 @@ name: Release & Publish
 
 on:
   release:
-    types: [created]
+    types: [created] # Al crear un nuevo release (con tag)
 
 permissions:
-  contents: write
+  contents: write  # Permitir hacer commits y push
 
 jobs:
   release:
@@ -28,7 +28,7 @@ jobs:
         id: version
         run: echo "RELEASE_VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
 
-      - name: 🧾 Configurar Git y hacer pull del branch
+      - name: 🧾 Configurar Git y hacer pull
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
@@ -45,7 +45,7 @@ jobs:
         run: |
           conventional-changelog -p angular -i CHANGELOG.md -s -r 0
 
-      - name: ✅ Commit y push de versión y changelog
+      - name: ✅ Commit y push de cambios
         run: |
           git add package.json CHANGELOG.md
           git commit -m "chore: release v${RELEASE_VERSION}" || echo "No hay cambios que commitear"
