@@ -5,7 +5,7 @@ on:
     types: [created]
 
 permissions:
-  contents: write  # Permitir commits y push con GITHUB_TOKEN
+  contents: write
 
 jobs:
   release:
@@ -28,6 +28,12 @@ jobs:
         id: version
         run: echo "RELEASE_VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
 
+      - name: 🧾 Configurar Git y hacer pull del branch
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git pull origin ${{ github.event.release.target_commitish }}
+
       - name: 📝 Actualizar package.json con nueva versión
         run: |
           node -e "let pkg = require('./package.json'); pkg.version = process.env.RELEASE_VERSION; require('fs').writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');"
@@ -41,9 +47,6 @@ jobs:
 
       - name: ✅ Commit y push de versión y changelog
         run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git pull --rebase origin ${{ github.event.release.target_commitish }}
           git add package.json CHANGELOG.md
           git commit -m "chore: release v${RELEASE_VERSION}" || echo "No hay cambios que commitear"
           git push origin HEAD:${{ github.event.release.target_commitish }}
