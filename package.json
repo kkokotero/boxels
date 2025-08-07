@@ -82,7 +82,7 @@
 		"dev": "vite serve",
 		"build": "tsup",
 		"clean": "rimraf dist",
-		"check": "biome check src --apply-unsafe",
+		"check": "biome check src",
 		"lint": "biome lint src",
 		"typecheck": "tsc --noEmit",
 		"test": "vitest run --coverage --reporter=verbose",
