@@ -2,10 +2,10 @@ name: Release & Publish
 
 on:
   release:
-    types: [created] # Se ejecuta para releases y pre-releases
+    types: [created]
 
 permissions:
-  contents: write  # Necesario para hacer commit y push
+  contents: write
 
 jobs:
   release:
@@ -15,7 +15,7 @@ jobs:
       - name: 📦 Checkout del código
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GH_PAT }} # Usa un token personal con permisos de escritura
+          token: ${{ secrets.GH_PAT }}
 
       - name: ⚙️ Configurar Node.js
         uses: actions/setup-node@v4
@@ -23,25 +23,33 @@ jobs:
           node-version: 20
           registry-url: 'https://registry.npmjs.org/'
 
-      - name: 📥 Instalar dependencias
+      - name: 📥 Instalar dependencias del proyecto
         run: npm install
 
-      - name: 🔢 Sincronizar versión con tag
+      - name: 🔢 Leer versión desde el tag
         id: version
         run: |
           echo "RELEASE_VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
 
-      - name: 📝 Actualizar versión en package.json
+      - name: 📝 Actualizar package.json con nueva versión
         run: |
           node -e "let pkg = require('./package.json'); pkg.version = process.env.RELEASE_VERSION; require('fs').writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');"
 
-      - name: ✅ Commit de nueva versión
+      - name: 🧪 Instalar conventional-changelog-cli
+        run: npm install -g conventional-changelog-cli
+
+      - name: 🧾 Generar o actualizar CHANGELOG.md
+        run: |
+          conventional-changelog -p angular -i CHANGELOG.md -s -r 0
+
+      - name: ✅ Commit y push de versión y changelog
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git add package.json
+          git pull --rebase origin ${{ github.event.release.target_commitish }}
+          git add package.json CHANGELOG.md
           git commit -m "chore: release v${RELEASE_VERSION}" || echo "No hay cambios que commitear"
           git push https://x-access-token:${GH_PAT}@github.com/${{ github.repository }} HEAD:${{ github.event.release.target_commitish }}
 

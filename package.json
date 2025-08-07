@@ -77,7 +77,11 @@
 		"dist/",
 		"misc/",
 		"README.md",
-		"LICENSE.txt"
+		"LICENSE.txt",
+		"CHANGELOG.md",
+		"CONTRIBUTING.md",
+		"CODE_OF_CONDUCT.md",
+		"SECURITY.md"
 	],
 	"scripts": {
 		"dev": "vite serve",
