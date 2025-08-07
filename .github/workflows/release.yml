@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: write
+  packages: write # necesario para publicar en GitHub Packages
 
 jobs:
   release:
@@ -15,7 +16,7 @@ jobs:
       - name: 📦 Checkout del código
         uses: actions/checkout@v4
 
-      - name: ⚙️ Configurar Node.js
+      - name: ⚙️ Configurar Node.js para NPM
         uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -54,4 +55,9 @@ jobs:
       - name: 🚀 Publicar en NPM
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --access public
+        run: npm publish --access public --registry=https://registry.npmjs.org/
+
+      - name: 🚀 Publicar en GitHub Packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm publish --registry=https://npm.pkg.github.com/

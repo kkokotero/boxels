@@ -17,8 +17,7 @@
     "lightweight"
   ],
   "publishConfig": {
-    "access": "public",
-    "registry": "https://npm.pkg.github.com"
+    "access": "public"
   },
   "license": "MIT",
   "homepage": "https://github.com/kkokotero/boxels#readme",
