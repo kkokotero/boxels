@@ -2,46 +2,47 @@ name: Release & Publish
 
 on:
   release:
-    types: [created] # se ejecuta para releases y pre-releases
+    types: [created] # Se ejecuta para releases y pre-releases
 
 jobs:
-  prepare:
+  release:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📦 Checkout code
+      - name: 📦 Checkout del código
         uses: actions/checkout@v4
 
-      - name: ⚙️ Setup Node
+      - name: ⚙️ Configurar Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          registry-url: 'https://registry.npmjs.org/'
 
-      - name: 📥 Install dependencies
+      - name: 📥 Instalar dependencias
         run: npm install
 
-      - name: 🔢 Extract version from Git tag
+      - name: 🔢 Sincronizar versión con tag
         id: version
         run: |
           echo "RELEASE_VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
 
-      - name: 📝 Update package.json version
+      - name: 📝 Actualizar versión en package.json
         run: |
           node -e "let pkg = require('./package.json'); pkg.version = process.env.RELEASE_VERSION; require('fs').writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');"
 
-      - name: ✅ Type check
+      - name: ✅ Verificar tipos
         run: npm run typecheck
 
-      - name: 🧹 Lint
+      - name: 🧹 Lint y autofix
         run: npm run lint
 
-      - name: 🧪 Test
-        run: npm run test -- --coverage
+      - name: 🧪 Ejecutar pruebas
+        run: npm run test
 
-      - name: 🛠️ Build
+      - name: 🛠️ Construir
         run: npm run build
 
-      - name: 🚀 Publish to npm
+      - name: 🚀 Publicar en NPM
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --access public

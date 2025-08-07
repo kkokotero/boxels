@@ -2,6 +2,7 @@
 	"name": "boxels",
 	"description": "Una librería frontend diseñada para desarrollar aplicaciones web modernas del lado del cliente.",
 	"type": "module",
+	"version": "0.0.1",
 	"private": false,
 	"publishConfig": {
 		"access": "public"
