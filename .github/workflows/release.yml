@@ -2,10 +2,10 @@ name: Release & Publish
 
 on:
   release:
-    types: [created] # Al crear un nuevo release (con tag)
+    types: [created]
 
 permissions:
-  contents: write  # Permitir hacer commits y push
+  contents: write
 
 jobs:
   release:
