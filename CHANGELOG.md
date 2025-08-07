@@ -1,9 +1,9 @@
-# [1.0.0](https://github.com/kkokotero/boxels/compare/52ce6c0356e835a3b87709d0f82a067dfeb67f5a...v1.0.0) (2025-08-07)
+## [1.0.1](https://github.com/kkokotero/boxels/compare/7fd5e7877e68132cf2e57c5f7b1d4035c6ec80ce...v1.0.1) (2025-08-07)
 
 
 ### Features
 
-* actualizar sección de colaboradores en README y agregar pruebas para reactive ([52ce6c0](https://github.com/kkokotero/boxels/commit/52ce6c0356e835a3b87709d0f82a067dfeb67f5a))
+* mejorar configuración de publicación en release.yml y package.json ([7fd5e78](https://github.com/kkokotero/boxels/commit/7fd5e7877e68132cf2e57c5f7b1d4035c6ec80ce))
 
 
 
