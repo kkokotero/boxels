@@ -5,7 +5,7 @@ on:
     types: [created]
 
 permissions:
-  contents: write
+  contents: write  # Permitir commit y push con GITHUB_TOKEN
 
 jobs:
   release:
@@ -15,7 +15,7 @@ jobs:
       - name: 📦 Checkout del código
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GH_PAT }}
+          token: ${{ secrets.GITHUB_TOKEN }} # Usamos el token automático
 
       - name: ⚙️ Configurar Node.js
         uses: actions/setup-node@v4
@@ -43,15 +43,13 @@ jobs:
           conventional-changelog -p angular -i CHANGELOG.md -s -r 0
 
       - name: ✅ Commit y push de versión y changelog
-        env:
-          GH_PAT: ${{ secrets.GH_PAT }}
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git pull --rebase origin ${{ github.event.release.target_commitish }}
           git add package.json CHANGELOG.md
           git commit -m "chore: release v${RELEASE_VERSION}" || echo "No hay cambios que commitear"
-          git push https://x-access-token:${GH_PAT}@github.com/${{ github.repository }} HEAD:${{ github.event.release.target_commitish }}
+          git push origin HEAD:${{ github.event.release.target_commitish }}
 
       - name: 🚀 Publicar en NPM
         env:
