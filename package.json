@@ -1,6 +1,6 @@
 {
 	"name": "boxels",
-	"description": "Una librería frontend diseñada para desarrollar aplicaciones web modernas del lado del cliente.",
+	"description": "Librería frontend moderna, ligera y sin dependencias, con sistema reactivo propio, JSX personalizado y ciclo de vida declarativo para construir SPAs eficientes.",
 	"type": "module",
 	"version": "0.0.1",
 	"private": false,
