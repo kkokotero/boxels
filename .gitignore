@@ -27,3 +27,8 @@ package-lock.json
 bun.lock
 
 .venv
+coverage
+*.coverage
+*.lcov
+*.nyc_output
+*.tsbuildinfo

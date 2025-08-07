@@ -10,6 +10,8 @@ jobs:
   build-and-test:
     name: Build & Test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: ⬇️ Checkout code
@@ -22,16 +24,20 @@ jobs:
           cache: 'npm'
 
       - name: 📦 Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: 🧹 Lint code (biome)
         run: npm run lint
 
       - name: 🧪 Run tests with coverage
-        run: npm run test -- --coverage
+        run: npm run test
 
       - name: 🔎 Type check
         run: npm run typecheck
 
       - name: 🛠️ Build project (tsup)
         run: npm run build
+
+      - name: ✅ Biome check (unsafe apply)
+        run: npm run check
+        continue-on-error: true  # solo muestra sugerencias, no falla
