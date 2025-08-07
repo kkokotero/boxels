@@ -20,11 +20,6 @@
   "module": "./dist/src/index.js",
   "types": "./dist/types/index.d.ts",
   "exports": {
-    ".": {
-      "import": "./dist/src/index.js",
-      "require": "./dist/src/index.js",
-      "types": "./dist/src/index.d.ts"
-    },
     "./components": {
       "import": "./dist/src/components/index.js",
       "require": "./dist/src/components/index.js",
