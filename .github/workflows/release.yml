@@ -4,6 +4,9 @@ on:
   release:
     types: [created] # Se ejecuta para releases y pre-releases
 
+permissions:
+  contents: write  # Necesario para hacer commit y push
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -12,7 +15,7 @@ jobs:
       - name: 📦 Checkout del código
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }} # Necesario para hacer push
+          token: ${{ secrets.GH_PAT }} # Usa un token personal con permisos de escritura
 
       - name: ⚙️ Configurar Node.js
         uses: actions/setup-node@v4
@@ -33,11 +36,14 @@ jobs:
           node -e "let pkg = require('./package.json'); pkg.version = process.env.RELEASE_VERSION; require('fs').writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');"
 
       - name: ✅ Commit de nueva versión
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git commit -am "chore: release v${RELEASE_VERSION}"
-          git push origin HEAD:${{ github.event.release.target_commitish }}
+          git add package.json
+          git commit -m "chore: release v${RELEASE_VERSION}" || echo "No hay cambios que commitear"
+          git push https://x-access-token:${GH_PAT}@github.com/${{ github.repository }} HEAD:${{ github.event.release.target_commitish }}
 
       - name: 🚀 Publicar en NPM
         env:
