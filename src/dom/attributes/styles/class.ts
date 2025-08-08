@@ -23,6 +23,8 @@ type ClassValue =
  */
 type ClassMap = Record<string, ClassValue>;
 
+type CssModule = { readonly [key: string]: string | CssModule };
+
 /**
  * Tipos válidos para definir clases en un elemento.
  * - string: "a b c"
@@ -30,7 +32,7 @@ type ClassMap = Record<string, ClassValue>;
  * - ClassMap: { clase: condición }
  * - null / undefined: no se aplica nada
  */
-export type ClassAttr = string | string[] | ClassMap | null | undefined;
+export type ClassAttr = string | string[] | ClassMap | CssModule | null | undefined;
 
 /**
  * Aplica clases estáticas o reactivas a un elemento DOM.
@@ -82,7 +84,7 @@ export function handleClassAttribute(
 			else if (isSignal(condition)) {
 				// Suscribe al cambio de la señal
 				const unsubscribe = condition.subscribe((active) => {
-					element.classList.toggle(className, active);
+					element.classList.toggle(className, active as boolean);
 				});
 				cleanups.push(unsubscribe); // Guarda la función de limpieza
 			}
@@ -95,7 +97,7 @@ export function handleClassAttribute(
 				// Separa señales y evalúa booleanos estáticos
 				for (const item of condition) {
 					if (isSignal(item)) {
-						signals.push(item);
+						signals.push(item as ReactiveSignal<any>);
 					} else if (!item) {
 						staticAllTrue = false; // Si hay un false estático, marca como falso
 					}
