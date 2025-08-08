@@ -1,4 +1,4 @@
-type CssModule = { readonly [key: string]: string | CssModule };
+type CssModule = Record<string, any>;
 
 declare module '*.scss' {
 	const classes: CssModule;
