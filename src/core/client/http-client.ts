@@ -164,13 +164,37 @@ export async function httpClient<T = any, TBody = unknown>(
 					}
 				}
 
-				const merged = new Uint8Array(received);
-				let pos = 0;
+				const totalSize = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+				const merged = new Uint8Array(totalSize);
+				let offset = 0;
 				for (const chunk of chunks) {
-					merged.set(chunk, pos);
-					pos += chunk.length;
+					merged.set(chunk, offset);
+					offset += chunk.length;
 				}
-				rawData = new TextDecoder().decode(merged);
+
+				// Manejo según responseType
+				switch (responseType) {
+					case 'blob':
+						rawData = new Blob([merged], { type: contentType });
+						break;
+					case 'arrayBuffer':
+						rawData = merged.buffer;
+						break;
+					case 'text':
+						rawData = new TextDecoder().decode(merged);
+						break;
+					case 'json': {
+						const text = new TextDecoder().decode(merged);
+						rawData =
+							contentType.includes('application/json') && text
+								? JSON.parse(text)
+								: text;
+						break;
+					}
+					default:
+						rawData = merged;
+						break;
+				}
 			} else {
 				// Modo normal de lectura según tipo esperado
 				switch (responseType) {

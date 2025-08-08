@@ -22,29 +22,6 @@ Aquí tienes el fragmento que puedes insertar justo después de la sección prin
 
 ---
 
-### 🚀 CLI Oficial Disponible
-
-Para mejorar la experiencia de desarrollo con Boxels, puedes usar la [**CLI oficial**](https://www.npmjs.com/package/boxels-config) con el comando `box`.
-
-Te permite:
-
-* Crear nuevos proyectos Boxels
-* Servir y compilar tu aplicación con Vite
-* Ejecutar pruebas con entorno DOM incluido
-* Usar configuraciones simplificadas para producción y desarrollo
-
-```bash
-npm install -g boxels-config
-```
-
-> Una vez instalada, puedes ejecutar `box --help` para ver los comandos disponibles.
-
----
-
-Y aquí está el **README completo** con el mensaje ya integrado, colocado justo antes de la "Tabla de Contenidos":
-
----
-
 ### CLI Oficial Disponible
 
 Para mejorar la experiencia de desarrollo con Boxels, puedes usar la [**CLI oficial**](https://www.npmjs.com/package/boxels-config) con el comando `box`.
@@ -63,6 +40,28 @@ npm install -g boxels-config
 > Una vez instalada, puedes ejecutar `box --help` para ver los comandos disponibles.
 
 ---
+
+### Soporte Multiplataforma
+
+Boxels incluye soporte para desarrollar aplicaciones multiplataforma mediante un módulo especial ubicado en [`boxels/multiplatform`](./src/multiplatform).
+
+Este módulo proporciona wrappers y extensiones para funcionalidades nativas en:
+
+* **Web**
+* **Ionic (Capacitor)**
+* **Electron**
+
+Todas las plataformas comparten la misma semántica y API base. El sistema selecciona automáticamente la implementación adecuada en tiempo de ejecución.
+
+Algunas funcionalidades incluidas:
+
+* Acceso a cámara (`useCamera`)
+* Almacenamiento clave-valor (`store`)
+* Cliente HTTP con cancelación y transformaciones (`httpClient`)
+* Notificaciones nativas (`notifier`)
+
+> El módulo `multiplatform` está diseñado para ser extensible y respetar la filosofía de bajo acoplamiento de Boxels.
+
 
 ## Tabla de Contenidos
 
