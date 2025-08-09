@@ -90,7 +90,7 @@ async function resolveRoute(
 			fullPath = normalizePath(basePath + route.path);
 		} else {
 			// Ruta hija relativa, concatenación normal con '/'
-			fullPath = normalizePath(basePath + '/' + route.path);
+			fullPath = normalizePath(`${basePath}/${route.path}`);
 		}
 
 		const match = matchRoute(fullPath, url);
@@ -114,18 +114,19 @@ async function resolveRoute(
  * Evalúa las funciones de guardia de una ruta.
  * Si alguna retorna `false`, se deniega el acceso.
  */
-async function evaluateGuards(guards: RouteGuard[] = []): Promise<boolean> {
-	try {
-		for (const guard of guards) {
-			if (!(await guard())) return false;
-		}
-		return true;
-	} catch (err) {
-		console.error('Guard Error:', err);
-		return false;
-	}
-}
+type GuardResult = true | false | { redirect: `/${string}` };
 
+async function evaluateGuards(guards: RouteGuard[] = []): Promise<GuardResult> {
+	for (const guard of guards) {
+		const result = await guard();
+
+		// Si no es true, se considera bloqueo o redirección
+		if (result !== true) {
+			return result ?? false; // null/undefined se interpretan como false
+		}
+	}
+	return true;
+}
 /**
  * Realiza scroll al inicio de la página si la configuración lo permite.
  */
@@ -202,10 +203,10 @@ export function RouterOutlet({ config }: { config: RouterConfig }) {
 
 		// Ruta no encontrada (404).
 		if (!match) {
-			const notFound = $('b', {}, '404 - Not Found: ', url);
+			const notFound = $('b', {}, '404 - No encontrado: ', url);
 			notFound.mount(end);
 			disposers.push(notFound.destroy);
-			setTitle('Not Found');
+			setTitle('No encontrado');
 			return;
 		}
 
@@ -216,12 +217,16 @@ export function RouterOutlet({ config }: { config: RouterConfig }) {
 		// Evaluación de guardias (403 si falla).
 		if (route.guards?.length) {
 			const access = await evaluateGuards(route.guards);
-			if (!access) {
-				const forbidden = $('b', {}, '403 - Forbidden: ', url);
-				forbidden.mount(end);
-				disposers.push(forbidden.destroy);
-				setTitle('Forbidden');
-				return;
+			if (access !== true) {
+				if (typeof access === 'object' && access.redirect) {
+					router.navigate(access.redirect);
+					return;
+				}
+					const forbidden = $('b', {}, '403 - Prohibido: ', url);
+					forbidden.mount(end);
+					disposers.push(forbidden.destroy);
+					setTitle('Prohibido');
+					return;
 			}
 		}
 
@@ -241,14 +246,14 @@ export function RouterOutlet({ config }: { config: RouterConfig }) {
 			} else if (route.component) {
 				component = await route.component();
 			} else {
-				throw new Error(`Route "${route.path}" has no component.`);
+				throw new Error(`La ruta "${route.path}" no tiene un componente.`);
 			}
 
 			(component as BoxelsElement).mount(end);
 			disposers.push((component as BoxelsElement).destroy);
 			scrollToTop();
 		} catch (err) {
-			console.error('Component Error:', err);
+			console.error('Error:', err);
 			const errorEl = $('b', {}, 'Error: ', (err as Error).message);
 			errorEl.mount(end);
 			disposers.push(errorEl.destroy);
