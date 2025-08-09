@@ -174,11 +174,6 @@ export class Router {
 		window.history.back();
 	}
 
-	// Recarga la página actual
-	public reload() {
-		window.location.reload();
-	}
-
 	// Avanza en el historial
 	public forward() {
 		window.history.forward();
