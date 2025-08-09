@@ -1,19 +1,29 @@
 // Importación de funciones y tipos esenciales del sistema de enrutamiento central.
 import {
-	setGlobalRouter,      // Establece la configuración global del enrutador.
-	router,               // Objeto reactivo que mantiene la URL y otros datos del enrutador.
-	interceptLinks,       // Intercepta clics en enlaces para navegación SPA.
-	attachBrowserEvents,  // Escucha eventos del navegador como popstate.
-	type Route,           // Tipo de ruta.
-	type RouteGuard,      // Tipo para las guardas de rutas.
-	type RouterConfig,    // Tipo para la configuración del enrutador.
+	setGlobalRouter, // Establece la configuración global del enrutador.
+	router, // Objeto reactivo que mantiene la URL y otros datos del enrutador.
+	interceptLinks, // Intercepta clics en enlaces para navegación SPA.
+	attachBrowserEvents, // Escucha eventos del navegador como popstate.
+	type Route, // Tipo de ruta.
+	type RouteGuard, // Tipo para las guardas de rutas.
+	type RouterConfig, // Tipo para la configuración del enrutador.
 } from '@core/router';
 
 import { $, type BoxelsElement } from '@dom/index'; // Utilidades DOM para crear y montar elementos.
-import { effect } from '@core/reactive';             // Sistema reactivo para responder a cambios en señales.
+import { effect } from '@core/reactive'; // Sistema reactivo para responder a cambios en señales.
 
-// Caché de rutas resueltas, útil para mejorar el rendimiento al evitar resolver rutas repetidas.
-const routeCache = new Map<string, { route: Route; params: Record<string, string> }>();
+// Caché de rutas resueltas para mejorar rendimiento.
+const routeCache = new Map<
+	string,
+	{ route: Route; params: Record<string, string> }
+>();
+
+/**
+ * Normaliza un path asegurando que empiece con '/' y no tenga barras dobles.
+ */
+function normalizePath(path: string): string {
+	return ('/' + path).replace(/\/+/g, '/');
+}
 
 /**
  * Realiza el *matching* entre una ruta patrón (`/user/:id`) y una ruta actual (`/user/42`).
@@ -52,31 +62,47 @@ function matchRoute(pattern: string, actual: string) {
  */
 async function loadChildren(route: Route): Promise<Route[]> {
 	return typeof route.children === 'function'
-		? (await route.children())()
+		? await route.children()
 		: route.children || [];
 }
 
 /**
  * Resuelve una ruta dada una lista de rutas y una URL actual.
- * Puede usar caché si está habilitada.
+ * Busca recursivamente en rutas hijas concatenando paths,
+ * interpretando las rutas hijas que empiezan con '/' como relativas al padre.
  */
 async function resolveRoute(
 	routes: Route[],
 	url: string,
 	useCache: boolean,
+	basePath = '',
 ): Promise<{ route: Route; params: Record<string, string> } | null> {
 	if (useCache && routeCache.has(url)) return routeCache.get(url)!;
 
 	for (const route of routes) {
-		const match = matchRoute(route.path, url);
+		let fullPath = '';
+
+		if (route.path === '/') {
+			// Ruta hija igual a '/', significa la misma ruta padre.
+			fullPath = normalizePath(basePath);
+		} else if (route.path.startsWith('/')) {
+			// Ruta hija que comienza con '/', la concatenamos como relativa al padre.
+			fullPath = normalizePath(basePath + route.path);
+		} else {
+			// Ruta hija relativa, concatenación normal con '/'
+			fullPath = normalizePath(basePath + '/' + route.path);
+		}
+
+		const match = matchRoute(fullPath, url);
 		if (match.matched) {
 			const result = { route, params: match.params };
 			if (useCache) routeCache.set(url, result);
 			return result;
 		}
+
 		if (route.children) {
 			const children = await loadChildren(route);
-			const nested = await resolveRoute(children, url, useCache);
+			const nested = await resolveRoute(children, url, useCache, fullPath);
 			if (nested) return nested;
 		}
 	}
@@ -91,7 +117,7 @@ async function resolveRoute(
 async function evaluateGuards(guards: RouteGuard[] = []): Promise<boolean> {
 	try {
 		for (const guard of guards) {
-			if (!await guard()) return false;
+			if (!(await guard())) return false;
 		}
 		return true;
 	} catch (err) {
@@ -151,7 +177,7 @@ export function RouterOutlet({ config }: { config: RouterConfig }) {
 	// Crea marcadores DOM donde se insertará el componente de la ruta.
 	const { start, end } = createPlaceholder();
 	let initialized = false;
-	let activeId = 0;                // ID para evitar condiciones de carrera en navegaciones asincrónicas.
+	let activeId = 0; // ID para evitar condiciones de carrera en navegaciones asincrónicas.
 	let disposers: (() => void)[] = []; // Funciones para desmontar el contenido anterior.
 
 	/**

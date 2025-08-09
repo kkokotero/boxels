@@ -36,7 +36,7 @@ export interface Route {
 	guards?: RouteGuard[]; // Arreglo de guardas de navegación
 	title?: string | (() => string) | ReactiveSignal<string>; // Título dinámico o reactivo
 
-	children?: Route[] | (() => Promise<() => Route[]>); // Rutas hijas o anidadas
+	children?: Route[] | (() => Promise<Route[]>); // Rutas hijas o anidadas
 }
 
 // Configuración global del router
@@ -66,7 +66,34 @@ export class Router {
 		this._urlValue =
 			window.location.pathname + window.location.search + window.location.hash;
 
+		// Normaliza todas las rutas (padres e hijas) para que empiecen con '/'
+		if (this.routerConfig.routes) {
+			this.routerConfig.routes = this.routerConfig.routes.map(
+				this.normalizeRoute.bind(this),
+			);
+		}
+
 		// NOTA: No creamos signal() en el constructor para ahorrar recursos.
+	}
+
+	/** Asegura que la ruta siempre empiece con '/' y no tenga barras dobles */
+	private normalizePath(path: string): string {
+		return ('/' + path).replace(/\/+/g, '/');
+	}
+
+	/** Normaliza una ruta y sus rutas hijas recursivamente */
+	private normalizeRoute(route: Route): Route {
+		route.path = this.normalizePath(route.path) as '/';
+
+		if (route.children) {
+			if (typeof route.children === 'function') {
+				// No se puede normalizar rutas hijas asíncronas aquí sin ejecutarlas,
+				// asumimos que el desarrollador las proveerá bien (o se podría mejorar)
+			} else if (Array.isArray(route.children)) {
+				route.children = route.children.map(this.normalizeRoute.bind(this));
+			}
+		}
+		return route;
 	}
 
 	// --- Getters lazy para compatibilidad: crean la señal sólo cuando se accede ---
@@ -207,36 +234,47 @@ export class Router {
 		};
 
 		// Usa transiciones si están disponibles
-		if (this.routerConfig?.useViewTransitions && (document as any).startViewTransition) {
+		if (
+			this.routerConfig?.useViewTransitions &&
+			(document as any).startViewTransition
+		) {
 			(document as any).startViewTransition(apply);
 		} else {
 			apply();
 		}
 	}
 
-	// Busca una coincidencia de ruta de forma recursiva
+	/**
+	 * Busca una coincidencia de ruta de forma recursiva.
+	 * Ahora maneja rutas hijas correctamente con paths absolutos
+	 */
 	private async matchRoute(
 		pathname: string,
 		basePath = '',
+		routes: Route[] = this.routerConfig?.routes || [],
 	): Promise<{ route: Route; params: {} } | null> {
-		for (const route of this.routerConfig?.routes || []) {
-			let fullPath = basePath + route.path;
+		for (const route of routes) {
+			const fullPath = this.normalizePath(basePath + route.path);
 
+			// Coincidencia exacta
 			if (fullPath === pathname) {
 				return { route, params: {} };
 			}
 
-			// Busca en rutas hijas si existen
+			// Coincidencia comodín
+			if ((route.path as string) === '**') {
+				return { route, params: {} };
+			}
+
+			// Buscar en hijos recursivamente
 			if (route.children) {
 				const children =
 					typeof route.children === 'function'
-						? await (await route.children())()
+						? await route.children()
 						: route.children;
 
-				for (const childRoute of children) {
-					const match = await this.matchRoute(pathname, fullPath);
-					if (match) return match;
-				}
+				const match = await this.matchRoute(pathname, fullPath, children);
+				if (match) return match;
 			}
 		}
 		return null;
@@ -287,13 +325,21 @@ export function attachBrowserEvents() {
 	// Cambios de historial (back, forward)
 	window.addEventListener('popstate', () => {
 		// usamos changeUrl con replace=true para reflectar la URL actual
-		router.changeUrl(window.location.pathname + window.location.search + window.location.hash, true);
+		router.changeUrl(
+			window.location.pathname + window.location.search + window.location.hash,
+			true,
+		);
 	});
 
 	// Cambios en el hash si se configuró
 	if (router.routerConfig?.trackHashChanges) {
 		window.addEventListener('hashchange', () => {
-			router.changeUrl(window.location.pathname + window.location.search + window.location.hash, true);
+			router.changeUrl(
+				window.location.pathname +
+					window.location.search +
+					window.location.hash,
+				true,
+			);
 		});
 	}
 

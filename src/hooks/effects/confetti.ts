@@ -1,8 +1,5 @@
 import type { Hook } from '@hooks/hook';
 
-// Tipo auxiliar para permitir alias numérico
-type Numeric = number;
-
 /**
  * Opciones configurables para el sistema de confetti
  */
