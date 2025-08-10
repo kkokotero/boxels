@@ -222,11 +222,11 @@ export function RouterOutlet({ config }: { config: RouterConfig }) {
 					router.navigate(access.redirect);
 					return;
 				}
-					const forbidden = $('b', {}, '403 - Prohibido: ', url);
-					forbidden.mount(end);
-					disposers.push(forbidden.destroy);
-					setTitle('Prohibido');
-					return;
+				const forbidden = $('b', {}, '403 - Prohibido: ', url);
+				forbidden.mount(end);
+				disposers.push(forbidden.destroy);
+				setTitle('Prohibido');
+				return;
 			}
 		}
 
