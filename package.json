@@ -144,7 +144,6 @@
     "@capacitor/local-notifications": "^7.0.2",
     "@capacitor/preferences": "^7.0.2",
     "electron": "^37.2.6",
-    "electron-store": "^10.1.0",
     "dexie": "^4.0.11"
   }
 }
