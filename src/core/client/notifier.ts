@@ -74,7 +74,7 @@ export interface NotifyOptions extends NotificationOptions {
  * @param options Opciones enriquecidas para la notificación.
  * @returns La instancia de `Notification` creada o `undefined` si no se pudo mostrar.
  */
-export async function notify(options: NotifyOptions) {
+export async function notify(options: NotifyOptions): Promise<void> {
 	// 1. Verificar compatibilidad con la API de notificaciones
 	if (!('Notification' in window)) {
 		console.warn('Las notificaciones no están soportadas en este navegador.');
@@ -145,6 +145,4 @@ export async function notify(options: NotifyOptions) {
 	if (timeout && timeout > 0) {
 		setTimeout(() => notification.close(), timeout);
 	}
-
-	return notification;
 }

@@ -21,7 +21,7 @@ import type { NotifyOptions } from '@core/client/notifier';
  * @param options Opciones enriquecidas para la notificación.
  * @returns La instancia de `Notification` creada o `undefined` si no fue posible mostrarla.
  */
-export async function notify(options: NotifyOptions): Promise<Notification | undefined> {
+export async function notify(options: NotifyOptions): Promise<void> {
 	// 1. Verificar compatibilidad con Notification en Electron
 	if (typeof Notification === 'undefined') {
 		console.warn('Las notificaciones no están soportadas en este contexto de Electron.');
@@ -80,6 +80,4 @@ export async function notify(options: NotifyOptions): Promise<Notification | und
 	if (timeout && timeout > 0) {
 		setTimeout(() => electronNotification.close(), timeout);
 	}
-
-	return electronNotification;
 }
