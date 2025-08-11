@@ -6,7 +6,8 @@ import {
 	attachBrowserEvents, // Escucha eventos del navegador como popstate.
 	type Route, // Tipo de ruta.
 	type RouteGuard, // Tipo para las guardas de rutas.
-	type RouterConfig, // Tipo para la configuración del enrutador.
+	type RouterConfig,
+	type GuardResult, // Tipo para la configuración del enrutador.
 } from '@core/router';
 
 import { $, type BoxelsElement } from '@dom/index'; // Utilidades DOM para crear y montar elementos.
@@ -22,7 +23,7 @@ const routeCache = new Map<
  * Normaliza un path asegurando que empiece con '/' y no tenga barras dobles.
  */
 function normalizePath(path: string): string {
-	return ('/' + path).replace(/\/+/g, '/');
+	return (`/${path}`).replace(/\/+/g, '/');
 }
 
 /**
@@ -114,7 +115,6 @@ async function resolveRoute(
  * Evalúa las funciones de guardia de una ruta.
  * Si alguna retorna `false`, se deniega el acceso.
  */
-type GuardResult = true | false | { redirect: `/${string}` };
 
 async function evaluateGuards(guards: RouteGuard[] = []): Promise<GuardResult> {
 	for (const guard of guards) {
@@ -222,7 +222,15 @@ export function RouterOutlet({ config }: { config: RouterConfig }) {
 					router.navigate(access.redirect);
 					return;
 				}
-				const forbidden = $('b', {}, '403 - Prohibido: ', url);
+				const forbidden = $(
+					'b',
+					{},
+					'403 - Prohibido: ',
+					url,
+					typeof access === 'object' && access.message
+						? [$('br', {}), access.message]
+						: '',
+				);
 				forbidden.mount(end);
 				disposers.push(forbidden.destroy);
 				setTitle('Prohibido');

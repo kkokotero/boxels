@@ -10,7 +10,7 @@ export type PathSegment = StaticSegment | ParamSegment | WildcardSegment;
 // Tipo para una ruta base, que comienza con '/'
 export type Path = `/${PathSegment}`;
 
-type GuardResult = boolean | { redirect: Path }
+export type GuardResult = boolean | { redirect?: Path, message?: string };
 
 // Guardas que permiten bloquear o permitir navegación condicional
 export type RouteGuard = () => GuardResult | Promise<GuardResult>;
