@@ -7,8 +7,27 @@ import {
 	isBoxelsElement,
 	normalizeChildren,
 } from './attributes/elements';
+import { createSvg } from './svg';
 
 export const Fragment: unique symbol = Symbol('Boxles-Fragment');
+
+const svgTags = new Set([
+	'svg',
+	'circle',
+	'ellipse',
+	'line',
+	'path',
+	'polygon',
+	'polyline',
+	'rect',
+	'text',
+	'g',
+	'defs',
+	'linearGradient',
+	'stop',
+	'use',
+	'symbol',
+]);
 
 // Tipos para detectar componentes
 export type FunctionalComponent = (props?: any) => any;
@@ -60,6 +79,8 @@ export function $<T extends keyof HTMLElementTagNameMap>(
 		return $(Fragment, {}, nodes);
 	} else if (typeof selector === 'function') {
 		return selector(props);
+	} else if (typeof selector === 'string' && svgTags.has(selector)) {
+		return createSvg(selector, props, children);
 	} else if (typeof selector === 'string') {
 		node = document.createElement(selector);
 	} else {
@@ -149,7 +170,7 @@ export function $<T extends keyof HTMLElementTagNameMap>(
 }
 
 export function append(
-	parent: HTMLElement | DocumentFragment | Comment | BoxelsElement,
+	parent: HTMLElement | DocumentFragment | Comment | BoxelsElement | SVGElement,
 	child: any,
 ) {
 	if (parent instanceof Comment) {
@@ -159,6 +180,13 @@ export function append(
 		);
 		return;
 	}
+
+	if (parent instanceof SVGElement) {
+		console.log(child)
+		parent.appendChild(child);
+		return;
+	}
+
 	// 🔧 Verifica si tiene la forma de un BoxelsElement, aunque sea un HTMLElement
 	if (isBoxelsElement(child)) {
 		if (!child.__mounted && !child.__destroyed) child.mount(parent);

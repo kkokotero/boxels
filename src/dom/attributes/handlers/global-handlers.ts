@@ -117,6 +117,38 @@ interface standartAttrs<T extends keyof HTMLElementTagNameMap>
 	[key: string]: any;
 }
 
+export type SVGAttributes = Partial<{
+  // Atributos comunes SVG
+  xmlns: string;
+  fill: string;
+  stroke: string;
+  'stroke-width': string | number;
+  viewBox: string;
+  width: string | number;
+  height: string | number;
+  class: string;
+  
+  // Atributos de formas SVG
+  cx: string | number;
+  cy: string | number;
+  r: string | number;
+  x: string | number;
+  y: string | number;
+  d: string;
+  points: string;
+  transform: string;
+  // etc.
+
+  // Accesibilidad
+  role: string;
+  'aria-label': string;
+  'aria-hidden': boolean | 'true' | 'false';
+
+  // Children usualmente es JSX.Element o similar
+  children?: JSX.Element | JSX.Element[] | string;
+}>;
+
+
 /**
  * Declaraciones globales necesarias para extender el sistema de tipos de JSX
  * y soportar atributos específicos por tipo de etiqueta.
@@ -131,6 +163,9 @@ declare global {
 		button: {
 			type?: 'button' | 'submit' | 'reset';
 		};
+
+		svg: SVGAttributes;
+		circle: SVGAttributes;
 
 		// Fragment también puede tener eventos del ciclo de vida
 		Fragment: LifecycleEventHandlers<'div'> & {};

@@ -4,7 +4,7 @@ import type {
 	JSXBoxelsELementAttrs,
 	JSXBoxelsElement,
 } from '../src/dom/attributes/elements/index';
-import type { BoxelsELementNodeAttributes } from '../src/dom/attributes/handlers/global-handlers';
+import type { BoxelsELementNodeAttributes, SVGAttributes } from '../src/dom/attributes/handlers/global-handlers';
 import "./styles.d"
 
 // ------------------------
@@ -22,7 +22,11 @@ declare global {
 			[K in keyof HTMLElementTagNameMap]: JSXBoxelsELementAttrs<K>;
 		};
 
-		interface IntrinsicElements extends Elements {}
+		interface IntrinsicElements extends Elements {
+			svg: SVGAttributes;
+			path: SVGAttributes;
+			circle: SVGAttributes;
+		}
 
 		/** Tipo de elemento JSX */
 		interface Element extends JSXBoxelsElement {}
