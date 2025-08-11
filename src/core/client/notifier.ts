@@ -1,56 +1,150 @@
 /**
- * Opciones para mostrar una notificación en el navegador.
+ * Opciones enriquecidas para mostrar una notificación en el navegador.
+ *
+ * Esta interfaz extiende la API nativa de `Notification` (mediante `NotificationOptions`)
+ * y agrega propiedades adicionales para mejorar la experiencia del usuario:
+ * - **Control de sonido** al mostrar la notificación.
+ * - **Duración personalizada** (timeout) antes de cerrarse.
+ * - **Compatibilidad con banners** o imágenes grandes.
+ * - **Callbacks** para manejar eventos de click y cierre.
+ * 
+ * Esto permite crear notificaciones más interactivas y adaptadas al contexto de la aplicación.
  */
-export interface NotifyOptions {
-	/** Título principal de la notificación (obligatorio). */
+export interface NotifyOptions extends NotificationOptions {
+	/** Título visible en la notificación (obligatorio). */
 	title: string;
-	/** Texto adicional que se mostrará en el cuerpo de la notificación (opcional). */
+
+	/** Texto principal que acompaña al título en la notificación. */
 	body?: string;
-	/** URL o ruta de un ícono para mostrar junto a la notificación (opcional). */
-	icon?: string;
+
+	/** URL de un ícono pequeño que se muestra junto al título. */
+	badge?: string;
+
+	/** URL de un sonido que se reproducirá al mostrarse la notificación. */
+	sound?: string;
+
 	/**
-	 * Programación opcional de la notificación.
-	 * Permite definir una fecha/hora específica para mostrarla.
-	 * (En esta implementación, la programación no se maneja automáticamente;
-	 * se debería implementar aparte si se quiere usar).
+	 * Tiempo en milisegundos antes de cerrar automáticamente la notificación.
+	 * 
+	 * - `> 0` → Se cierra automáticamente pasado ese tiempo.
+	 * - `0` o `undefined` → La notificación será persistente hasta que el usuario la cierre.
 	 */
-	schedule?: {
-		at: Date;
-	};
+	timeout?: number;
+
+	/**
+	 * Función opcional que se ejecuta cuando el usuario hace click en la notificación.
+	 * @param event Evento `click` de la notificación.
+	 * @param notification Instancia de la notificación clicada.
+	 */
+	click?: (event: Event, notification: Notification) => void;
+
+	/**
+	 * Función opcional que se ejecuta cuando el usuario cierra la notificación.
+	 * @param event Evento `close` de la notificación.
+	 * @param notification Instancia de la notificación cerrada.
+	 */
+	close?: (event: Event, notification: Notification) => void;
+
+	/** URL de una imagen grande para enriquecer el contenido visual (banner). */
+	banner?: string;
+
+	/** URL del ícono que se mostrará en la notificación. */
+	icon?: string;
+
+	/** Datos adicionales que se pueden asociar a la notificación para su posterior uso. */
+	data?: Record<string, any>;
 }
 
 /**
- * Muestra una notificación en el navegador utilizando la API `Notification`.
+ * Muestra una notificación enriquecida en el navegador usando la API nativa `Notification`.
  *
- * @param options - Configuración de la notificación (título, cuerpo, icono y programación).
- * @returns Una promesa que se resuelve cuando la notificación es mostrada o el permiso es denegado.
+ * ### Flujo de ejecución:
+ * 1. **Compatibilidad:** Comprueba si `Notification` está disponible en el navegador.
+ * 2. **Permisos:** Solicita al usuario permiso para mostrar notificaciones.
+ * 3. **Configuración:** 
+ *    - Separa las opciones personalizadas (`sound`, `timeout`, `banner`, `click`, `close`, `title`)
+ *      de las opciones nativas (`NotificationOptions`).
+ *    - Si `banner` está definido, lo asigna como `image` (o `icon` si no es soportado).
+ * 4. **Creación:** Instancia un nuevo `Notification` con el título y opciones configuradas.
+ * 5. **Extras:**
+ *    - Reproduce el sonido si `sound` está definido.
+ *    - Registra listeners para `click` y `close` si se especifican callbacks.
+ *    - Configura el cierre automático si `timeout` es mayor que 0.
  *
- * @remarks
- * - Si el navegador no soporta la API de notificaciones, se mostrará una advertencia en consola.
- * - Si el permiso no está otorgado, se solicitará al usuario.
- * - Esta función no implementa directamente la programación (`schedule.at`), 
- *   pero se deja en las opciones para integraciones futuras.
+ * @param options Opciones enriquecidas para la notificación.
+ * @returns La instancia de `Notification` creada o `undefined` si no se pudo mostrar.
  */
-export async function notify(
-	options: NotifyOptions,
-): Promise<void> {
-	// Verificar si el navegador soporta la API de notificaciones.
+export async function notify(options: NotifyOptions) {
+	// 1. Verificar compatibilidad con la API de notificaciones
 	if (!('Notification' in window)) {
-		console.warn('Notificaciones no soportadas.');
+		console.warn('Las notificaciones no están soportadas en este navegador.');
 		return;
 	}
 
-	// Verificar o solicitar permiso al usuario para mostrar notificaciones.
-	const permission =
-		Notification.permission === 'granted'
-			? 'granted'
-			: await Notification.requestPermission();
+	// 2. Solicitar permiso al usuario
+	const permission = await Notification.requestPermission();
 
-	// Si el permiso fue otorgado, crear y mostrar la notificación.
-	if (permission === 'granted') {
-		new Notification(options.title, options);
-	} else {
-		// Si el permiso fue denegado o no concedido, mostrar advertencia.
-		console.warn('Permiso de notificación denegado.');
+	if (permission === 'denied') {
+		console.warn('El usuario bloqueó las notificaciones.');
+		return;
 	}
+	if (permission === 'default') {
+		console.warn('El usuario no aceptó las notificaciones.');
+		return;
+	}
+
+	// 3. Extraer propiedades personalizadas y separar las nativas
+	const {
+		sound,
+		timeout,
+		banner,
+		click,
+		close,
+		title,
+		icon,
+		data,
+		body,
+		badge,
+		...nativeOptions
+	} = options;
+
+	// Si se especifica un banner, asignarlo como imagen (no estándar pero soportado en algunos navegadores)
+	if (banner) {
+		(nativeOptions as NotificationOptions & { image?: string }).image = banner;
+	}
+
+	// 4. Crear la notificación con el título y opciones nativas
+	const notification = new Notification(title, {
+		...nativeOptions,
+		icon,
+		data,
+		body,
+		badge,
+	});
+
+	// 5. Funcionalidades extra
+	// 5.1 Reproducir sonido
+	if (sound) {
+		const audio = new Audio(sound);
+		audio
+			.play()
+			.catch((err) => console.warn('No se pudo reproducir el sonido:', err));
+	}
+
+	// 5.2 Callback de click
+	if (click) {
+		notification.addEventListener('click', (e) => click(e, notification));
+	}
+
+	// 5.3 Callback de cierre
+	if (close) {
+		notification.addEventListener('close', (e) => close(e, notification));
+	}
+
+	// 5.4 Cierre automático si timeout > 0
+	if (timeout && timeout > 0) {
+		setTimeout(() => notification.close(), timeout);
+	}
+
+	return notification;
 }

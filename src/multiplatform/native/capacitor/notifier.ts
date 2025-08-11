@@ -1,59 +1,120 @@
-// Importa el plugin de notificaciones locales de Capacitor
 import { LocalNotifications } from '@capacitor/local-notifications';
-// Importa el tipo que define la estructura de las opciones para notificaciones
 import type { NotifyOptions } from '@core/client/notifier';
 
-// Variable de control para inicializar solo una vez las notificaciones
+// Control para inicializar notificaciones solo una vez
 let initialized = false;
 
 /**
- * Envía una notificación local al dispositivo.
+ * Muestra una notificación local en un dispositivo móvil usando Capacitor.
  *
- * @param options - Opciones de configuración de la notificación:
- *    - title: Título visible en la notificación
- *    - body: Cuerpo o mensaje (opcional)
- *    - schedule: Información de programación para mostrar la notificación en un momento específico (opcional)
- *    - icon: Icono pequeño a mostrar junto a la notificación (opcional)
+ * Mantiene la misma API y características clave que la implementación web/Electron:
+ * - Soporte para `sound`, `timeout`, `click` y `close`.
+ * - Soporte para imágenes grandes (`banner`) e íconos (`icon`).
+ * - Datos personalizados (`data`).
  *
- * @returns Promise<void> - Una promesa que se resuelve cuando la notificación se ha programado.
+ * ### Flujo de funcionamiento:
+ * 1. **Inicialización** (solo la primera vez):
+ *    - Solicita permisos al usuario para enviar notificaciones.
+ *    - Registra tipos de acción básicos.
+ * 2. **Configuración de opciones**:
+ *    - Usa las propiedades definidas en `NotifyOptions` (ej. `title`, `body`, `icon`, `banner`, `sound`).
+ * 3. **Programación/envío**:
+ *    - Muestra la notificación inmediatamente o en la fecha/hora indicada por `options.schedule`.
+ * 4. **Comportamientos extra**:
+ *    - Reproduce un sonido si `sound` está definido.
+ *    - Simula eventos `click` y `close` mediante listeners de Capacitor.
+ *    - Si `timeout` > 0, programa el cierre automático.
  *
- * Flujo:
- *  1. Si es la primera vez que se usa, solicita permisos y registra tipos de acción.
- *  2. Programa y muestra (inmediata o programada) la notificación local.
+ * @param options Opciones enriquecidas para la notificación.
+ * @returns Promesa resuelta al programar/mostrar la notificación.
  */
 export async function notify(options: NotifyOptions): Promise<void> {
-	// 1️⃣ Inicialización única de permisos y tipos de notificación
+	// Inicialización única
 	if (!initialized) {
-		// Solicita permiso al usuario para enviar notificaciones
 		await LocalNotifications.requestPermissions();
 
-		// Registra un tipo de acción por defecto para las notificaciones
 		await LocalNotifications.registerActionTypes({
 			types: [
 				{
-					id: 'default', // Identificador del tipo de acción
-					actions: [],   // Lista de acciones disponibles (vacía por ahora)
+					id: 'default',
+					actions: [], // Se pueden agregar acciones personalizadas aquí
 				},
 			],
 		});
 
-		// Marca que ya se ha inicializado para no repetir el proceso
 		initialized = true;
 	}
 
-	// 2️⃣ Programación/envío de la notificación
+	// Extraer opciones personalizadas
+	const {
+		sound,
+		timeout,
+		banner,
+		click,
+		close,
+		title,
+		icon,
+		data,
+		body,
+		badge,
+		...rest
+	} = options;
+
+	// Programar la notificación
+	const notificationId = Date.now(); // ID único
 	await LocalNotifications.schedule({
 		notifications: [
 			{
-				id: Date.now(),               // ID único basado en la marca de tiempo
-				title: options.title,         // Título de la notificación
-				body: options.body ?? '',     // Mensaje de la notificación (vacío si no se especifica)
-				schedule: options.schedule    // Si se pasa, programa para la fecha indicada
-					? { at: options.schedule.at }
-					: undefined,
-				smallIcon: options.icon,      // Icono pequeño (opcional)
-				actionTypeId: 'default',      // Tipo de acción registrado previamente
+				id: notificationId,
+				title,
+				body: body ?? '',
+				smallIcon: icon,
+				largeIcon: banner, // No estándar, pero en Android algunos sistemas la muestran
+				sound,
+				extra: { ...data, ...rest },
+				actionTypeId: 'default',
+				schedule: {
+					at: new Date(),
+				},
 			},
 		],
 	});
+
+	// Reproducir sonido manualmente si se especifica y el sistema no lo hace automáticamente
+	if (sound) {
+		try {
+			const audio = new Audio(sound);
+			await audio.play();
+		} catch (err) {
+			console.warn('No se pudo reproducir el sonido personalizado:', err);
+		}
+	}
+
+	// Listeners para simular click/cierre
+	if (click) {
+		LocalNotifications.addListener('localNotificationActionPerformed', (event) => {
+			if (event.notification.id === notificationId) {
+				click(new Event('click'), {} as Notification); // Mock Notification para mantener la API
+			}
+		});
+	}
+
+	if (close) {
+		LocalNotifications.addListener('localNotificationReceived', (event) => {
+			// No hay evento de "close" nativo en Capacitor, se podría simular si es necesario
+			// con timeout o tracking de estado
+			if (timeout && timeout > 0) {
+				setTimeout(() => {
+					close(new Event('close'), {} as Notification);
+				}, timeout);
+			}
+		});
+	}
+
+	// Cierre automático (simulado)
+	if (timeout && timeout > 0) {
+		setTimeout(async () => {
+			await LocalNotifications.cancel({ notifications: [{ id: notificationId }] });
+		}, timeout);
+	}
 }

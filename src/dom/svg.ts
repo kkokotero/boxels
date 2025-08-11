@@ -51,7 +51,7 @@ export function createSvg<T extends keyof HTMLElementTagNameMap>(
 	// Método para montar el nodo en el DOM
 	const mount = (parent: HTMLElement | DocumentFragment) => {
 		if ((node as unknown as BoxelsElement).__mounted) return;
-		parent.appendChild(node);
+		parent.appendChild(node.cloneNode(true));
 		(node as unknown as BoxelsElement).__mounted = true;
 	};
 
@@ -64,15 +64,11 @@ export function createSvg<T extends keyof HTMLElementTagNameMap>(
 		node.remove();
 	};
 
-	return $(
-		Fragment,
-		{},
-		Object.assign(node, {
-			mount,
-			destroy,
-			__boxels: true,
-			__mounted: false,
-			__destroyed: false,
-		}) as unknown as BoxelsElement,
-	);
+	return Object.assign(node, {
+		mount,
+		destroy,
+		__boxels: true,
+		__mounted: false,
+		__destroyed: false,
+	}) as unknown as BoxelsElement;
 }

@@ -173,7 +173,7 @@ export function $<T extends keyof HTMLElementTagNameMap>(
 }
 
 export function append(
-	parent: HTMLElement | DocumentFragment | Comment | BoxelsElement | SVGElement,
+	parent: HTMLElement | DocumentFragment | Comment | BoxelsElement,
 	child: any,
 ) {
 	if (parent instanceof Comment) {
@@ -181,12 +181,6 @@ export function append(
 			child instanceof Node ? child : document.createTextNode(String(child)),
 			parent,
 		);
-		return;
-	}
-
-	if (parent instanceof SVGElement) {
-		console.log(child)
-		parent.appendChild(child);
 		return;
 	}
 
@@ -215,7 +209,9 @@ export function append(
 
 	// fallback normal
 	parent.appendChild(
-		child instanceof Node ? child : document.createTextNode(String(child)),
+		child instanceof Node || parent instanceof SVGElement
+			? child
+			: document.createTextNode(String(child)),
 	);
 }
 
