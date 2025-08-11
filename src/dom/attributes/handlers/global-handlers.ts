@@ -166,6 +166,7 @@ declare global {
 
 		svg: SVGAttributes;
 		circle: SVGAttributes;
+		path: SVGAttributes;
 
 		// Fragment también puede tener eventos del ciclo de vida
 		Fragment: LifecycleEventHandlers<'div'> & {};
