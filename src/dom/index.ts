@@ -38,6 +38,9 @@ export type BoxelsElementSelector<T extends keyof HTMLElementTagNameMap> =
 	| HTMLElementTagNameMap[T]
 	| DocumentFragment
 	| typeof Fragment
+	| 'svg'
+	| 'cirlce'
+	| 'path'
 	| FunctionalComponent
 	| ReactiveSignal<any>
 	| ClassComponent;
@@ -80,7 +83,7 @@ export function $<T extends keyof HTMLElementTagNameMap>(
 	} else if (typeof selector === 'function') {
 		return selector(props);
 	} else if (typeof selector === 'string' && svgTags.has(selector)) {
-		return createSvg(selector, props, children);
+		return createSvg(selector as any, props, children);
 	} else if (typeof selector === 'string') {
 		node = document.createElement(selector);
 	} else {

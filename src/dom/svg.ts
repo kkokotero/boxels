@@ -3,6 +3,7 @@ import {
 	type BoxelsElement,
 	type Child,
 } from './attributes/elements';
+import { $, Fragment } from '.';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -35,7 +36,7 @@ export function createSvg<T extends keyof HTMLElementTagNameMap>(
 			Array.isArray(value)
 				? value.forEach((child) => appendChild(node, child))
 				: appendChild(node, value);
-                continue;
+			continue;
 		}
 		if (value == null) continue;
 
@@ -63,11 +64,15 @@ export function createSvg<T extends keyof HTMLElementTagNameMap>(
 		node.remove();
 	};
 
-	return Object.assign(node, {
-		mount,
-		destroy,
-		__boxels: true,
-		__mounted: false,
-		__destroyed: false,
-	}) as unknown as BoxelsElement;
+	return $(
+		Fragment,
+		{},
+		Object.assign(node, {
+			mount,
+			destroy,
+			__boxels: true,
+			__mounted: false,
+			__destroyed: false,
+		}) as unknown as BoxelsElement,
+	);
 }

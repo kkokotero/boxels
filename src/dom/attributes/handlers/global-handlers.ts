@@ -146,6 +146,8 @@ export type SVGAttributes = Partial<{
 
   // Children usualmente es JSX.Element o similar
   children?: JSX.Element | JSX.Element[] | string;
+
+  [k: string]: any;
 }>;
 
 
