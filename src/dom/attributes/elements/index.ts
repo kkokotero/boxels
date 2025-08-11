@@ -450,8 +450,21 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 			continue;
 		}
 
-		// Nodo DOM normal
 		if (child instanceof Node) {
+			// Solo si es Element para acceder a namespaceURI y tagName
+			if (child instanceof Element) {
+				if (
+					child.namespaceURI === 'http://www.w3.org/2000/svg' ||
+					child.tagName.toLowerCase() === 'svg'
+				) {
+					// Clonamos el nodo SVG para no mutar el original
+					const clonedSvg = child.cloneNode(true) as SVGElement;
+					nodes.push(clonedSvg);
+					continue;
+				}
+			}
+
+			// Nodo DOM normal
 			nodes.push(child);
 			continue;
 		}
