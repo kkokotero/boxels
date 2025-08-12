@@ -101,7 +101,7 @@ export function For<T>({ each, children, fallback, track }: ForProps<T>) {
 			range.deleteContents();
 
 			// Insertar fallback
-			forEndMarker.before($(Fragment, {}, fallback || ''));
+			forEndMarker.before(fallback || '');
 			entries.clear();
 			isEmpty = true;
 			return;
@@ -164,7 +164,7 @@ export function For<T>({ each, children, fallback, track }: ForProps<T>) {
 							? (children as unknown as (...args: any) => Node)(item, i)
 							: children(item, i);
 
-						entry.itemEndMarker.before($(Fragment, {}, vnode));
+						entry.itemEndMarker.before(vnode);
 						entry.nodes = vnode;
 					});
 				}
