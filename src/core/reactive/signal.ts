@@ -128,6 +128,16 @@ export function signal<T>(initialValue: T): ReactiveSignal<T> {
 		if (destroyed) return;
 		destroyed = true;
 		subscribers.clear();
+
+		// Elimina la señal de la lista global si existe
+		if (__development__ && (window as any).boxels.signals) {
+			const signals = (window as any).boxels
+				.signals as ReactiveSignal<unknown>[];
+			const index = signals.indexOf(newSignal);
+			if (index !== -1) {
+				signals.splice(index, 1);
+			}
+		}
 	};
 
 	const newSignal = Object.assign(read, {
