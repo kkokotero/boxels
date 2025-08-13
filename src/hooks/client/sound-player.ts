@@ -19,7 +19,7 @@ type SoundEvents = Partial<{
  * - Eventos personalizados
  * - Control de tiempo, duración y fade in/out
  * - Caché de instancias de audio para eficiencia
- * 
+ *
  * Implementa la interfaz `Hook` para integrarse con sistemas que usen hooks.
  */
 export class Sound implements Hook {
@@ -255,6 +255,30 @@ export class Sound implements Hook {
 		this.panner.coneInnerAngle = inner;
 		this.panner.coneOuterAngle = outer;
 		this.panner.coneOuterGain = outerGain;
+		return this;
+	}
+
+	/**
+	 * Asocia el sonido a un elemento del DOM para que su posición 3D
+	 * se actualice automáticamente según la posición del elemento.
+	 * @param el Elemento HTML a seguir
+	 */
+	followElement(el: HTMLElement): this {
+		if (!el) return this;
+
+		const update = () => {
+			const rect = el.getBoundingClientRect();
+			// Convertimos la posición de pantalla a coordenadas para el panner
+			// Aquí z = 0 por defecto; puedes adaptarlo si necesitas profundidad
+			this.pos(rect.left, rect.top, 0);
+
+			// Continuar la actualización mientras el audio exista
+			if (document.body.contains(el) && this.isPlaying()) {
+				requestAnimationFrame(update);
+			}
+		};
+
+		requestAnimationFrame(update);
 		return this;
 	}
 
