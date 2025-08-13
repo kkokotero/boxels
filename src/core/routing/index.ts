@@ -3,6 +3,14 @@ import { TriNode, type FindResult, type NodeHandler } from './route-trie';
 import type { ReactiveSignal } from '@core/reactive/types';
 import { page } from '../page';
 
+export type Route = NodeHandler & {
+	path: string;
+	children?:
+		| (NodeHandler & { path: string })[]
+		| (() => Promise<(NodeHandler & { path: string })[]>)
+		| Promise<(NodeHandler & { path: string })[]>;
+};
+
 /**
  * Configuración del enrutador.
  *
@@ -22,13 +30,7 @@ export type RouterConfig = {
 	 * - `path`: ruta relativa.
 	 * - `children`: rutas hijas que se pueden cargar de manera estática o lazy.
 	 */
-	routes?: (NodeHandler & {
-		path: string;
-		children?:
-			| (NodeHandler & { path: string })[]
-			| (() => Promise<(NodeHandler & { path: string })[]>)
-			| Promise<(NodeHandler & { path: string })[]>;
-	})[];
+	routes?: Route[];
 
 	/** Activa transiciones visuales al cambiar de vista */
 	useViewTransitions?: boolean;
