@@ -1,6 +1,21 @@
 import { effect, isSignal, queue, type ReactiveSignal } from '@core/index';
-import { $, Fragment, isBoxelsElement } from '@dom/index';
+import { isBoxelsElement } from '@dom/index';
 import { strictDeepEqual } from 'fast-equals';
+
+function normalizeNode(node: any): Node {
+	if (node == null) return document.createTextNode('');
+	if (node instanceof Node) return node;
+	if (Array.isArray(node)) {
+		const frag = document.createDocumentFragment();
+		for (const n of node) frag.appendChild(normalizeNode(n));
+		return frag;
+	}
+	// Por si devuelve string o número
+	if (typeof node === 'string' || typeof node === 'number') {
+		return document.createTextNode(String(node));
+	}
+	throw new Error('[For] El nodo no es válido');
+}
 
 /**
  * Propiedades que acepta el componente `For`, el cual permite renderizar listas de forma reactiva.
@@ -146,7 +161,7 @@ export function For<T>({ each, children, fallback, track }: ForProps<T>) {
 					? (children as unknown as (...args: any) => Node)(item, i)
 					: children(item, i);
 
-				itemEndMarker.before(vnode as Node);
+				itemEndMarker.before(normalizeNode(vnode));
 
 				// Si el item es una señal, crear un efecto reactivo
 				if (isSignal(item)) {
@@ -164,7 +179,7 @@ export function For<T>({ each, children, fallback, track }: ForProps<T>) {
 							? (children as unknown as (...args: any) => Node)(item, i)
 							: children(item, i);
 
-						entry.itemEndMarker.before(vnode);
+						entry.itemEndMarker.before(normalizeNode(vnode));
 						entry.nodes = vnode;
 					});
 				}
@@ -190,7 +205,7 @@ export function For<T>({ each, children, fallback, track }: ForProps<T>) {
 					range.setEndBefore(entry.itemEndMarker);
 					range.deleteContents();
 
-					entry.itemEndMarker.before(vnode as Node);
+					entry.itemEndMarker.before(normalizeNode(vnode));
 					entry.nodes = vnode;
 				}
 			}

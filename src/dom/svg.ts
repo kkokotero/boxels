@@ -1,61 +1,38 @@
-import {
-	isBoxelsElement,
-	type BoxelsElement,
-	type Child,
-} from './attributes/elements';
-import { $, Fragment } from '.';
+import { appendChild } from '.';
+import { handleAttributes } from './attributes';
+import type { BoxelsElement, Child } from './attributes/elements';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-export function createSvg<T extends keyof HTMLElementTagNameMap>(
+export function createSvg<T extends keyof SVGElementTagNameMap>(
 	selector: T,
-	props?: Record<string, any>,
+	props?: BoxelsElementAttributes<'div'>,
 	children: Child[] = [],
 ): BoxelsElement {
-	// Crear el nodo SVG con el namespace correcto
-	const node = document.createElementNS(SVG_NS, selector);
+	// Crear el elemento con namespace correcto
+	const node = document.createElementNS(SVG_NS, selector) as SVGElement;
 
-	// Función para agregar hijos (render hijos recursivo)
-	const appendChild = (parent: Element, child: Child) => {
-		if (typeof child === 'string' || typeof child === 'number') {
-			parent.appendChild(document.createTextNode(String(child)));
-		} else if (isBoxelsElement(child)) {
-			// Si el hijo es un BoxelsElement, lo montamos en el padre
-			child.mount(parent as HTMLElement);
-		} else if (child instanceof Node) {
-			parent.appendChild(child);
-		} else if (Array.isArray(child)) {
-			// Soportar arrays de hijos (opcional)
-			child.forEach((c) => appendChild(parent, c));
-		}
-	};
+	handleAttributes(node, props || {});
 
-	// Asignar atributos (excepto children)
-	for (const [key, value] of Object.entries(props ?? {})) {
-		if (key === 'children') {
-			Array.isArray(value)
-				? value.forEach((child) => appendChild(node, child))
-				: appendChild(node, value);
-			continue;
-		}
-		if (value == null) continue;
-
-		// Para atributos especiales como className -> class, o estilos, podrías adaptar aquí
-		// Pero para SVG normalmente setAttribute funciona bien
-		node.setAttribute(key, String(value));
-	}
-
-	// Agregar hijos al nodo SVG
+	// Agregar hijos directos
 	children.forEach((child) => appendChild(node, child));
 
-	// Método para montar el nodo en el DOM
-	const mount = (parent: HTMLElement | DocumentFragment) => {
+	// Método para montar en cualquier padre (HTML, SVG, Fragment, Comment)
+	const mount = (
+		parent: HTMLElement | SVGElement | DocumentFragment | Comment,
+	) => {
 		if ((node as unknown as BoxelsElement).__mounted) return;
-		parent.appendChild(node.cloneNode(true));
+
+		if (parent instanceof Comment) {
+			parent.parentNode?.insertBefore(node, parent);
+		} else {
+			parent.appendChild(node);
+		}
+
 		(node as unknown as BoxelsElement).__mounted = true;
 	};
 
-	// Método para destruir el nodo y limpiar
+	// Método para destruir
 	const destroy = () => {
 		if ((node as unknown as BoxelsElement).__destroyed) return;
 		(node as unknown as BoxelsElement).__destroyed = true;

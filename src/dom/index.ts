@@ -83,7 +83,7 @@ export function $<T extends keyof HTMLElementTagNameMap>(
 	} else if (typeof selector === 'function') {
 		return selector(props);
 	} else if (typeof selector === 'string' && svgTags.has(selector)) {
-		return createSvg(selector as any, props, children);
+		return createSvg(selector as any, props as BoxelsElementAttributes<'div'>, children);
 	} else if (typeof selector === 'string') {
 		node = document.createElement(selector);
 	} else {
@@ -173,9 +173,10 @@ export function $<T extends keyof HTMLElementTagNameMap>(
 }
 
 export function append(
-	parent: HTMLElement | DocumentFragment | Comment | BoxelsElement,
+	parent: HTMLElement | DocumentFragment | Comment | BoxelsElement | SVGElement,
 	child: any,
 ) {
+	// Caso: el padre es un comentario → insertar antes del comentario
 	if (parent instanceof Comment) {
 		parent.parentNode?.insertBefore(
 			child instanceof Node ? child : document.createTextNode(String(child)),
@@ -184,34 +185,61 @@ export function append(
 		return;
 	}
 
-	// 🔧 Verifica si tiene la forma de un BoxelsElement, aunque sea un HTMLElement
+	// Caso: SVG → mantener namespace
+	if (parent instanceof SVGElement) {
+		if (child instanceof Node) {
+			parent.appendChild(child);
+		} else {
+			parent.appendChild(document.createTextNode(String(child)));
+		}
+		return;
+	}
+
+	// Si es un BoxelsElement
 	if (isBoxelsElement(child)) {
 		if (!child.__mounted && !child.__destroyed) child.mount(parent);
 		return;
 	}
 
+	// Si es un signal → convertir a fragment para manejarlo de forma reactiva
 	if (isSignal(child)) {
 		append(parent, $(Fragment, {}, child as ReactiveSignal<any>));
 		return;
 	}
 
-	if (child instanceof Promise) {
-		const comment = document.createComment('');
-
-		const waitAndMount = async () => {
-			const result = await child;
-			parent.replaceChild(comment, result);
-		};
-
-		parent.appendChild(comment);
-		waitAndMount();
+	// Caso especial: ambos son Fragment → fusionar nodos
+	if (parent instanceof DocumentFragment && child instanceof DocumentFragment) {
+		parent.append(...child.childNodes);
+		return;
 	}
 
-	// fallback normal
+	// Caso: padre es Fragment y el hijo es un Node normal
+	if (
+		parent instanceof DocumentFragment &&
+		child instanceof DocumentFragment === false
+	) {
+		parent.appendChild(
+			child instanceof Node ? child : document.createTextNode(String(child)),
+		);
+		return;
+	}
+
+	// Promesa → render diferido
+	if (child instanceof Promise) {
+		const comment = document.createComment('');
+		parent.appendChild(comment);
+
+		(async () => {
+			const result = await child;
+			append(comment, result);
+			comment.remove();
+		})();
+		return;
+	}
+
+	// Fallback normal
 	parent.appendChild(
-		child instanceof Node || parent instanceof SVGElement
-			? child
-			: document.createTextNode(String(child)),
+		child instanceof Node ? child : document.createTextNode(String(child)),
 	);
 }
 

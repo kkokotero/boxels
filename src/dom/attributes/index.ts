@@ -26,7 +26,7 @@ import { append } from '../index';
  * @returns Un objeto con funciones de montaje y limpieza asociadas al ciclo de vida del elemento
  */
 export function handleAttributes<T extends keyof HTMLElementTagNameMap>(
-	element: HTMLElementTagNameMap[T] | HTMLElement,
+	element: HTMLElementTagNameMap[T] | HTMLElement | SVGElement,
 	props: BoxelsElementAttributes<T>,
 ): LifecycleEventHandlers<T> {
 	const cleanUps: ReactiveUnsubscribe[] = []; // Arreglo de funciones de limpieza a ejecutar en destrucción
@@ -126,7 +126,7 @@ export function handleAttributes<T extends keyof HTMLElementTagNameMap>(
  * @param value - Valor del atributo, puede ser de cualquier tipo
  */
 function applyAttr<T extends keyof HTMLElementTagNameMap>(
-	el: HTMLElementTagNameMap[T] | HTMLElement,
+	el: HTMLElementTagNameMap[T] | HTMLElement | SVGElement,
 	key: string,
 	value: unknown,
 ) {

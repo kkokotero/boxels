@@ -451,20 +451,22 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 		}
 
 		if (child instanceof Node) {
-			// Solo si es Element para acceder a namespaceURI y tagName
 			if (child instanceof Element) {
-				if (
+				// Detecta si el nodo o su padre es SVG
+				const isSvgNode =
 					child.namespaceURI === 'http://www.w3.org/2000/svg' ||
-					child.tagName.toLowerCase() === 'svg'
-				) {
-					// Clonamos el nodo SVG para no mutar el original
-					const clonedSvg = child.cloneNode(true) as SVGElement;
-					nodes.push(clonedSvg);
+					child.tagName.toLowerCase() === 'svg' ||
+					child.parentNode instanceof SVGElement;
+
+				if (isSvgNode) {
+					// Clonamos con true para incluir hijos y preservar namespace
+					const clonedSvgNode = document.importNode(child, true) as SVGElement;
+					nodes.push(clonedSvgNode);
 					continue;
 				}
 			}
 
-			// Nodo DOM normal
+			// Nodo HTML normal o no-SVG
 			nodes.push(child);
 			continue;
 		}

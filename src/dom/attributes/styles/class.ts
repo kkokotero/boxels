@@ -52,7 +52,7 @@ export type ClassAttr = string | string[] | ClassMap | CssModule | null | undefi
  * @returns Función para limpiar las suscripciones reactivas creadas
  */
 export function handleClassAttribute(
-	element: HTMLElement,
+	element: HTMLElement | SVGElement,
 	value: ClassAttr,
 ): ReactiveUnsubscribe {
 	// Caso 1: Si es un string como "btn active"

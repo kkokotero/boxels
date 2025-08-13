@@ -50,7 +50,7 @@ export type StyleAttr = StyleMap | string | ReactiveSignal<string> | null | unde
  * Si el valor es `null`, `undefined` o "unset", la propiedad es eliminada del estilo.
  */
 function applyStyle(
-  element: HTMLElement,
+  element: HTMLElement | SVGElement,
   property: WritableStyleKeys,
   value: string | number | null | undefined,
 ): void {
@@ -72,7 +72,7 @@ function applyStyle(
  * @returns Una función que, al llamarse, desuscribe todas las reactividades.
  */
 export function handleStyleAttribute(
-  element: HTMLElement,
+  element: HTMLElement | SVGElement,
   styles: StyleAttr,
 ): ReactiveUnsubscribe {
   // Si el valor no es un objeto, se ignora.
