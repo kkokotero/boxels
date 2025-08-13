@@ -1,5 +1,4 @@
 import { effect, isSignal, queue, type ReactiveSignal } from '@core/index';
-import { isBoxelsElement } from '@dom/index';
 import { strictDeepEqual } from 'fast-equals';
 
 function normalizeNode(node: any): Node {
@@ -157,9 +156,17 @@ export function For<T>({ each, children, fallback, track }: ForProps<T>) {
 				forEndMarker.before(itemStartMarker, itemEndMarker);
 
 				// Renderizar el contenido
-				const vnode = isBoxelsElement(children)
-					? (children as unknown as (...args: any) => Node)(item, i)
-					: children(item, i);
+				let vnode: Node | Node[] | JSX.Element;
+				if (typeof children === 'function') {
+					vnode = children(item, i);
+				} else {
+					// children no es función, usamos directamente
+					vnode = children;
+				}
+
+				if (vnode instanceof Node) {
+					vnode = vnode.cloneNode(true);
+				}
 
 				itemEndMarker.before(normalizeNode(vnode));
 
@@ -175,9 +182,17 @@ export function For<T>({ each, children, fallback, track }: ForProps<T>) {
 						range.setEndBefore(entry.itemEndMarker);
 						range.deleteContents();
 
-						const vnode = isBoxelsElement(children)
-							? (children as unknown as (...args: any) => Node)(item, i)
-							: children(item, i);
+						let vnode: Node | Node[] | JSX.Element;
+						if (typeof children === 'function') {
+							vnode = children(item, i);
+						} else {
+							// children no es función, usamos directamente
+							vnode = children;
+						}
+
+						if (vnode instanceof Node) {
+							vnode = vnode.cloneNode(true);
+						}
 
 						entry.itemEndMarker.before(normalizeNode(vnode));
 						entry.nodes = vnode;
@@ -196,9 +211,17 @@ export function For<T>({ each, children, fallback, track }: ForProps<T>) {
 				if (!strictDeepEqual(entry.item, item)) {
 					entry.item = item;
 
-					const vnode = isBoxelsElement(children)
-						? (children as unknown as (...args: any) => Node)(item, i)
-						: children(item, i);
+					let vnode: Node | Node[] | JSX.Element;
+					if (typeof children === 'function') {
+						vnode = children(item, i);
+					} else {
+						// children no es función, usamos directamente
+						vnode = children;
+					}
+
+					if (vnode instanceof Node) {
+						vnode = vnode.cloneNode(true);
+					}
 
 					const range = document.createRange();
 					range.setStartAfter(entry.itemStartMarker);
