@@ -1,3 +1,5 @@
+import type { ReactiveSignal } from './reactive/types';
+
 /**
  * Opciones para abrir una nueva ventana/pestaña.
  */
@@ -43,11 +45,18 @@ export const page = (() => {
 	 * @overload Si no recibe parámetros, devuelve el título actual.
 	 * @overload Si recibe un string, establece un nuevo título.
 	 */
-	function title(): string;
-	function title(newTitle: string): void;
-	function title(newTitle?: string): string | void {
+	function title(
+		newTitle?: string | ReactiveSignal<string> | (() => string),
+	): string {
 		if (newTitle === undefined) return document.title;
-		document.title = newTitle;
+
+		if (typeof newTitle === 'function') {
+			document.title = newTitle();
+		} else {
+			document.title = newTitle;
+		}
+
+		return document.title;
 	}
 
 	/**
