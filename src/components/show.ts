@@ -89,7 +89,7 @@ export function Show({ when, children, fallback }: ShowProps) {
 	);
 
 	// Se crea un efecto reactivo que actualiza el contenido cada vez que cambien las dependencias
-	effect(dependencies, () => {
+	const unsub = effect(dependencies, () => {
 		content.set(isConditionTrue(when) ? children : fallback);
 	});
 
@@ -98,7 +98,16 @@ export function Show({ when, children, fallback }: ShowProps) {
 
 	// Devuelve una señal reactiva que puede ser usada como JSX.Element en otros lugares
 	return Fragment({
-		'$lifecycle:destroy': () => content.destroy(),
+		'$lifecycle:destroy': () => {
+			content.destroy();
+			unsub();
+		},
+		'$lifecycle:mount': () => {
+			if (dependencies.length === 0) {
+				content.destroy();
+				unsub();
+			}
+		},
 		children: content,
 	});
 }

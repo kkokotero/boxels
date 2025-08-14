@@ -22,6 +22,7 @@ export const RouterOutlet = async ({ config }: { config: RouterConfig }) => {
 	const update = async (node: FindResult) => {
 		if (node.redirect) {
 			router.navigate(node.redirect);
+			return;
 		}
 
 		if (!node.handler && !node.message) {
@@ -66,4 +67,4 @@ export const RouterOutlet = async ({ config }: { config: RouterConfig }) => {
 		},
 		children: view,
 	});
-}
+};

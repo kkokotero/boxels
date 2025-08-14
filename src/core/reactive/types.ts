@@ -36,6 +36,8 @@ export type ReactiveUnsubscribe = () => void;
  */
 export type ReactiveSubscribe<T> = (newValue: T) => void;
 
+export type MaybeSignal<T> = T | ReactiveSignal<T>;
+
 /**
  * Interfaz que representa una señal reactiva.
  * Una señal es una función que permite obtener su valor actual, además de ser un contenedor de estado

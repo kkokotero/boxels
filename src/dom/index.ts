@@ -267,6 +267,115 @@ export const removeAttribute = <T extends keyof HTMLElementTagNameMap>(
 	}
 };
 
+export function replaceElement(
+	target: HTMLElement | DocumentFragment | Comment | BoxelsElement | SVGElement,
+	child: any,
+) {
+	const parent = target.parentNode;
+	if (!parent) return; // No hay dónde reemplazar
+
+	// Caso: el objetivo es un comentario
+	if (target instanceof Comment) {
+		parent.insertBefore(
+			child instanceof Node ? child : document.createTextNode(String(child)),
+			target,
+		);
+		target.remove();
+		return;
+	}
+
+	// Caso: SVG → mantener namespace
+	if (parent instanceof SVGElement) {
+		if (child instanceof Node) {
+			parent.replaceChild(child, target);
+		} else {
+			parent.replaceChild(document.createTextNode(String(child)), target);
+		}
+		return;
+	}
+
+	// Si es un BoxelsElement
+	if (isBoxelsElement(child)) {
+		if (!child.__mounted && !child.__destroyed) {
+			child.mount(parent as HTMLElement);
+			if (isBoxelsElement(target)) {
+				target.destroy();
+			} else if (target instanceof DocumentFragment) {
+				while (target.firstChild) target.removeChild(target.firstChild);
+			} else {
+				target.remove();
+			}
+		} else {
+			parent.replaceChild(child as unknown as Node, target);
+		}
+		return;
+	}
+
+	// Si es un signal → render reactivo
+	if (isSignal(child)) {
+		replaceElement(target, $(Fragment, {}, child as ReactiveSignal<any>));
+		return;
+	}
+
+	// Caso: ambos son Fragment → fusionar nodos
+	if (target instanceof DocumentFragment && child instanceof DocumentFragment) {
+		// Reemplazar el fragment entero por los nodos del nuevo fragment
+		parent.insertBefore(child, target);
+		if (isBoxelsElement(target)) {
+			target.destroy();
+		} else if (target instanceof DocumentFragment) {
+			while (target.firstChild) target.removeChild(target.firstChild);
+		} else {
+			(target as HTMLElement).remove();
+		}
+		parent.insertBefore(child, target);
+		return;
+	}
+
+	// Caso: target es Fragment y el hijo es un Node normal
+	if (
+		target instanceof DocumentFragment &&
+		child instanceof DocumentFragment === false
+	) {
+		parent.insertBefore(
+			child instanceof Node ? child : document.createTextNode(String(child)),
+			target,
+		);
+		if (isBoxelsElement(target)) {
+			target.destroy();
+		} else if (target instanceof DocumentFragment) {
+			while (target.firstChild) target.removeChild(target.firstChild);
+		} else {
+			(target as HTMLElement).remove();
+		}
+		return;
+	}
+
+	// Promesa → render diferido
+	if (child instanceof Promise) {
+		const comment = document.createComment('');
+		parent.replaceChild(comment, target);
+
+		(async () => {
+			const result = await child;
+			if (isBoxelsElement(target)) {
+				target.destroy();
+			} else if (target instanceof DocumentFragment) {
+				while (target.firstChild) target.removeChild(target.firstChild);
+			} else {
+				(target as HTMLElement).remove();
+			}
+		})();
+		return;
+	}
+
+	// Fallback normal
+	parent.replaceChild(
+		child instanceof Node ? child : document.createTextNode(String(child)),
+		target,
+	);
+}
+
 export * from './attributes/elements/index';
 export * from './attributes/handlers/index';
 export { append as appendChild };

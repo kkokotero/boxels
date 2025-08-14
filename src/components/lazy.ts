@@ -174,12 +174,13 @@ export function Lazy({
 		}
 	};
 
-	// Inicia la estrategia de carga al montar
-	setupLoadStrategy();
-
 	// Devuelve la señal que se actualizará con el componente cargado
 	return Fragment({
 		'$lifecycle:destroy': () => element.destroy(),
+		'$lifecycle:mount': () => {
+			// Inicia la estrategia de carga al montar
+			setupLoadStrategy();
+		},
 		children: element,
 	});
 }

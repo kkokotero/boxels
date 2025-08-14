@@ -1,5 +1,6 @@
 import { effect, isSignal, queue, type ReactiveSignal } from '@core/index';
 import { strictDeepEqual } from 'fast-equals';
+import { Fragment } from './fragment';
 
 function normalizeNode(node: any): Node {
 	if (node == null) return document.createTextNode('');
@@ -261,13 +262,21 @@ export function For<T>({ each, children, fallback, track }: ForProps<T>) {
 		entries = newMap;
 	};
 
+	let unsub = () => {};
+
 	// Si `each` es una señal reactiva, se crea un efecto que actualiza automáticamente
 	if (isSignal(each)) {
-		effect([each], update);
+		unsub = effect([each], update);
 	} else {
 		queue(update); // En caso contrario, solo se ejecuta una vez
 	}
 
 	// Retornar los nodos marcador para insertar el contenido generado
-	return [forStartMarker, forEndMarker];
+	return Fragment({
+		'$lifecycle:destroy': () => {
+			unsub();
+			entries.clear();
+		},
+		children: [forStartMarker, forEndMarker],
+	});
 }
