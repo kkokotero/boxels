@@ -106,11 +106,11 @@ el.mount(document.body);
 ```tsx
 import { signal } from "boxels/core";
 
-export function Counter() {
+export const Counter: JSX.Component<'div'> = ({ ...props }) => {
   const count = signal(0);
 
-  return <div>{count}</div>;
-}
+  return <div {...props}>{count}</div>;
+};
 // El contenido se actualizan automáticamente cuando cambia count
 ```
 

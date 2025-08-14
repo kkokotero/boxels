@@ -7,9 +7,10 @@ import {
 	type RouterConfig,
 	type FindResult,
 } from '@core/routing';
-import { $, Fragment } from '@dom/index';
+import { $ } from '@dom/index';
+import { Fragment } from './fragment';
 
-export async function RouterOutlet({ config }: { config: RouterConfig }) {
+export const RouterOutlet = async ({ config }: { config: RouterConfig }) => {
 	setGlobalRouter(config);
 
 	interceptLinks();
@@ -19,7 +20,6 @@ export async function RouterOutlet({ config }: { config: RouterConfig }) {
 
 	await router.ready;
 	const update = async (node: FindResult) => {
-		
 		if (node.redirect) {
 			router.navigate(node.redirect);
 		}
@@ -57,7 +57,13 @@ export async function RouterOutlet({ config }: { config: RouterConfig }) {
 		view.set(component);
 	};
 
-	router.actualRoute.subscribe(update);
+	const unsubscribe = router.actualRoute.subscribe(update);
 
-	return $(Fragment, {}, view);
+	return Fragment({
+		'$lifecycle:destroy': () => {
+			view.destroy();
+			unsubscribe();
+		},
+		children: view,
+	});
 }

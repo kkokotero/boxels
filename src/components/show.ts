@@ -1,4 +1,5 @@
 // Importa utilidades para extraer señales de un conjunto de valores
+import { Fragment } from './fragment';
 import { extractSignalsFromValues } from './utils';
 
 // Importa funciones y tipos del sistema reactivo
@@ -61,17 +62,17 @@ function isConditionTrue(condition: ShowCondition): boolean {
 /**
  * Componente reactivo `Show`
  * Este componente controla la renderización condicional de contenido basado en señales u otras condiciones reactivas.
- * 
+ *
  * Ejemplo de uso:
- * 
+ *
  * ```tsx
  * <Show when={estado}>
  *    <Mensaje />
  * </Show>
  * ```
- * 
+ *
  * También puede usar fallback:
- * 
+ *
  * ```tsx
  * <Show when={estado} fallback={<Cargando />}>
  *    <Contenido />
@@ -96,5 +97,8 @@ export function Show({ when, children, fallback }: ShowProps) {
 	content.set(isConditionTrue(when) ? children : fallback);
 
 	// Devuelve una señal reactiva que puede ser usada como JSX.Element en otros lugares
-	return content;
+	return Fragment({
+		'$lifecycle:destroy': () => content.destroy(),
+		children: content,
+	});
 }

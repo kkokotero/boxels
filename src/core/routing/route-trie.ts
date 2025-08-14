@@ -1,5 +1,4 @@
 import type { ReactiveSignal } from '@core/reactive/types';
-import { router } from '.';
 
 /**
  * Representa un componente que puede ser:

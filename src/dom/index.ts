@@ -83,7 +83,11 @@ export function $<T extends keyof HTMLElementTagNameMap>(
 	} else if (typeof selector === 'function') {
 		return selector(props);
 	} else if (typeof selector === 'string' && svgTags.has(selector)) {
-		return createSvg(selector as any, props as BoxelsElementAttributes<'div'>, children);
+		return createSvg(
+			selector as any,
+			props as BoxelsElementAttributes<'div'>,
+			children,
+		);
 	} else if (typeof selector === 'string') {
 		node = document.createElement(selector);
 	} else {
@@ -101,6 +105,7 @@ export function $<T extends keyof HTMLElementTagNameMap>(
 
 			try {
 				result.onMount();
+				props?.['$lifecycle:mount']?.(undefined as any);
 				parent.appendChild(node);
 			} finally {
 				(node as BoxelsElement).__mounted = true;
@@ -110,6 +115,7 @@ export function $<T extends keyof HTMLElementTagNameMap>(
 		const destroy = () => {
 			if ((node as BoxelsElement).__destroyed) return;
 			result.cleanup();
+			props?.['$lifecycle:destroy']?.(undefined as any);
 			(node as BoxelsElement).__mounted = false;
 			(node as BoxelsElement).__destroyed = true;
 			while (node.firstChild) {

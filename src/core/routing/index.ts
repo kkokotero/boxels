@@ -3,13 +3,10 @@ import { TriNode, type FindResult, type NodeHandler } from './route-trie';
 import type { ReactiveSignal } from '@core/reactive/types';
 import { page } from '../page';
 
-export type Route = NodeHandler & {
+export type Route = {
 	path: string;
-	children?:
-		| (NodeHandler & { path: string })[]
-		| (() => Promise<(NodeHandler & { path: string })[]>)
-		| Promise<(NodeHandler & { path: string })[]>;
-};
+	children?: Route[] | (() => Promise<Route[]>) | Promise<Route[]>;
+} & NodeHandler;
 
 /**
  * Configuración del enrutador.
@@ -83,12 +80,11 @@ class Router {
 	 */
 	private async handleRoutes(
 		parentPath: string,
-		_routes?:
-			| (NodeHandler & { path: string; children?: any })[]
-			| Promise<(NodeHandler & { path: string; children?: any })[]>,
+		_routes?: Route[] | Promise<Route[]> | (() => Promise<Route[]>),
 	) {
 		if (!_routes) return;
-		const routes = await _routes;
+		const routes =
+			typeof _routes === 'function' ? await _routes() : await _routes;
 
 		for (const route of routes) {
 			const fullPath = this.joinPaths(parentPath, route.path);

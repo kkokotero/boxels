@@ -1,5 +1,6 @@
 import { effect, signal, type ReactiveSignal } from '@core/reactive';
 import type { BoxelsElement } from '@dom/index';
+import { Fragment } from './fragment';
 
 /**
  * Tipos de estrategia para determinar cuándo cargar el componente de forma perezosa (lazy).
@@ -13,15 +14,17 @@ type LazyWhen =
 	| { condition: () => boolean | ReactiveSignal<boolean> } // Carga cuando una condición booleana se cumple
 	| { visibleTarget?: string }; // Carga cuando un elemento específico es visible
 
+type ComponentProps<C> = C extends (props: infer P) => any ? P : {};
+
 /**
  * Props que acepta el componente Lazy.
  */
-type LazyProps = {
-	loader: () => Promise<((props: any) => BoxelsElement) | BoxelsElement>; // Función que importa o retorna el componente
-	props?: object; // Props opcionales para pasar al componente cargado
-	loading?: BoxelsElement; // Elemento a mostrar mientras se carga
-	error?: BoxelsElement; // Elemento a mostrar si ocurre un error
-	when?: LazyWhen; // Estrategia de carga
+type LazyProps<C = any> = {
+	loader: () => Promise<C | BoxelsElement>;
+	props?: ComponentProps<C>;
+	loading?: BoxelsElement;
+	error?: BoxelsElement;
+	when?: LazyWhen;
 };
 
 /**
@@ -29,11 +32,11 @@ type LazyProps = {
  */
 export function Lazy({
 	loader,
-	props = {},
 	loading,
 	error,
 	when = 'immediate',
-}: LazyProps) {
+	...props
+}: LazyProps): JSX.Component {
 	// Señal reactiva que contiene el componente actual o el estado de carga/error
 	const element = signal<BoxelsElement | undefined>(loading);
 
@@ -175,5 +178,8 @@ export function Lazy({
 	setupLoadStrategy();
 
 	// Devuelve la señal que se actualizará con el componente cargado
-	return element;
+	return Fragment({
+		'$lifecycle:destroy': () => element.destroy(),
+		children: element,
+	});
 }
