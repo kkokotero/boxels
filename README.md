@@ -90,7 +90,7 @@ npm install boxels
 
 * JSX personalizado sin dependencias externas.
 * Sistema reactivo integrado: `signal`, `computed`, `effect`, `persistentSignal`.
-* Componentes base: `<Show>`, `<For>`, `<Lazy>`, `<RouterOutlet>`.
+* Componentes base: `<Show>`, `<For>`, `<Lazy>`, `<RouterOutlet>`, `<Fragment>`.
 * Manejo de formularios con validación reactiva.
 * Enrutador integrado con manejo de rutas, estado e historial.
 * Ciclo de vida declarativo: `$lifecycle:mount`, `$lifecycle:unmount`, etc.
@@ -103,7 +103,7 @@ npm install boxels
 ## Inicio Rápido
 
 ```tsx
-import { mount } from 'boxels';
+import { mount } from 'boxels/core';
 
 const App = () => (
     <main>

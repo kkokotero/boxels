@@ -1,5 +1,3 @@
-export {};
-
 import { addGlobalHandler } from './global-handlers';
 
 // Declaración global para atributos personalizados compatibles con el sistema Boxels

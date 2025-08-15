@@ -1,6 +1,3 @@
-// Evita la exportación de símbolos predeterminados
-export {};
-
 // Importa una función utilitaria para registrar manejadores globales
 import { addGlobalHandler } from './global-handlers';
 

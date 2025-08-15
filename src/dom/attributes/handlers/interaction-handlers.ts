@@ -2,8 +2,6 @@
 // especiales relacionados con interacciones del usuario, como detección de
 // proximidad, rastreo del puntero, entrada/salida del mouse y permanencia.
 
-export {}; // Indica que este archivo es un módulo.
-
 import { addGlobalHandler } from './global-handlers'; // Importa el sistema de registro de manejadores globales.
 
 // Extendemos la interfaz global para permitir atributos personalizados

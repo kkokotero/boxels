@@ -18,14 +18,10 @@ type SoundEvents = Partial<{
  * - Posicionamiento 3D y dirección (sonido espacial)
  * - Eventos personalizados
  * - Control de tiempo, duración y fade in/out
- * - Caché de instancias de audio para eficiencia
  *
  * Implementa la interfaz `Hook` para integrarse con sistemas que usen hooks.
  */
 export class Sound implements Hook {
-	// Caché global de audios para evitar recargar recursos repetidamente
-	private static cache = new Map<string, HTMLAudioElement>();
-
 	// Contexto de audio compartido por todas las instancias
 	private static ctx = new AudioContext();
 
@@ -36,27 +32,22 @@ export class Sound implements Hook {
 	private events: SoundEvents = {}; // Manejadores de eventos
 
 	/**
-	 * Crea una nueva instancia de sonido, usando caché si ya se había cargado el recurso.
+	 * Crea una nueva instancia de sonido independiente.
 	 * @param src Ruta del archivo de audio
 	 * @param events Opcional, eventos personalizados a manejar
 	 */
 	constructor(src: string, events?: SoundEvents) {
 		this.events = events ?? {};
 
-		// Si ya existe en caché, se clona el nodo de audio
-		if (Sound.cache.has(src)) {
-			this.audio = Sound.cache.get(src)!.cloneNode(true) as HTMLAudioElement;
-		} else {
-			this.audio = new Audio(src);
-			this.audio.preload = 'auto'; // Pre-carga el audio para mayor velocidad
-			Sound.cache.set(src, this.audio); // Se almacena en caché
-		}
+		// Cada instancia crea su propio elemento de audio
+		this.audio = new Audio(src);
+		this.audio.preload = 'auto'; // Precarga para evitar retrasos
 
-		// Se conecta el audio al sistema Web Audio API
+		// Conectar al sistema Web Audio API
 		this.sourceNode = Sound.ctx.createMediaElementSource(this.audio);
 		this.sourceNode.connect(this.panner).connect(Sound.ctx.destination);
 
-		this.setupEvents(); // Configura los eventos
+		this.setupEvents(); // Configura eventos
 	}
 
 	/**
@@ -268,11 +259,8 @@ export class Sound implements Hook {
 
 		const update = () => {
 			const rect = el.getBoundingClientRect();
-			// Convertimos la posición de pantalla a coordenadas para el panner
-			// Aquí z = 0 por defecto; puedes adaptarlo si necesitas profundidad
 			this.pos(rect.left, rect.top, 0);
 
-			// Continuar la actualización mientras el audio exista
 			if (document.body.contains(el) && this.isPlaying()) {
 				requestAnimationFrame(update);
 			}
@@ -291,14 +279,12 @@ export class Sound implements Hook {
 	destroy(): void {
 		this.stop();
 
-		// Elimina manejadores de eventos
 		this.audio.onplay = null;
 		this.audio.onpause = null;
 		this.audio.onended = null;
 		this.audio.onerror = null;
 		this.audio.onloadeddata = null;
 
-		// Desconecta los nodos del grafo de audio
 		try {
 			this.sourceNode.disconnect();
 			this.panner.disconnect();
@@ -306,7 +292,6 @@ export class Sound implements Hook {
 			console.warn('Error al desconectar nodos:', e);
 		}
 
-		// Limpia la fuente de audio
 		this.audio.src = '';
 		this.audio.load();
 		this.events = {};
@@ -322,19 +307,4 @@ export class Sound implements Hook {
  */
 export function useSound(src: string, events?: SoundEvents) {
 	return new Sound(src, events);
-}
-
-// === Función global para limpiar la caché de sonidos ===
-
-/**
- * Limpia completamente la caché de sonidos, liberando los recursos
- * usados por todas las instancias previas en caché.
- */
-export function clearSoundCache() {
-	for (const audio of Sound['cache'].values()) {
-		audio.pause();
-		audio.src = '';
-		audio.load();
-	}
-	Sound['cache'].clear();
 }

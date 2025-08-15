@@ -1,5 +1,3 @@
-export {};
-
 import type { ReactiveSignal } from '@core/index';
 import type { BoxelsElementNode } from '../elements';
 
