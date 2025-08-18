@@ -72,7 +72,7 @@ export function handleAttributes<T extends keyof HTMLElementTagNameMap>(
 
 		// --- lifecycle ---
 		if (key === '$lifecycle:mount' && typeof raw === 'function') {
-			mounts.push(() => raw(element));
+			raw(element);
 			continue;
 		}
 		if (key === '$lifecycle:destroy' && typeof raw === 'function') {

@@ -1,4 +1,4 @@
-import { __development__, __show_changes__ } from '../../../environment';
+import { debug } from '@testing/debugger';
 
 /* -------------------------
    Utilidades internas
@@ -18,17 +18,15 @@ let __styleInjected = false;
  * - Garantiza inyección única (no duplica estilos).
  */
 export function ensureChangeStyles() {
-	if (!__development__ || !__show_changes__ || __styleInjected) return;
+	if (!debug.isShowChanges() || __styleInjected) return;
 	__styleInjected = true;
 
-	// CSS que define estilos básicos para overlays y wrappers
 	const css = `
 .______change-overlay {
     position: absolute;
     inset: 0;
     pointer-events: none;
     transition: opacity 380ms ease-out;
-    background: rgba(30, 167, 87, 0.28); 
     opacity: 1;
     z-index: 9999;
 }
@@ -36,8 +34,6 @@ export function ensureChangeStyles() {
     position: relative;
 }
 `;
-
-	// Crear elemento <style> y añadirlo al head
 	const el = document.createElement('style');
 	el.setAttribute('data-boxels-changes', 'true');
 	el.textContent = css;
@@ -59,11 +55,7 @@ export function ensureChangeStyles() {
  */
 export function ensureRelativeContainer(parent: HTMLElement): string | null {
 	const computed = getComputedStyle(parent);
-
-	// Verificar si ya tiene posicionamiento válido
-	if (
-		!['relative', 'absolute', 'fixed', 'sticky'].includes(computed.position)
-	) {
+	if (!['relative', 'absolute', 'fixed', 'sticky'].includes(computed.position)) {
 		parent.classList.add('______change-wrapper');
 		return '______change-wrapper';
 	}
@@ -71,11 +63,40 @@ export function ensureRelativeContainer(parent: HTMLElement): string | null {
 }
 
 /* -------------------------
+   Colores para overlays
+   ------------------------- */
+const overlayColors = [
+    'rgba(30, 167, 87, 0.28)',    // verde
+    'rgba(255, 99, 71, 0.28)',    // rojo tomate
+    'rgba(54, 162, 235, 0.28)',   // azul
+    'rgba(255, 206, 86, 0.28)',   // amarillo
+    'rgba(153, 102, 255, 0.28)',  // morado
+    'rgba(255, 159, 64, 0.28)',   // naranja
+    'rgba(75, 192, 192, 0.28)',   // turquesa
+    'rgba(199, 199, 199, 0.28)',  // gris
+    'rgba(255, 99, 255, 0.28)',   // rosa fuerte
+    'rgba(0, 128, 128, 0.28)',    // verde azulado
+    'rgba(255, 215, 0, 0.28)',    // dorado
+    'rgba(138, 43, 226, 0.28)',   // azul violeta
+    'rgba(255, 105, 180, 0.28)',  // hot pink
+    'rgba(0, 191, 255, 0.28)',    // deep sky blue
+    'rgba(60, 179, 113, 0.28)',   // medium sea green
+];
+
+
+let overlayIndex = 0;
+function getOverlayColor(): string {
+	const color = overlayColors[overlayIndex % overlayColors.length];
+	overlayIndex++;
+	return color;
+}
+
+/* -------------------------
    Creación de overlays
    ------------------------- */
 
 /**
- * Crea un overlay visual (resaltado verde translúcido) sobre el nodo indicado,
+ * Crea un overlay visual (resaltado translúcido) sobre el nodo indicado,
  * con animación de aparición y desaparición automática.
  *
  * - Se usa para depurar cambios en el DOM.
@@ -85,10 +106,8 @@ export function ensureRelativeContainer(parent: HTMLElement): string | null {
  * @returns Una función de cleanup para eliminar el overlay manualmente.
  */
 export function createChangeOverlay(node: Node): () => void {
-	// Solo habilitado en desarrollo y si se activa la flag
-	if (!__development__ || !__show_changes__) return () => {};
+	if (!debug.isShowChanges()) return () => {};
 
-	// Determinar el parent donde se insertará el overlay
 	const parent = (
 		node.nodeType === Node.ELEMENT_NODE
 			? (node as Element).parentElement
@@ -96,49 +115,35 @@ export function createChangeOverlay(node: Node): () => void {
 	) as HTMLElement | null;
 	if (!parent) return () => {};
 
-	// Inyectar CSS base (si no estaba ya)
 	ensureChangeStyles();
-
-	// Garantizar que el parent tenga posicionamiento relativo
 	ensureRelativeContainer(parent);
 
-	// Crear el overlay
 	const overlay = document.createElement('div');
 	overlay.className = '______change-overlay';
 	overlay.style.opacity = '1';
 	overlay.style.position = 'absolute';
 	overlay.style.pointerEvents = 'none';
+	overlay.style.background = getOverlayColor(); // color dinámico
 
-	/**
-	 * Helper: ubica el overlay en el espacio relativo al parent.
-	 */
 	const placeOverlayAt = (rect: DOMRect) => {
 		const parentRect = parent.getBoundingClientRect();
-		const left = rect.left - parentRect.left;
-		const top = rect.top - parentRect.top;
-		overlay.style.left = `${Math.max(0, Math.round(left))}px`;
-		overlay.style.top = `${Math.max(0, Math.round(top))}px`;
+		overlay.style.left = `${Math.max(0, Math.round(rect.left - parentRect.left))}px`;
+		overlay.style.top = `${Math.max(0, Math.round(rect.top - parentRect.top))}px`;
 		overlay.style.width = `${Math.max(0, Math.round(rect.width))}px`;
 		overlay.style.height = `${Math.max(0, Math.round(rect.height))}px`;
 	};
 
-	/* -------------------------
-	   Calcular posición del overlay
-	   ------------------------- */
-
+	// Posicionamiento del overlay
 	if (node.nodeType === Node.TEXT_NODE) {
-		// Caso: nodo de texto → medimos con Range
 		try {
 			const range = document.createRange();
 			range.selectNodeContents(node);
-
 			const rects = Array.from(range.getClientRects());
 			if (rects.length > 0) {
-				// Unir todos los rects en uno solo (texto multilínea)
 				let left = Number.POSITIVE_INFINITY;
 				let top = Number.POSITIVE_INFINITY;
 				let right = -Number.POSITIVE_INFINITY;
-				let bottom = -Number.POSITIVE_INFINITY;
+				let bottom = -Number.NEGATIVE_INFINITY;
 
 				for (const r of rects) {
 					left = Math.min(left, r.left);
@@ -146,53 +151,33 @@ export function createChangeOverlay(node: Node): () => void {
 					right = Math.max(right, r.left + r.width);
 					bottom = Math.max(bottom, r.top + r.height);
 				}
-
-				const unionRect = new DOMRect(left, top, right - left, bottom - top);
-				placeOverlayAt(unionRect);
+				placeOverlayAt(new DOMRect(left, top, right - left, bottom - top));
 			} else {
-				// Fallback: cubrir todo el parent si no hay rects (texto invisible)
-				const pr = parent.getBoundingClientRect();
-				placeOverlayAt(pr);
+				placeOverlayAt(parent.getBoundingClientRect());
 			}
-		} catch (e) {
-			// Si la medición falla, fallback al parent completo
-			const pr = parent.getBoundingClientRect();
-			placeOverlayAt(pr);
+		} catch {
+			placeOverlayAt(parent.getBoundingClientRect());
 		}
 	} else if (node.nodeType === Node.ELEMENT_NODE) {
-		// Caso: elemento → usamos su boundingClientRect
-		const elRect = (node as Element).getBoundingClientRect();
-		placeOverlayAt(elRect);
+		placeOverlayAt((node as Element).getBoundingClientRect());
 	} else {
-		// Otros tipos de nodo → fallback al parent completo
-		const pr = parent.getBoundingClientRect();
-		placeOverlayAt(pr);
+		placeOverlayAt(parent.getBoundingClientRect());
 	}
 
-	/* -------------------------
-	   Insertar y animar overlay
-	   ------------------------- */
-
-	// Añadir overlay al DOM
+	// Animación de aparición y desaparición
 	parent.appendChild(overlay);
+	// biome-ignore lint/suspicious/noAssignInExpressions: <explanation>
+	requestAnimationFrame(() => (overlay.style.opacity = '0'));
 
-	// Forzar un frame y luego iniciar fade out
-	requestAnimationFrame(() => {
-		overlay.style.opacity = '0';
-	});
-
-	// Eliminar overlay al terminar transición
 	const onEnd = () => {
 		overlay.removeEventListener('transitionend', onEnd);
-		if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+		overlay.parentNode?.removeChild(overlay);
 	};
 	overlay.addEventListener('transitionend', onEnd);
 
-	/* -------------------------
-	   Cleanup manual
-	   ------------------------- */
+	// Cleanup manual
 	return () => {
 		overlay.removeEventListener('transitionend', onEnd);
-		if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+		overlay.parentNode?.removeChild(overlay);
 	};
 }

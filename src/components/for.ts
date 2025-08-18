@@ -1,6 +1,8 @@
 import { effect, isSignal, queue, type ReactiveSignal } from '@core/index';
 import { strictDeepEqual } from 'fast-equals';
 import { Fragment } from './fragment';
+import { debug } from '@testing/debugger';
+import { createChangeOverlay } from '@dom/index';
 
 function normalizeNode(node: any): Node {
 	if (node == null) return document.createTextNode('');
@@ -63,6 +65,7 @@ type Entry<T> = {
 	itemStartMarker: Comment; // Marcador inicial en el DOM para el item
 	itemEndMarker: Comment; // Marcador final en el DOM para el item
 	nodes: Node[] | Node | JSX.Element | ReactiveSignal<JSX.Element>; // Representación renderizada
+	cleanUp: () => void;
 };
 
 /**
@@ -87,8 +90,12 @@ type Entry<T> = {
  */
 export function For<T>({ each, children, fallback, track }: ForProps<T>) {
 	// Marcadores para envolver toda la sección del <For />
-	const forStartMarker = document.createComment('');
-	const forEndMarker = document.createComment('');
+	const forStartMarker = document.createComment(
+		debug.isShowCommentNames() ? 'for:start' : '',
+	);
+	const forEndMarker = document.createComment(
+		debug.isShowCommentNames() ? 'for:end' : '',
+	);
 
 	// Mapa actual de entradas renderizadas
 	let entries = new Map<unknown, Entry<T>>();
@@ -150,8 +157,12 @@ export function For<T>({ each, children, fallback, track }: ForProps<T>) {
 
 			// Si no existe, crear una nueva entrada
 			if (!entry) {
-				const itemStartMarker = document.createComment('');
-				const itemEndMarker = document.createComment('');
+				const itemStartMarker = document.createComment(
+					debug.isShowCommentNames() ? 'for-item:start' : '',
+				);
+				const itemEndMarker = document.createComment(
+					debug.isShowCommentNames() ? 'for-item:end' : '',
+				);
 
 				// Insertar marcadores en el DOM
 				forEndMarker.before(itemStartMarker, itemEndMarker);
@@ -171,33 +182,41 @@ export function For<T>({ each, children, fallback, track }: ForProps<T>) {
 
 				itemEndMarker.before(normalizeNode(vnode));
 
+				const cleanups: (() => void)[] = [];
+
 				// Si el item es una señal, crear un efecto reactivo
 				if (isSignal(item)) {
 					const currentKey = key;
-					effect([item], () => {
-						const entry = entries.get(currentKey);
-						if (!entry) return;
+					cleanups.push(
+						effect([item], () => {
+							const entry = entries.get(currentKey);
+							if (!entry) return;
 
-						const range = document.createRange();
-						range.setStartAfter(entry.itemStartMarker);
-						range.setEndBefore(entry.itemEndMarker);
-						range.deleteContents();
+							const range = document.createRange();
+							range.setStartAfter(entry.itemStartMarker);
+							range.setEndBefore(entry.itemEndMarker);
+							range.deleteContents();
 
-						let vnode: Node | Node[] | JSX.Element;
-						if (typeof children === 'function') {
-							vnode = children(item, i);
-						} else {
-							// children no es función, usamos directamente
-							vnode = children;
-						}
+							let vnode: Node | Node[] | JSX.Element;
+							if (typeof children === 'function') {
+								vnode = children(item, i);
+							} else {
+								// children no es función, usamos directamente
+								vnode = children;
+							}
 
-						if (vnode instanceof Node) {
-							vnode = vnode.cloneNode(true);
-						}
+							if (vnode instanceof Node) {
+								vnode = vnode.cloneNode(true);
+							}
 
-						entry.itemEndMarker.before(normalizeNode(vnode));
-						entry.nodes = vnode;
-					});
+							const node = normalizeNode(vnode);
+
+							entry.itemEndMarker.before(node);
+							cleanups.push(createChangeOverlay(node));
+
+							entry.nodes = vnode;
+						}),
+					);
 				}
 
 				entry = {
@@ -206,10 +225,13 @@ export function For<T>({ each, children, fallback, track }: ForProps<T>) {
 					itemStartMarker,
 					itemEndMarker,
 					nodes: vnode,
+					cleanUp: () => cleanups.forEach((fn) => fn()),
 				};
 			} else {
 				// Si el item ha cambiado (profundamente), actualizar su contenido
 				if (!strictDeepEqual(entry.item, item)) {
+					const cleanups: (() => void)[] = [];
+					entry.cleanUp();
 					entry.item = item;
 
 					let vnode: Node | Node[] | JSX.Element;
@@ -229,8 +251,14 @@ export function For<T>({ each, children, fallback, track }: ForProps<T>) {
 					range.setEndBefore(entry.itemEndMarker);
 					range.deleteContents();
 
+					const node = normalizeNode(vnode);
+
+					entry.itemEndMarker.before(node);
+					cleanups.push(createChangeOverlay(node));
+
 					entry.itemEndMarker.before(normalizeNode(vnode));
 					entry.nodes = vnode;
+					entry.cleanUp = () => cleanups.forEach((fn) => fn());
 				}
 			}
 

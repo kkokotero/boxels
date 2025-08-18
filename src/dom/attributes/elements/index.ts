@@ -8,7 +8,7 @@ import {
 // Importa controladores globales que pueden instalar efectos secundarios o listeners
 import '../handlers/global-handlers';
 
-import { __development__, __show_changes__ } from '../../../environment';
+import { debug } from '@testing/index';
 import { createChangeOverlay, ensureChangeStyles } from './zone';
 
 /* -------------------------
@@ -91,7 +91,7 @@ export function isBoxelsElement(value: any): value is BoxelsElement {
    ------------------------- */
 export function normalizeChildren(input: Child): BoxlesChildren {
 	// Inyección condicional de estilos para overlays de cambio
-	if (__development__ && __show_changes__) ensureChangeStyles();
+	if (debug.isShowChanges()) ensureChangeStyles();
 
 	const nodes: Node[] = [];
 	const cleanUps: (() => void)[] = [];
@@ -99,15 +99,8 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 
 	const queue: Child[] = Array.isArray(input) ? [...input] : [input];
 
-	// Helper para ejecutar onMounts en microtask (evita condiciones de carrera con DOM insertado)
-	function scheduleMount(fn: () => void) {
-		queueMicrotask(fn);
-	}
-
 	while (queue.length) {
 		const child = queue.shift();
-
-		if (child == null || child === false) continue;
 
 		// BoxelsElement
 		if (isBoxelsElement(child)) {
@@ -128,122 +121,60 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 		// Señal reactiva
 		if (isSignal(child)) {
 			const s = child as ReactiveSignal<Child>;
-			const start = document.createComment('');
-			const end = document.createComment('');
+			const start = document.createComment(
+				debug.isShowCommentNames() ? 'signal:start' : '',
+			);
+			const end = document.createComment(
+				debug.isShowCommentNames() ? 'signal:end' : '',
+			);
 			nodes.push(start, end);
 
 			let currentChild: BoxlesChildren | null = null;
-			let isMounted = false;
-			let firstRun = true;
 			let unsub: ReactiveUnsubscribe | null = null;
 
-			// Encapsula la lógica de reemplazo para minimizar repaints
-			const replaceRangeWith = (fragment: DocumentFragment) => {
-				const range = document.createRange();
-				range.setStartAfter(start);
-				range.setEndBefore(end);
-				range.deleteContents();
-				end.parentNode?.insertBefore(fragment, end);
-			};
-
-			// Suscribir
-			unsub = s.subscribe((val) => {
-				// Limpieza del child actual
-				if (currentChild) {
-					try {
-						currentChild.cleanup();
-					} catch (e) {
-						console.error('Error al limpiar el hijo actual:', e);
-					}
-					currentChild = null;
-				}
-
-				// Normalizar el nuevo valor y generar fragmento
-				const normalized = normalizeChildren(val);
-				currentChild = normalized;
-
-				const frag = document.createDocumentFragment();
-				normalized.nodes.forEach((n) => frag.appendChild(n.cloneNode(true)));
-
-				replaceRangeWith(frag);
-
-				// Visual overlays (si aplica)
-				const overlayCleanups: (() => void)[] = [];
-				if (__development__ && __show_changes__) {
-					normalized.nodes.forEach((n) => {
-						const cleanupOverlay = createChangeOverlay(n);
-						overlayCleanups.push(cleanupOverlay);
-					});
-					const origCleanup = normalized.cleanup;
-					normalized.cleanup = () => {
-						try {
-							origCleanup();
-						} catch (e) {
-							console.error('Error en normalized.cleanup:', e);
-						}
-						overlayCleanups.forEach((fn) => {
-							try {
-								fn();
-							} catch (e) {
-								console.error('Error al limpiar overlay:', e);
-							}
-						});
-					};
-				}
-
-				if (isMounted) {
-					scheduleMount(() => {
-						try {
-							normalized.onMount();
-						} catch (e) {
-							console.error('Error en normalized.onMount:', e);
-						}
-					});
-				} else if (firstRun) {
-					onMounts.push(() => {
-						if (currentChild) {
-							try {
-								currentChild.onMount();
-							} catch (e) {
-								console.error('Error en onMount diferido:', e);
-							}
-						}
-					});
-					firstRun = false;
-				}
-			});
-
-			// Registro de montaje
 			onMounts.push(() => {
-				isMounted = true;
-				if (currentChild) {
-					try {
-						currentChild.onMount();
-					} catch (e) {
-						console.error('Error ejecutando onMount del hijo actual:', e);
+				// Suscribir
+				unsub = s.subscribe((val) => {
+					// Limpieza del child actual
+					currentChild?.cleanup();
+					currentChild = null;
+
+					// Normalizar el nuevo valor y generar fragmento
+					const normalized = normalizeChildren(val);
+
+					currentChild = normalized;
+
+					const range = document.createRange();
+					range.setStartAfter(start);
+					range.setEndBefore(end);
+					range.deleteContents();
+
+					normalized.nodes.forEach((n) => {
+						end.before(n);
+					});
+
+					normalized.onMount();
+
+					// Visual overlays (si aplica)
+					const overlayCleanups: (() => void)[] = [];
+					if (debug.isShowChanges()) {
+						normalized.nodes.forEach((n) => {
+							const cleanupOverlay = createChangeOverlay(n);
+							overlayCleanups.push(cleanupOverlay);
+						});
+						const origCleanup = normalized.cleanup;
+						normalized.cleanup = () => {
+							origCleanup();
+							overlayCleanups.forEach((fn) => fn());
+						};
 					}
-				}
+				});
 			});
 
 			// Registro de limpieza
 			cleanUps.push(() => {
-				if (currentChild) {
-					try {
-						currentChild.cleanup();
-					} catch (e) {
-						console.error(
-							'Error al limpiar hijo actual durante cleanup del padre:',
-							e,
-						);
-					}
-				}
-				if (unsub) {
-					try {
-						unsub();
-					} catch (e) {
-						console.error('Error al desuscribir la señal:', e);
-					}
-				}
+				currentChild?.cleanup();
+				unsub?.();
 			});
 
 			continue;
@@ -251,7 +182,9 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 
 		// Promesa
 		if (child instanceof Promise) {
-			const placeholder = document.createComment('');
+			const placeholder = document.createComment(
+				debug.isShowCommentNames() ? 'promise:placeholder' : '',
+			);
 			nodes.push(placeholder);
 
 			onMounts.push(() => {
@@ -290,9 +223,7 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 
 		// DocumentFragment
 		if (child instanceof DocumentFragment) {
-			const children = normalizeChildren(
-				Array.from(child.cloneNode(true).childNodes),
-			);
+			const children = normalizeChildren(Array.from(child.childNodes));
 			onMounts.push(children.onMount);
 			cleanUps.push(children.cleanup);
 			nodes.push(...children.nodes);
@@ -315,39 +246,22 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 			nodes.push(child);
 			continue;
 		}
-
-		// Valores primitivos
-		const t = typeof child;
-		if (
-			t === 'string' ||
-			t === 'number' ||
-			t === 'bigint' ||
-			t === 'boolean' ||
-			t === 'undefined'
-		) {
-			nodes.push(document.createTextNode(String(child)));
+		if (typeof child === 'object') {
+			nodes.push(document.createTextNode(JSON.stringify(child, null, 2)));
+			continue;
 		}
+		nodes.push(document.createTextNode(String(child)));
 	}
 
 	return {
 		nodes,
 		onMount: () => {
-			for (const fn of onMounts) {
-				try {
-					fn();
-				} catch (e) {
-					console.error('Error en manejador onMount:', e);
-				}
-			}
+			for (const fn of onMounts) fn();
 		},
 		cleanup: () => {
-			for (let i = cleanUps.length - 1; i >= 0; i--) {
-				try {
-					cleanUps[i]();
-				} catch (e) {
-					console.error('Error en manejador cleanup:', e);
-				}
-			}
+			for (let i = cleanUps.length - 1; i >= 0; i--) cleanUps[i]();
 		},
 	};
 }
+
+export * from './zone';

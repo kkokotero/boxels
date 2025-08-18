@@ -10,6 +10,7 @@ import { createSvg } from './svg';
 import { appendChild } from './utils';
 
 export const Fragment: unique symbol = Symbol('Boxles-Fragment');
+export const Comment: unique symbol = Symbol('Boxles-Fragment');
 
 const svgTags = new Set([
 	// Contenedor raíz
@@ -62,6 +63,7 @@ const svgTags = new Set([
 	'feSpecularLighting',
 	'feTile',
 	'feTurbulence',
+	'title'
 ]);
 
 // Tipos para detectar componentes
@@ -113,6 +115,7 @@ export type BoxelsElementSelector<T extends keyof HTMLElementTagNameMap> =
 	| 'feSpecularLighting'
 	| 'feTile'
 	| 'feTurbulence'
+	| 'title'
 	// Reactivo / componentes
 	| FunctionalComponent
 	| ReactiveSignal<any>
@@ -171,18 +174,15 @@ export function $<T extends keyof HTMLElementTagNameMap>(
 	if (selector === Fragment || selector instanceof DocumentFragment) {
 		const result = normalizeChildren(props?.children);
 
-		result.nodes.forEach((n) => appendChild(node as HTMLElement, n));
+		result.nodes.forEach((n) => node.appendChild(n));
 
 		const mount = (parent: HTMLElement | DocumentFragment) => {
 			if ((node as BoxelsElement).__mounted) return;
 
-			try {
-				result.onMount();
-				props?.['$lifecycle:mount']?.(undefined as any);
-				parent.appendChild(node);
-			} finally {
-				(node as BoxelsElement).__mounted = true;
-			}
+			result.onMount();
+			props?.['$lifecycle:mount']?.(undefined as any);
+			parent.appendChild(node);
+			(node as BoxelsElement).__mounted = true;
 		};
 
 		const destroy = () => {
@@ -199,7 +199,10 @@ export function $<T extends keyof HTMLElementTagNameMap>(
 		return Object.assign(node, {
 			mount,
 			destroy,
-			mountEffect: () => result.onMount(),
+			mountEffect: () => {
+				result.onMount();
+				props?.['$lifecycle:mount']?.(undefined as any);
+			},
 			isFragment: true,
 			__boxels: true,
 			__mounted: false,
@@ -213,22 +216,10 @@ export function $<T extends keyof HTMLElementTagNameMap>(
 	const mount = (parent: HTMLElement | DocumentFragment) => {
 		// Prevención de recursión infinita
 		if ((node as BoxelsElement).__mounted) return;
+		(node as BoxelsElement).__mounted = true;
 
-		try {
-			result['$lifecycle:mount']?.(node as BoxelsElementNode<T>);
-			if (parent instanceof Comment) {
-				parent.parentNode?.insertBefore(
-					node instanceof Node ? node : document.createTextNode(String(node)),
-					parent,
-				);
-				return;
-			}
-			parent.appendChild(
-				node instanceof Node ? node : document.createTextNode(String(node)),
-			);
-		} finally {
-			(node as BoxelsElement).__mounted = true;
-		}
+		result['$lifecycle:mount']?.(node as BoxelsElementNode<T>);
+		parent.appendChild(node);
 	};
 
 	const destroy = () => {

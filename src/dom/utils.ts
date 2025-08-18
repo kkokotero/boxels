@@ -1,21 +1,22 @@
-import { isSignal, type ReactiveSignal } from '@core/reactive'; 
+import { isSignal, type ReactiveSignal } from '@core/reactive';
 // `isSignal`: función para verificar si un valor es una señal reactiva.
 // `ReactiveSignal`: tipo que representa una señal reactiva.
 
 import {
-	isBoxelsElement,      // Verifica si un nodo es un componente personalizado del sistema (BoxelsElement).
-	type BoxelsElement,   // Tipo base de un componente Boxels.
+	isBoxelsElement, // Verifica si un nodo es un componente personalizado del sistema (BoxelsElement).
+	type BoxelsElement, // Tipo base de un componente Boxels.
 	type BoxelsElementNode, // Nodo específico que extiende de un elemento HTML con propiedades Boxels.
 } from './attributes/elements';
 
-import { $, Fragment } from '.'; 
+import { $, Fragment } from '.';
 // `$`: función auxiliar para crear elementos reactivos.
 // `Fragment`: tipo especial que representa un contenedor de nodos sin un elemento padre real.
 
 import {
-	handleAttributes,   // Maneja atributos personalizados y de ciclo de vida en elementos.
-	removeAttributes,   // Elimina atributos previamente aplicados.
+	handleAttributes, // Maneja atributos personalizados y de ciclo de vida en elementos.
+	removeAttributes, // Elimina atributos previamente aplicados.
 } from './attributes';
+import { debug } from '@testing/debugger';
 
 /**
  * Monta (agrega) uno o varios elementos JSX a un contenedor en el DOM.
@@ -33,11 +34,9 @@ export const mount = (
 	parent: HTMLElement | DocumentFragment,
 	...children: JSX.Element[]
 ) => {
-	children.forEach(async (child) => {
-		// Si el hijo es una Promesa → esperar a que se resuelva
-		const resolved = child instanceof Promise ? await child : child;
+	children.forEach((child) => {
 		// Insertar hijo en el contenedor
-		appendChild(parent, resolved);
+		appendChild(parent, child);
 	});
 };
 
@@ -46,7 +45,7 @@ export const mount = (
  *
  * @param children - Elementos JSX a eliminar.
  *
- * - Si es un `BoxelsElement`: 
+ * - Si es un `BoxelsElement`:
  *   - Verifica que esté montado (`__mounted`).
  *   - Llama a su método `destroy()` para ejecutar lógica de limpieza interna (eventos, efectos, etc).
  * - Si es un nodo DOM común → se elimina con `.remove()`.
@@ -95,7 +94,9 @@ export function appendChild(
 	parent: HTMLElement | DocumentFragment | Comment | BoxelsElement | SVGElement,
 	child: any,
 ) {
-	// Caso: el padre es un comentario → insertar antes de él
+	// ---------------------------------------------------------------------
+	// Caso: el padre es un comentario → insertar ANTES de ese comentario
+	// ---------------------------------------------------------------------
 	if (parent instanceof Comment) {
 		parent.parentNode?.insertBefore(
 			child instanceof Node ? child : document.createTextNode(String(child)),
@@ -104,59 +105,75 @@ export function appendChild(
 		return;
 	}
 
-	// Caso: padre es un SVG → mantener namespace correcto
-	if (parent instanceof SVGElement) {
-		if (child instanceof Node) {
-			parent.appendChild(child);
-		} else {
-			parent.appendChild(document.createTextNode(String(child)));
-		}
-		return;
-	}
-
-	// Caso: el hijo es un componente BoxelsElement
+	// ---------------------------------------------------------------------
+	// Caso: hijo es un componente BoxelsElement
+	// ---------------------------------------------------------------------
 	if (isBoxelsElement(child)) {
-		if (!child.__mounted && !child.__destroyed) child.mount(parent);
+		if (!child.__mounted && !child.__destroyed)
+			child.mount(parent as HTMLElement);
+		else parent.appendChild(child);
 		return;
 	}
 
-	// Caso: hijo es una señal reactiva → envolver en un Fragment
+	// ---------------------------------------------------------------------
+	// Caso: hijo es una señal reactiva → se envuelve en un Fragment
+	// ---------------------------------------------------------------------
 	if (isSignal(child)) {
 		appendChild(parent, $(Fragment, {}, child as ReactiveSignal<any>));
 		return;
 	}
 
-	// Caso: fusión de fragmentos
+	// ---------------------------------------------------------------------
+	// Caso: hijo es una Promesa → render diferido
+	// ---------------------------------------------------------------------
+	if (child instanceof Promise) {
+		const marker = document.createComment(
+			debug.isShowCommentNames() ? 'promise:placeholder' : '',
+		);
+		appendChild(parent, marker);
+
+		(async () => {
+			const resolved = await child;
+			appendChild(marker, resolved);
+			marker.remove();
+		})();
+		return;
+	}
+
+	// ---------------------------------------------------------------------
+	// Caso: fusión de fragmentos (padre e hijo son DocumentFragment)
+	// ---------------------------------------------------------------------
 	if (parent instanceof DocumentFragment && child instanceof DocumentFragment) {
 		parent.append(...child.childNodes);
 		return;
 	}
 
-	// Caso: padre es Fragment y el hijo es un nodo normal
+	// ---------------------------------------------------------------------
+	// Caso: hijo es DocumentFragment y padre NO lo es → insertarlo entero
+	// ---------------------------------------------------------------------
 	if (
-		parent instanceof DocumentFragment &&
-		child instanceof DocumentFragment === false
+		!(parent instanceof DocumentFragment) &&
+		child instanceof DocumentFragment
 	) {
+		parent.appendChild(child);
+		return;
+	}
+
+	// ---------------------------------------------------------------------
+	// Caso: padre es SVG → mantener namespace correcto
+	// (nota: DocumentFragment dentro de SVG también se maneja con appendChild)
+	// ---------------------------------------------------------------------
+	if (parent instanceof SVGElement) {
 		parent.appendChild(
 			child instanceof Node ? child : document.createTextNode(String(child)),
 		);
 		return;
 	}
 
-	// Caso: hijo es una Promesa → render diferido
-	if (child instanceof Promise) {
-		const comment = document.createComment('');
-		parent.appendChild(comment);
-
-		(async () => {
-			const result = await child;
-			appendChild(comment, result);
-			comment.remove();
-		})();
-		return;
-	}
-
-	// Caso general: insertar como nodo o como texto
+	// ---------------------------------------------------------------------
+	// Caso general: texto o nodo directo
+	// Esto cubre HTMLElement y DocumentFragment igualmente
+	// ---------------------------------------------------------------------
 	parent.appendChild(
 		child instanceof Node ? child : document.createTextNode(String(child)),
 	);
@@ -287,7 +304,9 @@ export function replaceElement(
 
 	// Caso: hijo es una Promesa → render diferido
 	if (child instanceof Promise) {
-		const comment = document.createComment('');
+		const comment = document.createComment(
+			debug.isShowCommentNames() ? 'promise:placeholder' : '',
+		);
 		parent.replaceChild(comment, target);
 
 		(async () => {
@@ -309,4 +328,112 @@ export function replaceElement(
 		child instanceof Node ? child : document.createTextNode(String(child)),
 		target,
 	);
+}
+
+/**
+ * Inserta un hijo en el `parent` en una posición específica (índice).
+ *
+ * @param parent - Contenedor donde insertar (HTMLElement, Fragment, SVG, etc).
+ * @param child - Nodo o valor a insertar.
+ * @param index - Posición en la lista de hijos. Si es mayor al número de hijos, se inserta al final.
+ *
+ * Casos especiales manejados (igual que `appendChild`):
+ * - Comentarios → inserción antes del comentario.
+ * - BoxelsElement → se monta.
+ * - Signals → se envuelven en un Fragment.
+ * - Promesas → render diferido con marcador.
+ * - DocumentFragment → fusión o inserción.
+ * - Texto/valores primitivos → se convierten en TextNode.
+ */
+export function insertChildAt(
+	parent: HTMLElement | DocumentFragment | Comment | BoxelsElement | SVGElement,
+	child: any,
+	index: number,
+) {
+	// Si el padre es un comentario → insertar antes del comentario
+	if (parent instanceof Comment) {
+		parent.parentNode?.insertBefore(
+			child instanceof Node ? child : document.createTextNode(String(child)),
+			parent,
+		);
+		return;
+	}
+
+	// Normalizar index
+	const targetNode = (parent as ParentNode).childNodes[index] ?? null;
+
+	// Caso: BoxelsElement
+	if (isBoxelsElement(child)) {
+		if (!child.__mounted && !child.__destroyed) {
+			child.mount(parent as HTMLElement);
+		}
+		if (targetNode) {
+			(parent as ParentNode).insertBefore(child as unknown as Node, targetNode);
+		} else {
+			(parent as ParentNode).appendChild(child as unknown as Node);
+		}
+		return;
+	}
+
+	// Caso: Signal
+	if (isSignal(child)) {
+		insertChildAt(parent, $(Fragment, {}, child as ReactiveSignal<any>), index);
+		return;
+	}
+
+	// Caso: Promesa → marcador temporal
+	if (child instanceof Promise) {
+		const marker = document.createComment(
+			debug.isShowCommentNames() ? 'promise:placeholder' : '',
+		);
+		insertChildAt(parent, marker, index);
+
+		(async () => {
+			const resolved = await child;
+			insertChildAt(
+				parent,
+				resolved,
+				Array.from((parent as ParentNode).childNodes).indexOf(marker),
+			);
+			marker.remove();
+		})();
+		return;
+	}
+
+	// Caso: DocumentFragment
+	if (child instanceof DocumentFragment) {
+		if (targetNode) {
+			(parent as ParentNode).insertBefore(child, targetNode);
+		} else {
+			(parent as ParentNode).appendChild(child);
+		}
+		return;
+	}
+
+	// Caso: SVG
+	if (parent instanceof SVGElement) {
+		if (targetNode) {
+			parent.insertBefore(
+				child instanceof Node ? child : document.createTextNode(String(child)),
+				targetNode,
+			);
+		} else {
+			parent.appendChild(
+				child instanceof Node ? child : document.createTextNode(String(child)),
+			);
+		}
+		return;
+	}
+
+	// Caso general
+	if (targetNode) {
+		(parent as ParentNode).insertBefore(
+			child instanceof Node ? child : document.createTextNode(String(child)),
+			targetNode,
+		);
+	} else {
+		(parent as ParentNode).appendChild(
+			child instanceof Node ? child : document.createTextNode(String(child)),
+		);
+	}
 }

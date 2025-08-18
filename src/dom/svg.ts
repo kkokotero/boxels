@@ -14,9 +14,6 @@ export function createSvg<T extends keyof SVGElementTagNameMap>(
 
 	handleAttributes(node, props || {});
 
-	// Agregar hijos directos
-	children.forEach((child) => appendChild(node, child));
-
 	// Método para montar en cualquier padre (HTML, SVG, Fragment, Comment)
 	const mount = (
 		parent: HTMLElement | SVGElement | DocumentFragment | Comment,
