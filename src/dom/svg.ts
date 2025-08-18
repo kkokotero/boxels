@@ -1,6 +1,6 @@
-import { appendChild } from '.';
 import { handleAttributes } from './attributes';
 import type { BoxelsElement, Child } from './attributes/elements';
+import { appendChild } from './utils';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 

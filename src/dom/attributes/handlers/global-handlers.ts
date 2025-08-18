@@ -116,36 +116,81 @@ interface standartAttrs<T extends keyof HTMLElementTagNameMap>
 }
 
 export type SVGAttributes = Partial<{
-  // Atributos comunes SVG
-  xmlns: string;
-  fill: string;
-  stroke: string;
-  'stroke-width': string | number;
-  viewBox: string;
-  width: string | number;
-  height: string | number;
-  class: string;
-  
-  // Atributos de formas SVG
-  cx: string | number;
-  cy: string | number;
-  r: string | number;
-  x: string | number;
-  y: string | number;
-  d: string;
-  points: string;
-  transform: string;
-  // etc.
+	// Atributos comunes SVG
+	xmlns: string;
+	fill: string;
+	stroke: string;
+	'stroke-width': string | number;
+	viewBox: string;
+	width: string | number;
+	height: string | number;
+	class: string;
 
-  // Accesibilidad
-  role: string;
-  'aria-label': string;
-  'aria-hidden': boolean | 'true' | 'false';
+	// Atributos de formas SVG
+	cx: string | number;
+	cy: string | number;
+	r: string | number;
+	x: string | number;
+	y: string | number;
+	d: string;
+	points: string;
+	transform: string;
+	// etc.
 
-  // Children usualmente es JSX.Element o similar
-  children?: JSX.Element | JSX.Element[] | string;
+	// Accesibilidad
+	role: string;
+	'aria-label': string;
+	'aria-hidden': boolean | 'true' | 'false';
 
-  [k: string]: any;
+	// Children usualmente es JSX.Element o similar
+	children?: JSX.Element | JSX.Element[] | string;
+
+	[k: string]: any;
+}>;
+
+// Datos extra calculados para enriquecer eventos
+export type ExtraEventData = {
+	percentX: number; // Porcentaje horizontal visible respecto al elemento
+	percentY: number; // Porcentaje vertical visible respecto al elemento
+	rect: DOMRect; // Bounding client rect del elemento
+	viewport: { width: number; height: number }; // Dimensiones actuales del viewport
+};
+
+// Tipos enriquecidos para eventos con intersección y resize
+export type ExtendedIntersectionEvent = IntersectionObserverEntry & ExtraEventData;
+export type ExtendedResizeEvent = ResizeObserverEntry & ExtraEventData;
+
+/**
+ * Evento personalizado para gestos de deslizamiento (swipe).
+ */
+export type GestureSwipe = CustomEvent<{
+	state: 'start' | 'move' | 'end' | 'cancel'; // Estado del gesto
+	dx: number; // Diferencia horizontal desde el punto de inicio
+	dy: number; // Diferencia vertical desde el punto de inicio
+	distance: number; // Distancia total del movimiento
+	direction: 'left' | 'right' | 'up' | 'down' | null; // Dirección del deslizamiento
+	target: HTMLElement; // Elemento objetivo
+}>;
+
+/**
+ * Evento personalizado que indica la tasa de clics por segundo.
+ */
+export type GestureClickrate = CustomEvent<{ clicksPerSecond: number }>;
+
+/**
+ * Evento personalizado para gestos de pellizco (pinch).
+ */
+export type gesturePinch = CustomEvent<{
+	state: 'start' | 'move' | 'end'; // Estado del gesto
+	scale: number; // Escala de ampliación o reducción
+}>;
+
+/**
+ * Evento personalizado para gestos de rotación (rotate).
+ */
+export type GestureRotate = CustomEvent<{
+	state: 'start' | 'move' | 'end'; // Estado del gesto
+	angle: number; // Ángulo de rotación en grados
 }>;
 
 
@@ -164,9 +209,54 @@ declare global {
 			type?: 'button' | 'submit' | 'reset';
 		};
 
+		// Elementos SVG principales
 		svg: SVGAttributes;
 		circle: SVGAttributes;
+		ellipse: SVGAttributes;
+		line: SVGAttributes;
 		path: SVGAttributes;
+		polygon: SVGAttributes;
+		polyline: SVGAttributes;
+		rect: SVGAttributes;
+
+		// Contenedores / estructurales
+		g: SVGAttributes;
+		symbol: SVGAttributes;
+		defs: SVGAttributes;
+		use: SVGAttributes;
+
+		// Texto
+		text: SVGAttributes;
+		tspan: SVGAttributes;
+		textPath: SVGAttributes;
+
+		// Gradientes y patrones
+		linearGradient: SVGAttributes;
+		radialGradient: SVGAttributes;
+		stop: SVGAttributes;
+		pattern: SVGAttributes;
+		clipPath: SVGAttributes;
+		mask: SVGAttributes;
+
+		// Filtros
+		filter: SVGAttributes;
+		feBlend: SVGAttributes;
+		feColorMatrix: SVGAttributes;
+		feComponentTransfer: SVGAttributes;
+		feComposite: SVGAttributes;
+		feConvolveMatrix: SVGAttributes;
+		feDiffuseLighting: SVGAttributes;
+		feDisplacementMap: SVGAttributes;
+		feDropShadow: SVGAttributes;
+		feFlood: SVGAttributes;
+		feGaussianBlur: SVGAttributes;
+		feImage: SVGAttributes;
+		feMerge: SVGAttributes;
+		feMorphology: SVGAttributes;
+		feOffset: SVGAttributes;
+		feSpecularLighting: SVGAttributes;
+		feTile: SVGAttributes;
+		feTurbulence: SVGAttributes;
 
 		// Fragment también puede tener eventos del ciclo de vida
 		Fragment: LifecycleEventHandlers<'div'> & {};
@@ -194,6 +284,63 @@ declare global {
 					: HTMLElementTagNameMap[T] extends Function
 						? never
 						: K]?: any;
+			} & {
+				'$interface:visible'?: (e: ExtendedIntersectionEvent) => void; // Se dispara cuando el elemento entra en el viewport
+				'$interface:invisible'?: (e: ExtendedIntersectionEvent) => void; // Se dispara cuando el elemento sale del viewport
+				'$interface:resize'?: (e: ExtendedResizeEvent) => void; // Se dispara cuando el tamaño del elemento cambia
+				'$interface:enter'?: (e: MouseEvent & ExtraEventData) => void; // Se dispara cuando el puntero entra al elemento
+				'$interface:leave'?: (e: MouseEvent & ExtraEventData) => void; // Se dispara cuando el puntero sale del elemento
+				'$interface:mutation'?: (
+					e: MutationRecord[] & { el: HTMLElement },
+				) => void; // Se dispara cuando el DOM del elemento cambia
+				'$interface:idle'?: (e: { time: DOMHighResTimeStamp }) => void; // Se dispara cuando el navegador está en estado ocioso
+
+				// Atributos nuevos
+				'$interface:beforeunload'?: (e: BeforeUnloadEvent) => void; // Se dispara antes de que la página se descargue
+				'$interface:pageshow'?: (e: PageTransitionEvent) => void; // Se dispara cuando se muestra la página (incluido desde caché)
+				'$interface:pagehide'?: (e: PageTransitionEvent) => void; // Se dispara cuando la página se oculta (navegación o descarga)
+				'$interface:visibilitychange'?: (e: {
+					hidden: boolean;
+					visibilityState: DocumentVisibilityState;
+				}) => void; // Se dispara cuando cambia la visibilidad del documento
+				// Evento disparado cuando el puntero está cerca del elemento.
+				'$interaction:near'?: (e: CustomEvent<{ distance: number }>) => void;
+
+				// Evento disparado continuamente cuando el puntero se mueve sobre el elemento.
+				'$interaction:track'?: (e: MouseEvent) => void;
+
+				// Evento disparado cuando el puntero entra al área del elemento.
+				'$interaction:mouseenter'?: (e: MouseEvent) => void;
+
+				// Evento disparado cuando el puntero sale del área del elemento.
+				'$interaction:mouseleave'?: (e: MouseEvent) => void;
+
+				// Evento disparado cuando el puntero permanece sobre el elemento
+				// por un cierto tiempo (definido por `$interaction:linger-ms`).
+				'$interaction:linger'?: (e: CustomEvent<{ duration: number }>) => void;
+
+				// Atributo que define el radio de proximidad para `$interaction:near`.
+				'$interaction:radius'?: number;
+
+				// Atributo que define la duración en milisegundos para `$interaction:linger`.
+				'$interaction:linger-ms'?: number;
+
+				// Eventos de gesto
+				'$gesture:tap'?: (e: TouchEvent) => void;
+				'$gesture:doubletap'?: (e: TouchEvent) => void;
+				'$gesture:longpress'?: (e: TouchEvent) => void;
+				'$gesture:swipe'?: (e: GestureSwipe) => void;
+				'$gesture:multitap'?: (e: CustomEvent<{ count: number }>) => void;
+				'$gesture:clickrate'?: (e: GestureClickrate) => void;
+				'$gesture:pinch'?: (e: gesturePinch) => void;
+				'$gesture:rotate'?: (e: GestureRotate) => void;
+
+				// Configuración personalizada para gestos
+				'$gesture:min-swipe'?: number; // Distancia mínima para swipe válido
+				'$gesture:max-swipe'?: number; // Distancia máxima para swipe válido
+				'$gesture:longpress-ms'?: number; // Duración mínima para activar longpress
+				'$gesture:doubletap-ms'?: number; // Intervalo máximo entre taps para doubletap
+				'$gesture:multitap-ms'?: number; // Intervalo entre toques para multitap
 			};
 }
 

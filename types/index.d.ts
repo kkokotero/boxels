@@ -27,9 +27,56 @@ declare global {
 		};
 
 		interface IntrinsicElements extends Elements {
+			// Contenedor raíz
 			svg: SVGAttributes;
-			path: SVGAttributes;
+
+			// Formas básicas
 			circle: SVGAttributes;
+			ellipse: SVGAttributes;
+			line: SVGAttributes;
+			path: SVGAttributes;
+			polygon: SVGAttributes;
+			polyline: SVGAttributes;
+			rect: SVGAttributes;
+
+			// Contenedores / estructurales
+			g: SVGAttributes;
+			symbol: SVGAttributes;
+			defs: SVGAttributes;
+			use: SVGAttributes;
+
+			// Texto
+			text: SVGAttributes;
+			tspan: SVGAttributes;
+			textPath: SVGAttributes;
+
+			// Gradientes y patrones
+			linearGradient: SVGAttributes;
+			radialGradient: SVGAttributes;
+			stop: SVGAttributes;
+			pattern: SVGAttributes;
+			clipPath: SVGAttributes;
+			mask: SVGAttributes;
+
+			// Filtros
+			filter: SVGAttributes;
+			feBlend: SVGAttributes;
+			feColorMatrix: SVGAttributes;
+			feComponentTransfer: SVGAttributes;
+			feComposite: SVGAttributes;
+			feConvolveMatrix: SVGAttributes;
+			feDiffuseLighting: SVGAttributes;
+			feDisplacementMap: SVGAttributes;
+			feDropShadow: SVGAttributes;
+			feFlood: SVGAttributes;
+			feGaussianBlur: SVGAttributes;
+			feImage: SVGAttributes;
+			feMerge: SVGAttributes;
+			feMorphology: SVGAttributes;
+			feOffset: SVGAttributes;
+			feSpecularLighting: SVGAttributes;
+			feTile: SVGAttributes;
+			feTurbulence: SVGAttributes;
 		}
 
 		/** Tipo de elemento JSX */

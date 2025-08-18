@@ -4,15 +4,18 @@ import {
 	type BoxelsElement,
 	type BoxelsElementNode,
 	type Child,
-	isBoxelsElement,
 	normalizeChildren,
 } from './attributes/elements';
 import { createSvg } from './svg';
+import { appendChild } from './utils';
 
 export const Fragment: unique symbol = Symbol('Boxles-Fragment');
 
 const svgTags = new Set([
+	// Contenedor raíz
 	'svg',
+
+	// Formas básicas
 	'circle',
 	'ellipse',
 	'line',
@@ -20,13 +23,45 @@ const svgTags = new Set([
 	'polygon',
 	'polyline',
 	'rect',
-	'text',
+
+	// Contenedores / estructurales
 	'g',
-	'defs',
-	'linearGradient',
-	'stop',
-	'use',
 	'symbol',
+	'defs',
+	'use',
+
+	// Texto
+	'text',
+	'tspan',
+	'textPath',
+
+	// Gradientes y patrones
+	'linearGradient',
+	'radialGradient',
+	'stop',
+	'pattern',
+	'clipPath',
+	'mask',
+
+	// Filtros
+	'filter',
+	'feBlend',
+	'feColorMatrix',
+	'feComponentTransfer',
+	'feComposite',
+	'feConvolveMatrix',
+	'feDiffuseLighting',
+	'feDisplacementMap',
+	'feDropShadow',
+	'feFlood',
+	'feGaussianBlur',
+	'feImage',
+	'feMerge',
+	'feMorphology',
+	'feOffset',
+	'feSpecularLighting',
+	'feTile',
+	'feTurbulence',
 ]);
 
 // Tipos para detectar componentes
@@ -38,9 +73,47 @@ export type BoxelsElementSelector<T extends keyof HTMLElementTagNameMap> =
 	| HTMLElementTagNameMap[T]
 	| DocumentFragment
 	| typeof Fragment
+	// SVG
 	| 'svg'
-	| 'cirlce'
+	| 'circle'
+	| 'ellipse'
+	| 'line'
 	| 'path'
+	| 'polygon'
+	| 'polyline'
+	| 'rect'
+	| 'text'
+	| 'tspan'
+	| 'textPath'
+	| 'g'
+	| 'defs'
+	| 'symbol'
+	| 'use'
+	| 'linearGradient'
+	| 'radialGradient'
+	| 'stop'
+	| 'pattern'
+	| 'clipPath'
+	| 'mask'
+	| 'filter'
+	| 'feBlend'
+	| 'feColorMatrix'
+	| 'feComponentTransfer'
+	| 'feComposite'
+	| 'feConvolveMatrix'
+	| 'feDiffuseLighting'
+	| 'feDisplacementMap'
+	| 'feDropShadow'
+	| 'feFlood'
+	| 'feGaussianBlur'
+	| 'feImage'
+	| 'feMerge'
+	| 'feMorphology'
+	| 'feOffset'
+	| 'feSpecularLighting'
+	| 'feTile'
+	| 'feTurbulence'
+	// Reactivo / componentes
 	| FunctionalComponent
 	| ReactiveSignal<any>
 	| ClassComponent;
@@ -98,7 +171,7 @@ export function $<T extends keyof HTMLElementTagNameMap>(
 	if (selector === Fragment || selector instanceof DocumentFragment) {
 		const result = normalizeChildren(props?.children);
 
-		result.nodes.forEach((n) => append(node as HTMLElement, n));
+		result.nodes.forEach((n) => appendChild(node as HTMLElement, n));
 
 		const mount = (parent: HTMLElement | DocumentFragment) => {
 			if ((node as BoxelsElement).__mounted) return;
@@ -178,204 +251,5 @@ export function $<T extends keyof HTMLElementTagNameMap>(
 	}) as BoxelsElement;
 }
 
-export function append(
-	parent: HTMLElement | DocumentFragment | Comment | BoxelsElement | SVGElement,
-	child: any,
-) {
-	// Caso: el padre es un comentario → insertar antes del comentario
-	if (parent instanceof Comment) {
-		parent.parentNode?.insertBefore(
-			child instanceof Node ? child : document.createTextNode(String(child)),
-			parent,
-		);
-		return;
-	}
-
-	// Caso: SVG → mantener namespace
-	if (parent instanceof SVGElement) {
-		if (child instanceof Node) {
-			parent.appendChild(child);
-		} else {
-			parent.appendChild(document.createTextNode(String(child)));
-		}
-		return;
-	}
-
-	// Si es un BoxelsElement
-	if (isBoxelsElement(child)) {
-		if (!child.__mounted && !child.__destroyed) child.mount(parent);
-		return;
-	}
-
-	// Si es un signal → convertir a fragment para manejarlo de forma reactiva
-	if (isSignal(child)) {
-		append(parent, $(Fragment, {}, child as ReactiveSignal<any>));
-		return;
-	}
-
-	// Caso especial: ambos son Fragment → fusionar nodos
-	if (parent instanceof DocumentFragment && child instanceof DocumentFragment) {
-		parent.append(...child.childNodes);
-		return;
-	}
-
-	// Caso: padre es Fragment y el hijo es un Node normal
-	if (
-		parent instanceof DocumentFragment &&
-		child instanceof DocumentFragment === false
-	) {
-		parent.appendChild(
-			child instanceof Node ? child : document.createTextNode(String(child)),
-		);
-		return;
-	}
-
-	// Promesa → render diferido
-	if (child instanceof Promise) {
-		const comment = document.createComment('');
-		parent.appendChild(comment);
-
-		(async () => {
-			const result = await child;
-			append(comment, result);
-			comment.remove();
-		})();
-		return;
-	}
-
-	// Fallback normal
-	parent.appendChild(
-		child instanceof Node ? child : document.createTextNode(String(child)),
-	);
-}
-
-export const setAttribute = <T extends keyof HTMLElementTagNameMap>(
-	element: HTMLElementTagNameMap[T] | HTMLElement,
-	props: BoxelsElementAttributes<T>,
-) => {
-	const result = handleAttributes(element, props);
-	result['$lifecycle:mount']?.(element as BoxelsElementNode<T>);
-	return () => result['$lifecycle:destroy']?.(element as BoxelsElementNode<T>);
-};
-
-export const removeAttribute = <T extends keyof HTMLElementTagNameMap>(
-	element: HTMLElementTagNameMap[T] | HTMLElement,
-	props: (keyof BoxelsElementAttributes<T>)[],
-) => {
-	for (const attr of props) {
-		element.removeAttribute(String(attr));
-	}
-};
-
-export function replaceElement(
-	target: HTMLElement | DocumentFragment | Comment | BoxelsElement | SVGElement,
-	child: any,
-) {
-	const parent = target.parentNode;
-	if (!parent) return; // No hay dónde reemplazar
-
-	// Caso: el objetivo es un comentario
-	if (target instanceof Comment) {
-		parent.insertBefore(
-			child instanceof Node ? child : document.createTextNode(String(child)),
-			target,
-		);
-		target.remove();
-		return;
-	}
-
-	// Caso: SVG → mantener namespace
-	if (parent instanceof SVGElement) {
-		if (child instanceof Node) {
-			parent.replaceChild(child, target);
-		} else {
-			parent.replaceChild(document.createTextNode(String(child)), target);
-		}
-		return;
-	}
-
-	// Si es un BoxelsElement
-	if (isBoxelsElement(child)) {
-		if (!child.__mounted && !child.__destroyed) {
-			child.mount(parent as HTMLElement);
-			if (isBoxelsElement(target)) {
-				target.destroy();
-			} else if (target instanceof DocumentFragment) {
-				while (target.firstChild) target.removeChild(target.firstChild);
-			} else {
-				target.remove();
-			}
-		} else {
-			parent.replaceChild(child as unknown as Node, target);
-		}
-		return;
-	}
-
-	// Si es un signal → render reactivo
-	if (isSignal(child)) {
-		replaceElement(target, $(Fragment, {}, child as ReactiveSignal<any>));
-		return;
-	}
-
-	// Caso: ambos son Fragment → fusionar nodos
-	if (target instanceof DocumentFragment && child instanceof DocumentFragment) {
-		// Reemplazar el fragment entero por los nodos del nuevo fragment
-		parent.insertBefore(child, target);
-		if (isBoxelsElement(target)) {
-			target.destroy();
-		} else if (target instanceof DocumentFragment) {
-			while (target.firstChild) target.removeChild(target.firstChild);
-		} else {
-			(target as HTMLElement).remove();
-		}
-		parent.insertBefore(child, target);
-		return;
-	}
-
-	// Caso: target es Fragment y el hijo es un Node normal
-	if (
-		target instanceof DocumentFragment &&
-		child instanceof DocumentFragment === false
-	) {
-		parent.insertBefore(
-			child instanceof Node ? child : document.createTextNode(String(child)),
-			target,
-		);
-		if (isBoxelsElement(target)) {
-			target.destroy();
-		} else if (target instanceof DocumentFragment) {
-			while (target.firstChild) target.removeChild(target.firstChild);
-		} else {
-			(target as HTMLElement).remove();
-		}
-		return;
-	}
-
-	// Promesa → render diferido
-	if (child instanceof Promise) {
-		const comment = document.createComment('');
-		parent.replaceChild(comment, target);
-
-		(async () => {
-			const result = await child;
-			if (isBoxelsElement(target)) {
-				target.destroy();
-			} else if (target instanceof DocumentFragment) {
-				while (target.firstChild) target.removeChild(target.firstChild);
-			} else {
-				(target as HTMLElement).remove();
-			}
-		})();
-		return;
-	}
-
-	// Fallback normal
-	parent.replaceChild(
-		child instanceof Node ? child : document.createTextNode(String(child)),
-		target,
-	);
-}
-
 export * from './attributes/elements/index';
 export * from './attributes/handlers/index';
-export { append as appendChild };

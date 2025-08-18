@@ -1,7 +1,7 @@
-// Importa herramientas de reactividad (signals) y tipo para funciones de limpieza
+// Importa herramientas de reactividad
 import { isSignal, type ReactiveUnsubscribe } from '@core/reactive';
 
-// Importa tipos y manejadores para atributos especiales (como clase, estilo y ciclo de vida)
+// Importa manejadores y tipos de atributos especiales
 import {
 	type LifecycleEventHandlers,
 	handlers,
@@ -10,127 +10,242 @@ import {
 	type StyleAttr,
 } from './handlers';
 
-// Funciones auxiliares para manejar atributos especiales como "class" y "style"
+// Manejadores para class y style
 import { handleClassAttribute, handleStyleAttribute } from './styles/index';
 
-// Utilidad para normalizar y montar los hijos de un elemento
+// Utilidad para hijos de elementos
 import { normalizeChildren } from './elements/index';
-import { append } from '../index';
+import { appendChild } from '../utils';
 
 /**
- * Maneja la aplicación de atributos a un elemento HTML, incluyendo atributos
- * estándar, clases, estilos, eventos personalizados y suscripciones reactivas.
+ * Aplica atributos a un elemento HTML o SVG.
  *
- * @param element - El elemento HTML al cual se aplicarán los atributos
- * @param props - Objeto con los atributos (estáticos o reactivos) a aplicar
- * @returns Un objeto con funciones de montaje y limpieza asociadas al ciclo de vida del elemento
+ * - Soporta señales reactivas (se desuscriben en destroy).
+ * - Aplica handlers específicos de tag o globales.
+ * - Controla atributos especiales (`class`, `style`, `$on:`, `$lifecycle`, etc).
+ *
+ * @template T Etiqueta de HTMLElementTagNameMap
+ * @param element Elemento al que se aplicarán atributos
+ * @param props Objeto con los atributos
+ * @returns Manejadores de ciclo de vida (mount/destroy)
  */
 export function handleAttributes<T extends keyof HTMLElementTagNameMap>(
 	element: HTMLElementTagNameMap[T] | HTMLElement | SVGElement,
 	props: BoxelsElementAttributes<T>,
 ): LifecycleEventHandlers<T> {
-	const cleanUps: ReactiveUnsubscribe[] = []; // Arreglo de funciones de limpieza a ejecutar en destrucción
-	const mounts: (() => void)[] = []; // Arreglo de funciones a ejecutar cuando el elemento se monte
+	const cleanUps: ReactiveUnsubscribe[] = [];
+	const mounts: (() => void)[] = [];
 
-	const tag = (element.tagName ?? 'fragment').toLowerCase(); // Nombre del tag en minúscula
-	const tagHandlers = handlers[tag] ?? {}; // Manejadores específicos para el tag, si existen
+	const tag = (element.tagName ?? 'fragment').toLowerCase();
+	const tagHandlers = handlers[tag] ?? {};
 
-	// Recorre cada propiedad del objeto de atributos
 	for (const [key, raw] of Object.entries(props)) {
-		// Manejo de hijos del elemento
+		// --- hijos ---
 		if (key === 'children') {
-			const result = normalizeChildren(raw); // Normaliza el contenido
-			for (const node of result.nodes) append(element, node); // Agrega cada hijo al DOM
-			mounts.push(result.onMount); // Agrega función de montaje
-			cleanUps.push(result.cleanup); // Agrega función de limpieza
+			const result = normalizeChildren(raw);
+			for (const node of result.nodes) appendChild(element, node);
+			mounts.push(result.onMount);
+			cleanUps.push(result.cleanup);
 			continue;
 		}
 
-		// Si el valor es un signal reactivo, se suscribe a cambios
+		// --- señales reactivas ---
 		if (isSignal(raw)) {
 			const unsub = raw.subscribe((val) => {
-				applyAttr(element, key, val); // Actualiza el atributo cuando el valor cambia
+				applyAttr(element, key, val);
 			});
-			cleanUps.push(unsub); // Almacena la función de desuscripción
+			cleanUps.push(unsub);
 			continue;
 		}
 
-		// Atributo especial "class"
+		// --- class ---
 		if (key === 'class') {
 			cleanUps.push(handleClassAttribute(element, raw as ClassAttr));
 			continue;
 		}
 
-		// Atributo especial "style"
+		// --- style ---
 		if (key === 'style') {
 			cleanUps.push(handleStyleAttribute(element, raw as StyleAttr));
 			continue;
 		}
 
-		// Ciclo de vida: función a ejecutar cuando el elemento se monte
+		// --- lifecycle ---
 		if (key === '$lifecycle:mount' && typeof raw === 'function') {
 			mounts.push(() => raw(element));
 			continue;
 		}
-
-		// Ciclo de vida: función a ejecutar cuando el elemento se destruya
 		if (key === '$lifecycle:destroy' && typeof raw === 'function') {
 			cleanUps.push(() => raw(element));
 			continue;
 		}
 
-		// Eventos personalizados usando el prefijo $on: (ej: $on:click)
+		// --- eventos ---
 		if (key.startsWith('$on:') && typeof raw === 'function') {
-			const ev = key.slice(4); // Extrae el nombre del evento (sin el prefijo)
-			element.addEventListener(ev, raw as EventListener); // Agrega el listener
-			cleanUps.push(() => element.removeEventListener(ev, raw)); // Remueve al destruir
+			const ev = key.slice(4);
+			element.addEventListener(ev, raw as EventListener);
+			cleanUps.push(() => element.removeEventListener(ev, raw));
 			continue;
 		}
 
-		// Atributos manejados globalmente (por ejemplo, data-*, ref, etc.)
+		// --- handlers globales ---
 		if (key in globalHandlers) {
 			cleanUps.push(globalHandlers[key](element, raw));
 			continue;
 		}
 
-		// Atributos específicos del tag (por ejemplo, solo válidos en <input>, <img>, etc.)
+		// --- handlers por tag ---
 		if (key in tagHandlers) {
 			cleanUps.push(tagHandlers[key](element, raw));
 			continue;
 		}
 
-		// Si comienza con "$" pero no es reconocido, se lanza un error
+		// --- atributo desconocido con prefijo especial ---
 		if (key.startsWith('$')) {
 			throw new Error(
-				`[Attributes] Atributo "${key}" no reconocido en el elemento <${tag}>. Asegúrate de que sea un atributo válido o un evento personalizado.`,
+				`[Attributes] Atributo "${key}" no reconocido en <${tag}>.`,
 			);
 		}
 
-		// Atributos HTML estándar (ej: href, src, value, title, etc.)
+		// --- atributo normal ---
 		applyAttr(element, key, raw);
 	}
 
-	// Retorna funciones de ciclo de vida
 	return {
-		'$lifecycle:destroy': () => cleanUps.forEach((fn) => fn()), // Ejecuta todas las limpiezas
-		'$lifecycle:mount': () => mounts.forEach((fn) => fn()), // Ejecuta todas las funciones de montaje
+		'$lifecycle:destroy': () => cleanUps.forEach((fn) => fn()),
+		'$lifecycle:mount': () => mounts.forEach((fn) => fn()),
 	};
 }
 
 /**
- * Aplica un atributo o propiedad al elemento DOM.
- * Puede remover el atributo si el valor es nulo, vacío o una función (no válida).
+ * Elimina un atributo específico de un elemento.
+ * Se encarga de casos especiales (`class`, `style`, eventos, handlers, booleanos, etc).
  *
- * @param el - Elemento al que se le aplica el atributo
- * @param key - Nombre del atributo
- * @param value - Valor del atributo, puede ser de cualquier tipo
+ * @template T Etiqueta de HTMLElementTagNameMap
+ * @param element Elemento objetivo
+ * @param key Nombre del atributo a eliminar
+ * @param value Valor anterior (opcional, usado en casos como class/style)
+ */
+export function removeAttributeHandler<T extends keyof HTMLElementTagNameMap>(
+	element: HTMLElementTagNameMap[T] | HTMLElement | SVGElement,
+	key: string,
+	value?: unknown,
+) {
+	const tag = (element.tagName ?? 'fragment').toLowerCase();
+	const tagHandlers = handlers[tag] ?? {};
+
+	// --- hijos ---
+	if (key === 'children') {
+		element.innerHTML = ''; // elimina todos los hijos
+		return;
+	}
+
+	// --- class ---
+	if (key === 'class') {
+		if (typeof value === 'string') {
+			element.classList.remove(value);
+		} else if (Array.isArray(value)) {
+			value.forEach((v) => element.classList.remove(v));
+		} else if (typeof value === 'object' && value) {
+			Object.entries(value).forEach(([cls, active]) => {
+				if (active) element.classList.remove(cls);
+			});
+		} else {
+			element.removeAttribute('class');
+		}
+		return;
+	}
+
+	// --- style ---
+	if (key === 'style') {
+		if (typeof value === 'string') {
+			(element as HTMLElement).style.removeProperty(value);
+		} else if (typeof value === 'object' && value) {
+			Object.keys(value).forEach((prop) =>
+				(element as HTMLElement).style.removeProperty(prop),
+			);
+		} else {
+			element.removeAttribute('style');
+		}
+		return;
+	}
+
+	// --- eventos ---
+	if (key.startsWith('$on:') && typeof value === 'function') {
+		const ev = key.slice(4);
+		element.removeEventListener(ev, value as EventListener);
+		return;
+	}
+
+	// --- globalHandlers ---
+	if (key in globalHandlers) {
+		if (typeof globalHandlers[key].remove === 'function') {
+			globalHandlers[key].remove(element, value);
+		} else {
+			element.removeAttribute(key);
+		}
+		return;
+	}
+
+	// --- tagHandlers ---
+	if (key in tagHandlers) {
+		if (typeof tagHandlers[key].remove === 'function') {
+			tagHandlers[key].remove(element, value);
+		} else {
+			element.removeAttribute(key);
+		}
+		return;
+	}
+
+	// --- lifecycle: ignoramos ---
+	if (key.startsWith('$lifecycle')) return;
+
+	// --- atributo normal ---
+	element.removeAttribute(key);
+
+	// --- booleanos → reset a false ---
+	if (key in element && typeof (element as any)[key] === 'boolean') {
+		(element as any)[key] = false;
+	}
+}
+
+/**
+ * Elimina múltiples atributos de un elemento HTML o SVG.
+ * Es el opuesto de `handleAttributes`.
+ *
+ * Internamente reutiliza `removeAttributeHandler` para evitar duplicar lógica.
+ *
+ * @template T Etiqueta de HTMLElementTagNameMap
+ * @param element Elemento objetivo
+ * @param props Objeto con los atributos a eliminar
+ */
+export function removeAttributes<T extends keyof HTMLElementTagNameMap>(
+	element: HTMLElementTagNameMap[T] | HTMLElement | SVGElement,
+	props: Partial<BoxelsElementAttributes<T>>,
+) {
+	for (const [key, raw] of Object.entries(props)) {
+		removeAttributeHandler(element, key, raw);
+	}
+}
+
+/**
+ * Aplica un atributo o lo elimina si es inválido.
+ *
+ * Casos:
+ * - `null`, `undefined`, `false`, `''` o funciones → se eliminan.
+ * - Objetos no array → advertencia en consola.
+ * - Atributos válidos → se aplican con `setAttribute`.
+ *
+ * @template T Etiqueta de HTMLElementTagNameMap
+ * @param el Elemento objetivo
+ * @param key Nombre del atributo
+ * @param value Valor del atributo
  */
 function applyAttr<T extends keyof HTMLElementTagNameMap>(
 	el: HTMLElementTagNameMap[T] | HTMLElement | SVGElement,
 	key: string,
 	value: unknown,
 ) {
-	// Si el valor es nulo, falso, indefinido, cadena vacía o función, se elimina el atributo
 	if (
 		value == null ||
 		value === false ||
@@ -138,23 +253,13 @@ function applyAttr<T extends keyof HTMLElementTagNameMap>(
 		value === '' ||
 		typeof value === 'function'
 	) {
-		el.removeAttribute(key);
-
-		// También se asegura de que la propiedad booleana del DOM esté en falso si aplica
-		if (key in el && typeof (el as any)[key] === 'boolean') {
-			(el as any)[key] = false;
-		}
+		removeAttributeHandler(el, key, value);
 		return;
 	}
 
-	// Advertencia si se pasa un objeto que no es array como valor (no válido como atributo HTML)
 	if (typeof value === 'object' && !Array.isArray(value)) {
-		console.warn(
-			`[Attributes] Atributo "${key}" recibió un objeto no válido:`,
-			value,
-		);
+		console.warn(`[Attributes] "${key}" recibió un objeto no válido:`, value);
 	}
 
-	// Finalmente, aplica el atributo al elemento como cadena de texto
 	el.setAttribute(key, String(value));
 }

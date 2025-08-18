@@ -2,63 +2,6 @@
 import { addGlobalHandler } from './global-handlers';
 
 /**
- * Evento personalizado para gestos de deslizamiento (swipe).
- */
-export type GestureSwipe = CustomEvent<{
-	state: 'start' | 'move' | 'end' | 'cancel'; // Estado del gesto
-	dx: number; // Diferencia horizontal desde el punto de inicio
-	dy: number; // Diferencia vertical desde el punto de inicio
-	distance: number; // Distancia total del movimiento
-	direction: 'left' | 'right' | 'up' | 'down' | null; // Dirección del deslizamiento
-	target: HTMLElement; // Elemento objetivo
-}>;
-
-/**
- * Evento personalizado que indica la tasa de clics por segundo.
- */
-export type GestureClickrate = CustomEvent<{ clicksPerSecond: number }>;
-
-/**
- * Evento personalizado para gestos de pellizco (pinch).
- */
-export type gesturePinch = CustomEvent<{
-	state: 'start' | 'move' | 'end'; // Estado del gesto
-	scale: number; // Escala de ampliación o reducción
-}>;
-
-/**
- * Evento personalizado para gestos de rotación (rotate).
- */
-export type GestureRotate = CustomEvent<{
-	state: 'start' | 'move' | 'end'; // Estado del gesto
-	angle: number; // Ángulo de rotación en grados
-}>;
-
-/**
- * Extiende los atributos globales de elementos con soporte para gestos.
- */
-declare global {
-	interface BoxelsElementGlobalAttributes {
-		// Eventos de gesto
-		'$gesture:tap'?: (e: TouchEvent) => void;
-		'$gesture:doubletap'?: (e: TouchEvent) => void;
-		'$gesture:longpress'?: (e: TouchEvent) => void;
-		'$gesture:swipe'?: (e: GestureSwipe) => void;
-		'$gesture:multitap'?: (e: CustomEvent<{ count: number }>) => void;
-		'$gesture:clickrate'?: (e: GestureClickrate) => void;
-		'$gesture:pinch'?: (e: gesturePinch) => void;
-		'$gesture:rotate'?: (e: GestureRotate) => void;
-
-		// Configuración personalizada para gestos
-		'$gesture:min-swipe'?: number;        // Distancia mínima para swipe válido
-		'$gesture:max-swipe'?: number;        // Distancia máxima para swipe válido
-		'$gesture:longpress-ms'?: number;     // Duración mínima para activar longpress
-		'$gesture:doubletap-ms'?: number;     // Intervalo máximo entre taps para doubletap
-		'$gesture:multitap-ms'?: number;      // Intervalo entre toques para multitap
-	}
-}
-
-/**
  * Determina la dirección del deslizamiento con base en dx y dy.
  */
 function getSwipeDirection(
@@ -90,7 +33,7 @@ function getNumberAttr(
 // --- TAP ---
 addGlobalHandler('$gesture:tap', (el, handler) => {
 	const onTouchEnd = (e: TouchEvent) => handler(e);
-	el.addEventListener('touchend', onTouchEnd);
+	el.addEventListener('touchend', onTouchEnd, { passive: true });
 	return () => el.removeEventListener('touchend', onTouchEnd);
 });
 
@@ -103,7 +46,7 @@ addGlobalHandler('$gesture:doubletap', (el, handler) => {
 		if (now - lastTap < maxDelay) handler(e);
 		lastTap = now;
 	};
-	el.addEventListener('touchend', onTouchEnd);
+	el.addEventListener('touchend', onTouchEnd, { passive: true });
 	return () => el.removeEventListener('touchend', onTouchEnd);
 });
 
@@ -115,8 +58,8 @@ addGlobalHandler('$gesture:longpress', (el, handler) => {
 		timeout = window.setTimeout(() => handler(e), duration);
 	};
 	const onTouchEnd = () => clearTimeout(timeout);
-	el.addEventListener('touchstart', onTouchStart);
-	el.addEventListener('touchend', onTouchEnd);
+	el.addEventListener('touchstart', onTouchStart, { passive: true });
+	el.addEventListener('touchend', onTouchEnd, { passive: true });
 	return () => {
 		el.removeEventListener('touchstart', onTouchStart);
 		el.removeEventListener('touchend', onTouchEnd);
@@ -177,7 +120,11 @@ addGlobalHandler('$gesture:swipe', (el, handler) => {
 		const dy = e.changedTouches[0].clientY - startY;
 		const dist = Math.hypot(dx, dy);
 		const min = getNumberAttr(el, '$gesture:min-swipe', 30);
-		const max = getNumberAttr(el, '$gesture:max-swipe', Number.MAX_SAFE_INTEGER);
+		const max = getNumberAttr(
+			el,
+			'$gesture:max-swipe',
+			Number.MAX_SAFE_INTEGER,
+		);
 		const direction = getSwipeDirection(dx, dy);
 		const state = dist >= min && dist <= max ? 'end' : 'cancel';
 		handler(
@@ -188,10 +135,10 @@ addGlobalHandler('$gesture:swipe', (el, handler) => {
 		);
 	};
 
-	el.addEventListener('touchstart', onTouchStart);
-	el.addEventListener('touchmove', onTouchMove);
-	el.addEventListener('touchend', onTouchEnd);
-	el.addEventListener('touchcancel', onTouchEnd);
+	el.addEventListener('touchstart', onTouchStart, { passive: true });
+	el.addEventListener('touchmove', onTouchMove, { passive: true });
+	el.addEventListener('touchend', onTouchEnd, { passive: true });
+	el.addEventListener('touchcancel', onTouchEnd, { passive: true });
 
 	return () => {
 		el.removeEventListener('touchstart', onTouchStart);
@@ -219,7 +166,7 @@ addGlobalHandler('$gesture:multitap', (el, handler) => {
 			count = 0;
 		}, delay);
 	};
-	el.addEventListener('touchend', onTouchEnd);
+	el.addEventListener('touchend', onTouchEnd, { passive: true });
 	return () => el.removeEventListener('touchend', onTouchEnd);
 });
 
@@ -237,7 +184,7 @@ addGlobalHandler('$gesture:clickrate', (el, handler) => {
 			}),
 		);
 	};
-	el.addEventListener('click', onClick);
+	el.addEventListener('click', onClick, { passive: true });
 	return () => el.removeEventListener('click', onClick);
 });
 
@@ -287,10 +234,10 @@ addGlobalHandler('$gesture:pinch', (el, handler) => {
 		}
 	};
 
-	el.addEventListener('touchstart', onStart);
-	el.addEventListener('touchmove', onMove);
-	el.addEventListener('touchend', onEnd);
-	el.addEventListener('touchcancel', onEnd);
+	el.addEventListener('touchstart', onStart, { passive: true });
+	el.addEventListener('touchmove', onMove, { passive: true });
+	el.addEventListener('touchend', onEnd, { passive: true });
+	el.addEventListener('touchcancel', onEnd, { passive: true });
 	return () => {
 		el.removeEventListener('touchstart', onStart);
 		el.removeEventListener('touchmove', onMove);
@@ -342,10 +289,10 @@ addGlobalHandler('$gesture:rotate', (el, handler) => {
 		startAngle = 0;
 	};
 
-	el.addEventListener('touchstart', onStart);
-	el.addEventListener('touchmove', onMove);
-	el.addEventListener('touchend', onEnd);
-	el.addEventListener('touchcancel', onEnd);
+	el.addEventListener('touchstart', onStart, { passive: true });
+	el.addEventListener('touchmove', onMove, { passive: true });
+	el.addEventListener('touchend', onEnd, { passive: true });
+	el.addEventListener('touchcancel', onEnd, { passive: true });
 	return () => {
 		el.removeEventListener('touchstart', onStart);
 		el.removeEventListener('touchmove', onMove);

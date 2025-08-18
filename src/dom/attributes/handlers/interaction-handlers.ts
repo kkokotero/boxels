@@ -4,34 +4,6 @@
 
 import { addGlobalHandler } from './global-handlers'; // Importa el sistema de registro de manejadores globales.
 
-// Extendemos la interfaz global para permitir atributos personalizados
-// que serán reconocidos por el sistema de renderizado/reactividad.
-declare global {
-	interface BoxelsElementGlobalAttributes {
-		// Evento disparado cuando el puntero está cerca del elemento.
-		'$interaction:near'?: (e: CustomEvent<{ distance: number }>) => void;
-
-		// Evento disparado continuamente cuando el puntero se mueve sobre el elemento.
-		'$interaction:track'?: (e: MouseEvent) => void;
-
-		// Evento disparado cuando el puntero entra al área del elemento.
-		'$interaction:mouseenter'?: (e: MouseEvent) => void;
-
-		// Evento disparado cuando el puntero sale del área del elemento.
-		'$interaction:mouseleave'?: (e: MouseEvent) => void;
-
-		// Evento disparado cuando el puntero permanece sobre el elemento
-		// por un cierto tiempo (definido por `$interaction:linger-ms`).
-		'$interaction:linger'?: (e: CustomEvent<{ duration: number }>) => void;
-
-		// Atributo que define el radio de proximidad para `$interaction:near`.
-		'$interaction:radius'?: number;
-
-		// Atributo que define la duración en milisegundos para `$interaction:linger`.
-		'$interaction:linger-ms'?: number;
-	}
-}
-
 /**
  * Función auxiliar para obtener un atributo numérico desde el elemento.
  * Primero intenta acceder directamente a la propiedad, luego al atributo HTML.

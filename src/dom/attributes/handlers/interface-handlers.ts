@@ -1,36 +1,4 @@
-import { addGlobalHandler } from './global-handlers';
-
-// Declaración global para atributos personalizados compatibles con el sistema Boxels
-declare global {
-	interface BoxelsElementGlobalAttributes {
-		// Atributos existentes (eventos personalizados)
-		'$interface:visible'?: (e: ExtendedIntersectionEvent) => void; // Se dispara cuando el elemento entra en el viewport
-		'$interface:invisible'?: (e: ExtendedIntersectionEvent) => void; // Se dispara cuando el elemento sale del viewport
-		'$interface:resize'?: (e: ExtendedResizeEvent) => void; // Se dispara cuando el tamaño del elemento cambia
-		'$interface:enter'?: (e: MouseEvent & ExtraEventData) => void; // Se dispara cuando el puntero entra al elemento
-		'$interface:leave'?: (e: MouseEvent & ExtraEventData) => void; // Se dispara cuando el puntero sale del elemento
-		'$interface:mutation'?: (e: MutationRecord[] & { el: HTMLElement }) => void; // Se dispara cuando el DOM del elemento cambia
-		'$interface:idle'?: (e: { time: DOMHighResTimeStamp }) => void; // Se dispara cuando el navegador está en estado ocioso
-
-		// Atributos nuevos
-		'$interface:beforeunload'?: (e: BeforeUnloadEvent) => void; // Se dispara antes de que la página se descargue
-		'$interface:pageshow'?: (e: PageTransitionEvent) => void; // Se dispara cuando se muestra la página (incluido desde caché)
-		'$interface:pagehide'?: (e: PageTransitionEvent) => void; // Se dispara cuando la página se oculta (navegación o descarga)
-		'$interface:visibilitychange'?: (e: { hidden: boolean; visibilityState: DocumentVisibilityState }) => void; // Se dispara cuando cambia la visibilidad del documento
-	}
-}
-
-// Datos extra calculados para enriquecer eventos
-type ExtraEventData = {
-	percentX: number; // Porcentaje horizontal visible respecto al elemento
-	percentY: number; // Porcentaje vertical visible respecto al elemento
-	rect: DOMRect; // Bounding client rect del elemento
-	viewport: { width: number; height: number }; // Dimensiones actuales del viewport
-};
-
-// Tipos enriquecidos para eventos con intersección y resize
-type ExtendedIntersectionEvent = IntersectionObserverEntry & ExtraEventData;
-type ExtendedResizeEvent = ResizeObserverEntry & ExtraEventData;
+import { addGlobalHandler, type ExtraEventData } from './global-handlers';
 
 // Utilidad para calcular información adicional sobre un elemento en pantalla
 function getExtraInfo(el: HTMLElement): ExtraEventData {
