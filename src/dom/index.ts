@@ -253,3 +253,4 @@ export function $<T extends keyof HTMLElementTagNameMap>(
 
 export * from './attributes/elements/index';
 export * from './attributes/handlers/index';
+export * from './utils';
