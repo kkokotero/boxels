@@ -35,6 +35,7 @@ declare global {
 			ellipse: SVGAttributes;
 			line: SVGAttributes;
 			path: SVGAttributes;
+			pathx: SVGAttributes;
 			polygon: SVGAttributes;
 			polyline: SVGAttributes;
 			rect: SVGAttributes;

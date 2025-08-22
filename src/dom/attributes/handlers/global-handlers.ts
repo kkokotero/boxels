@@ -117,35 +117,35 @@ interface standartAttrs<T extends keyof HTMLElementTagNameMap>
 
 export type SVGAttributes = Partial<{
 	// Atributos comunes SVG
-	xmlns: string;
-	fill: string;
-	stroke: string;
-	'stroke-width': string | number;
-	viewBox: string;
-	width: string | number;
-	height: string | number;
-	class: string;
+	xmlns: MaybeSignal<string>;
+	fill: MaybeSignal<string>;
+	stroke: MaybeSignal<string>;
+	'stroke-width': MaybeSignal<string | number>;
+	viewBox: MaybeSignal<string>;
+	width: MaybeSignal<string | number>;
+	height: MaybeSignal<string | number>;
+	class: MaybeSignal<string>;
 
 	// Atributos de formas SVG
-	cx: string | number;
-	cy: string | number;
-	r: string | number;
-	x: string | number;
-	y: string | number;
-	d: string;
-	points: string;
-	transform: string;
+	cx: MaybeSignal<string | number>;
+	cy: MaybeSignal<string | number>;
+	r: MaybeSignal<string | number>;
+	x: MaybeSignal<string | number>;
+	y: MaybeSignal<string | number>;
+	d: MaybeSignal<string>;
+	points: MaybeSignal<string>;
+	transform: MaybeSignal<string>;
 	// etc.
 
 	// Accesibilidad
-	role: string;
-	'aria-label': string;
-	'aria-hidden': boolean | 'true' | 'false';
+	role: MaybeSignal<string>;
+	'aria-label': MaybeSignal<string>;
+	'aria-hidden': MaybeSignal<boolean | 'true' | 'false'>;
 
 	// Children usualmente es JSX.Element o similar
 	children?: MaybeSignal<JSX.Element | JSX.Element[] | string>;
 
-	[k: string]: any;
+	[k: string]: MaybeSignal<any>;
 }>;
 
 // Datos extra calculados para enriquecer eventos

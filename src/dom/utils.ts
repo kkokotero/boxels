@@ -97,11 +97,19 @@ export interface Component {
 export function appendChild(
 	parent: HTMLElement | DocumentFragment | Comment | BoxelsElement | SVGElement,
 	child: any,
-	position: 'before' | 'after' | 'last' = 'last'
+	position: 'before' | 'after' | 'last' = 'last',
 ) {
 	// Helper para normalizar el hijo a Node
 	const normalizeChild = (value: any) =>
 		value instanceof Node ? value : document.createTextNode(String(value));
+
+	// ---------------------------------------------------------------------
+	// Caso: padre es SVG → mantener namespace
+	// ---------------------------------------------------------------------
+	if (parent instanceof SVGElement) {
+		insertNode(parent, normalizeChild(child), position);
+		return;
+	}
 
 	// ---------------------------------------------------------------------
 	// Caso: padre es un comentario → insertar ANTES o DESPUÉS según position
@@ -128,7 +136,11 @@ export function appendChild(
 	// Caso: hijo es una señal reactiva → envolver en Fragment
 	// ---------------------------------------------------------------------
 	if (isSignal(child)) {
-		appendChild(parent, $(Fragment, {}, child as ReactiveSignal<any>), position);
+		appendChild(
+			parent,
+			$(Fragment, {}, child as ReactiveSignal<any>),
+			position,
+		);
 		return;
 	}
 
@@ -137,7 +149,7 @@ export function appendChild(
 	// ---------------------------------------------------------------------
 	if (child instanceof Promise) {
 		const marker = document.createComment(
-			debug.isShowCommentNames() ? 'promise:placeholder' : ''
+			debug.isShowCommentNames() ? 'promise:placeholder' : '',
 		);
 		appendChild(parent, marker, position);
 
@@ -157,16 +169,11 @@ export function appendChild(
 		return;
 	}
 
-	if (!(parent instanceof DocumentFragment) && child instanceof DocumentFragment) {
+	if (
+		!(parent instanceof DocumentFragment) &&
+		child instanceof DocumentFragment
+	) {
 		insertNode(parent, child, position);
-		return;
-	}
-
-	// ---------------------------------------------------------------------
-	// Caso: padre es SVG → mantener namespace
-	// ---------------------------------------------------------------------
-	if (parent instanceof SVGElement) {
-		insertNode(parent, normalizeChild(child), position);
 		return;
 	}
 
@@ -185,16 +192,17 @@ export function appendChild(
 function insertNode(
 	parent: HTMLElement | DocumentFragment | SVGElement,
 	node: Node,
-	position: 'before' | 'after' | 'last'
+	position: 'before' | 'after' | 'last',
 ) {
 	if (position === 'last') {
 		parent.appendChild(node);
 		return;
 	}
 
-	const refNode = position === 'before'
-		? parent.firstChild
-		: parent.lastChild?.nextSibling || null;
+	const refNode =
+		position === 'before'
+			? parent.firstChild
+			: parent.lastChild?.nextSibling || null;
 
 	if (refNode) {
 		parent.insertBefore(node, refNode);
