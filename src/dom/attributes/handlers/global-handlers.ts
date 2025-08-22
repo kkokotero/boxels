@@ -1,4 +1,4 @@
-import type { ReactiveSignal } from '@core/index';
+import type { MaybeSignal, ReactiveSignal } from '@core/index';
 import type { BoxelsElementNode } from '../elements';
 
 /**
@@ -143,7 +143,7 @@ export type SVGAttributes = Partial<{
 	'aria-hidden': boolean | 'true' | 'false';
 
 	// Children usualmente es JSX.Element o similar
-	children?: JSX.Element | JSX.Element[] | string;
+	children?: MaybeSignal<JSX.Element | JSX.Element[] | string>;
 
 	[k: string]: any;
 }>;
@@ -157,7 +157,8 @@ export type ExtraEventData = {
 };
 
 // Tipos enriquecidos para eventos con intersección y resize
-export type ExtendedIntersectionEvent = IntersectionObserverEntry & ExtraEventData;
+export type ExtendedIntersectionEvent = IntersectionObserverEntry &
+	ExtraEventData;
 export type ExtendedResizeEvent = ResizeObserverEntry & ExtraEventData;
 
 /**
@@ -192,7 +193,6 @@ export type GestureRotate = CustomEvent<{
 	state: 'start' | 'move' | 'end'; // Estado del gesto
 	angle: number; // Ángulo de rotación en grados
 }>;
-
 
 /**
  * Declaraciones globales necesarias para extender el sistema de tipos de JSX

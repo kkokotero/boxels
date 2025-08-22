@@ -89,19 +89,26 @@ export interface Component {
  * - DocumentFragment (se fusionan o anidan).
  * - Promesas (se insertan diferidas con marcador temporal).
  * - Valores primitivos (se convierten en nodos de texto).
+ *
+ * @param parent - Nodo padre donde insertar
+ * @param child - Contenido a insertar
+ * @param position - Posición relativa: 'before', 'after' o 'last' (por defecto)
  */
 export function appendChild(
 	parent: HTMLElement | DocumentFragment | Comment | BoxelsElement | SVGElement,
 	child: any,
+	position: 'before' | 'after' | 'last' = 'last'
 ) {
+	// Helper para normalizar el hijo a Node
+	const normalizeChild = (value: any) =>
+		value instanceof Node ? value : document.createTextNode(String(value));
+
 	// ---------------------------------------------------------------------
-	// Caso: el padre es un comentario → insertar ANTES de ese comentario
+	// Caso: padre es un comentario → insertar ANTES o DESPUÉS según position
 	// ---------------------------------------------------------------------
 	if (parent instanceof Comment) {
-		parent.parentNode?.insertBefore(
-			child instanceof Node ? child : document.createTextNode(String(child)),
-			parent,
-		);
+		const refNode = position === 'before' ? parent : parent.nextSibling;
+		parent.parentNode?.insertBefore(normalizeChild(child), refNode);
 		return;
 	}
 
@@ -109,28 +116,30 @@ export function appendChild(
 	// Caso: hijo es un componente BoxelsElement
 	// ---------------------------------------------------------------------
 	if (isBoxelsElement(child)) {
-		if (!child.__mounted && !child.__destroyed)
+		if (!child.__mounted && !child.__destroyed) {
 			child.mount(parent as HTMLElement);
-		else parent.appendChild(child);
+		} else {
+			insertNode(parent, child, position);
+		}
 		return;
 	}
 
 	// ---------------------------------------------------------------------
-	// Caso: hijo es una señal reactiva → se envuelve en un Fragment
+	// Caso: hijo es una señal reactiva → envolver en Fragment
 	// ---------------------------------------------------------------------
 	if (isSignal(child)) {
-		appendChild(parent, $(Fragment, {}, child as ReactiveSignal<any>));
+		appendChild(parent, $(Fragment, {}, child as ReactiveSignal<any>), position);
 		return;
 	}
 
 	// ---------------------------------------------------------------------
-	// Caso: hijo es una Promesa → render diferido
+	// Caso: hijo es Promesa → insertar marcador temporal
 	// ---------------------------------------------------------------------
 	if (child instanceof Promise) {
 		const marker = document.createComment(
-			debug.isShowCommentNames() ? 'promise:placeholder' : '',
+			debug.isShowCommentNames() ? 'promise:placeholder' : ''
 		);
-		appendChild(parent, marker);
+		appendChild(parent, marker, position);
 
 		(async () => {
 			const resolved = await child;
@@ -141,42 +150,57 @@ export function appendChild(
 	}
 
 	// ---------------------------------------------------------------------
-	// Caso: fusión de fragmentos (padre e hijo son DocumentFragment)
+	// Caso: DocumentFragment (fusión o inserción)
 	// ---------------------------------------------------------------------
 	if (parent instanceof DocumentFragment && child instanceof DocumentFragment) {
-		parent.append(...child.childNodes);
+		insertNode(parent, child, position);
+		return;
+	}
+
+	if (!(parent instanceof DocumentFragment) && child instanceof DocumentFragment) {
+		insertNode(parent, child, position);
 		return;
 	}
 
 	// ---------------------------------------------------------------------
-	// Caso: hijo es DocumentFragment y padre NO lo es → insertarlo entero
-	// ---------------------------------------------------------------------
-	if (
-		!(parent instanceof DocumentFragment) &&
-		child instanceof DocumentFragment
-	) {
-		parent.appendChild(child);
-		return;
-	}
-
-	// ---------------------------------------------------------------------
-	// Caso: padre es SVG → mantener namespace correcto
-	// (nota: DocumentFragment dentro de SVG también se maneja con appendChild)
+	// Caso: padre es SVG → mantener namespace
 	// ---------------------------------------------------------------------
 	if (parent instanceof SVGElement) {
-		parent.appendChild(
-			child instanceof Node ? child : document.createTextNode(String(child)),
-		);
+		insertNode(parent, normalizeChild(child), position);
 		return;
 	}
 
 	// ---------------------------------------------------------------------
-	// Caso general: texto o nodo directo
-	// Esto cubre HTMLElement y DocumentFragment igualmente
+	// Caso general: HTMLElement / DocumentFragment
 	// ---------------------------------------------------------------------
-	parent.appendChild(
-		child instanceof Node ? child : document.createTextNode(String(child)),
-	);
+	insertNode(parent, normalizeChild(child), position);
+}
+
+/**
+ * Inserta un nodo en una posición específica.
+ * @param parent Nodo padre
+ * @param node Nodo a insertar
+ * @param position 'before', 'after', 'last'
+ */
+function insertNode(
+	parent: HTMLElement | DocumentFragment | SVGElement,
+	node: Node,
+	position: 'before' | 'after' | 'last'
+) {
+	if (position === 'last') {
+		parent.appendChild(node);
+		return;
+	}
+
+	const refNode = position === 'before'
+		? parent.firstChild
+		: parent.lastChild?.nextSibling || null;
+
+	if (refNode) {
+		parent.insertBefore(node, refNode);
+	} else {
+		parent.appendChild(node);
+	}
 }
 
 /**

@@ -63,7 +63,7 @@ const svgTags = new Set([
 	'feSpecularLighting',
 	'feTile',
 	'feTurbulence',
-	'title'
+	'title',
 ]);
 
 // Tipos para detectar componentes
@@ -81,6 +81,7 @@ export type BoxelsElementSelector<T extends keyof HTMLElementTagNameMap> =
 	| 'ellipse'
 	| 'line'
 	| 'path'
+	| 'pathx'
 	| 'polygon'
 	| 'polyline'
 	| 'rect'
@@ -159,11 +160,7 @@ export function $<T extends keyof HTMLElementTagNameMap>(
 	} else if (typeof selector === 'function') {
 		return selector(props);
 	} else if (typeof selector === 'string' && svgTags.has(selector)) {
-		return createSvg(
-			selector as any,
-			props as BoxelsElementAttributes<'div'>,
-			children,
-		);
+		return createSvg(selector as any, props as BoxelsElementAttributes<'div'>);
 	} else if (typeof selector === 'string') {
 		node = document.createElement(selector);
 	} else {
