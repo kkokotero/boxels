@@ -341,6 +341,10 @@ declare global {
 				'$gesture:longpress-ms'?: number; // Duración mínima para activar longpress
 				'$gesture:doubletap-ms'?: number; // Intervalo máximo entre taps para doubletap
 				'$gesture:multitap-ms'?: number; // Intervalo entre toques para multitap
+
+				'$view:name'?: string;
+				'$view:update'?: () => void;
+				'$view:finished'?: () => void;
 			};
 }
 

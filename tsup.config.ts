@@ -13,7 +13,7 @@ export default defineConfig({
 	shims: true,
 	bundle: true,
 	treeshake: true,
-	external: [],
+	external: ['fs', 'os', 'path', 'child_process', 'crypto', 'tty'],
 	tsconfig: './tsconfig.json',
 	onSuccess: 'node scripts/copy-types.mjs',
 });

@@ -10,7 +10,13 @@ import {
 import { $ } from '@dom/index';
 import { Fragment } from './fragment';
 
-export const RouterOutlet = async ({ config }: { config: RouterConfig }) => {
+type RouterOutletProps = {
+	config: RouterConfig;
+	afterChange?: (url: string) => void;
+	beforeChange?: (url: string) => void;
+};
+
+export const RouterOutlet = async ({ config, afterChange, beforeChange }: RouterOutletProps) => {
 	setGlobalRouter(config);
 
 	interceptLinks();
@@ -55,7 +61,9 @@ export const RouterOutlet = async ({ config }: { config: RouterConfig }) => {
 				? await node.handler?.component()
 				: node.handler?.component;
 
+		beforeChange?.(router.url!());
 		view.set(component);
+		afterChange?.(router.url!());
 	};
 
 	const unsubscribe = router.actualRoute.subscribe(update);

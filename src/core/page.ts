@@ -1,3 +1,4 @@
+import { runViewTransition } from '@dom/index';
 import type { ReactiveSignal } from './reactive/types';
 
 /**
@@ -290,7 +291,10 @@ export const page = (() => {
 			target.removeEventListener(type as string, cb as EventListener, options);
 	}
 
+	const startViewTransition = () => runViewTransition() 
+
 	return {
+		startViewTransition,
 		onEvent,
 		onKey,
 		title,

@@ -36,7 +36,7 @@ export const mount = (
 ) => {
 	children.forEach((child) => {
 		// Insertar hijo en el contenedor
-		appendChild(parent, child);
+		appendChild(parent, typeof child === 'function' ? child() : child);
 	});
 };
 

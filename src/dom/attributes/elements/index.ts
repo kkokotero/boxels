@@ -131,44 +131,42 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 
 			let currentChild: BoxlesChildren | null = null;
 			let unsub: ReactiveUnsubscribe | null = null;
+			
+			// Suscribir
+			unsub = s.subscribe((val) => {
+				// Limpieza del child actual
+				currentChild?.cleanup();
+				currentChild = null;
 
-			onMounts.push(() => {
-				// Suscribir
-				unsub = s.subscribe((val) => {
-					// Limpieza del child actual
-					currentChild?.cleanup();
-					currentChild = null;
+				// Normalizar el nuevo valor y generar fragmento
+				const normalized = normalizeChildren(val);
 
-					// Normalizar el nuevo valor y generar fragmento
-					const normalized = normalizeChildren(val);
+				currentChild = normalized;
 
-					currentChild = normalized;
+				const range = document.createRange();
+				range.setStartAfter(start);
+				range.setEndBefore(end);
+				range.deleteContents();
 
-					const range = document.createRange();
-					range.setStartAfter(start);
-					range.setEndBefore(end);
-					range.deleteContents();
-
-					normalized.nodes.forEach((n) => {
-						end.before(n);
-					});
-
-					normalized.onMount();
-
-					// Visual overlays (si aplica)
-					const overlayCleanups: (() => void)[] = [];
-					if (debug.isShowChanges()) {
-						normalized.nodes.forEach((n) => {
-							const cleanupOverlay = createChangeOverlay(n);
-							overlayCleanups.push(cleanupOverlay);
-						});
-						const origCleanup = normalized.cleanup;
-						normalized.cleanup = () => {
-							origCleanup();
-							overlayCleanups.forEach((fn) => fn());
-						};
-					}
+				normalized.nodes.forEach((n) => {
+					end.before(n);
 				});
+
+				normalized.onMount();
+
+				// Visual overlays (si aplica)
+				const overlayCleanups: (() => void)[] = [];
+				if (debug.isShowChanges()) {
+					normalized.nodes.forEach((n) => {
+						const cleanupOverlay = createChangeOverlay(n);
+						overlayCleanups.push(cleanupOverlay);
+					});
+					const origCleanup = normalized.cleanup;
+					normalized.cleanup = () => {
+						origCleanup();
+						overlayCleanups.forEach((fn) => fn());
+					};
+				}
 			});
 
 			// Registro de limpieza

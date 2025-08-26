@@ -116,6 +116,103 @@ mount(document.body, App());
 
 ---
 
+## Creando Componentes con `.box`
+
+Boxels permite definir componentes de manera modular usando archivos `.box`, que combinan **lógica, template y estilos** en un solo archivo.
+
+Ejemplo de componente:
+
+```box
+<script lang="ts">
+  import { signal } from 'boxels/core';
+
+  const counter = signal(1);
+
+  function handleClick() {
+      counter.update(c => c + 1);
+  }
+</script>
+
+<h1 class={styles.title}>Soy un box</h1>
+<h2>{counter}</h2>
+<p>¡Hola! Mi nombre es {props.name}.</p>
+<button type="button" $on:click={handleClick}>Actualizar contador</button>
+
+<style lang="scss">
+.title {
+    font-size: 4rem;
+}
+</style>
+```
+
+### Características
+
+* `<script>`: contiene la lógica del componente, incluyendo reactividad y funciones.
+* HTML/JSX-like: template declarativo que se renderiza automáticamente.
+* `{props}`: acceso a las propiedades pasadas al componente.
+* `{styles}`: objetos de clases generadas automáticamente para estilos scoped.
+* `$on:event`: binding declarativo de eventos (por ejemplo, `$on:click`).
+
+### Uso en tu aplicación
+
+```tsx
+import BoxComponent from './components/MyBox.box';
+
+mount(document.body, <BoxComponent name="Juan" />);
+```
+
+> Los estilos declarados en `<style>` se aplican de manera **scoped**, evitando colisiones con otros componentes.
+
+### Integración con Vite
+
+Para poder usar archivos `.box` en tu proyecto Vite, necesitas instalar e importar el plugin oficial de Boxels:
+
+```ts
+// vite.config.ts
+import { defineConfig } from 'vite';
+import { boxComponentPlugin } from 'boxels/plugins';
+
+export default defineConfig({
+  plugins: [
+    boxComponentPlugin({
+      // Opcional: personaliza extensiones o JSX import
+      extensions: ['.box'],
+      jsxImport: 'boxels'
+    })
+  ]
+});
+```
+
+> Debido a su naturaleza, boxComponentPlugin permite usar cualquier tipo de JSX, ya sea React, Preact o incluso JSX personalizado. Esto facilita su integración en distintos proyectos y librerías que ya utilicen JSX, sin limitar tu flujo de desarrollo.
+
+---
+
+### ¿Por qué Box y más información?
+
+Si quieres conocer **por qué nació Box**, su filosofía y la razón detrás de su diseño, hemos preparado documentación detallada en la carpeta:
+
+```
+./docs/**
+```
+
+En estos documentos encontrarás:
+
+* **Motivación**: por qué surge la necesidad de un formato como `.box`.
+* **Ventajas del enfoque**: modularidad, aislamiento de estilos, flujo declarativo.
+* **Integración flexible**: aunque Boxels define su propia sintaxis JSX, **no estás limitado a ella**. El plugin oficial (`boxComponentPlugin`) es **agnóstico**, lo que significa que puedes usar:
+
+  * React
+  * Preact
+  * SolidJS
+  * O cualquier otro runtime JSX que prefieras.
+* **Extensiones personalizables**: incluso puedes cambiar la extensión `.box` por otra que se adapte a tu flujo.
+
+> Esto hace que Boxels sea **friendly** y fácil de integrar en proyectos existentes, sin imponer un ecosistema rígido.
+
+Consulta la documentación completa en [`./docs/**`](./docs) para más detalles.
+
+---
+
 ## Cómo Contribuir
 
 ¿Tienes ideas, mejoras o encontraste un bug? ¡Tu ayuda es bienvenida!

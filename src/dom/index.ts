@@ -175,19 +175,20 @@ export function $<T extends keyof HTMLElementTagNameMap>(
 
 		const mount = (parent: HTMLElement | DocumentFragment) => {
 			if ((node as BoxelsElement).__mounted) return;
+			(node as BoxelsElement).__mounted = true;
 
 			result.onMount();
 			props?.['$lifecycle:mount']?.(undefined as any);
 			parent.appendChild(node);
-			(node as BoxelsElement).__mounted = true;
 		};
 
 		const destroy = () => {
 			if ((node as BoxelsElement).__destroyed) return;
-			result.cleanup();
-			props?.['$lifecycle:destroy']?.(undefined as any);
 			(node as BoxelsElement).__mounted = false;
 			(node as BoxelsElement).__destroyed = true;
+
+			result.cleanup();
+			props?.['$lifecycle:destroy']?.(undefined as any);
 			while (node.firstChild) {
 				node.firstChild.remove();
 			}
@@ -221,9 +222,10 @@ export function $<T extends keyof HTMLElementTagNameMap>(
 
 	const destroy = () => {
 		if ((node as BoxelsElement).__destroyed) return;
-		result['$lifecycle:destroy']?.(node as BoxelsElementNode<T>);
 		(node as BoxelsElement).__mounted = false;
 		(node as BoxelsElement).__destroyed = true;
+		
+		result['$lifecycle:destroy']?.(node as BoxelsElementNode<T>);
 		(node as ChildNode).remove();
 	};
 
