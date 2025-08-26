@@ -63,9 +63,9 @@
       "types": "./dist/src/multiplatform/index.d.ts"
     },
     "./plugins": {
-      "import": "./dist/src/plugins/index.js",
-      "require": "./dist/src/plugins/index.js",
-      "types": "./dist/src/plugins/index.d.ts"
+      "import": "./dist/plugins/index.js",
+      "require": "./dist/plugins/index.cjs",
+      "types": "./dist/plugins/index.d.ts"
     },
     "./jsx-runtime": {
       "import": "./dist/src/runtime/jsx-runtime.js",
