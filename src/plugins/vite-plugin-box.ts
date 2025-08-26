@@ -6,6 +6,8 @@ import crypto from 'node:crypto';
 import { transform } from 'esbuild';
 import { existsSync } from 'node:fs';
 import { access, readFile } from 'node:fs/promises';
+import postcss from 'postcss';
+import selectorParser from 'postcss-selector-parser';
 
 interface ParsedBox {
 	template: string;
@@ -13,6 +15,12 @@ interface ParsedBox {
 	styles: string[];
 	propsDirective: string;
 	stylesDirective: string;
+}
+
+interface BoxPluginOptions {
+	extensions?: string[];
+	jsxImport?: string;
+	classNameStrategy?: (className: string, hash: string) => string;
 }
 
 const VIRTUAL_PREFIX = 'virtual:box:';
@@ -43,7 +51,7 @@ function parseBoxContent(_content: string): ParsedBox {
 		if (type === 'styles') result.stylesDirective = value;
 	}
 
-	// Eliminar directivas del contenido para no interferir con el parsing
+	// Eliminar directivas del contenido
 	content = content.replace(directiveRegex, '');
 
 	// Parsear scripts
@@ -60,7 +68,7 @@ function parseBoxContent(_content: string): ParsedBox {
 		result.styles.push(styleMatch[2].trim());
 	}
 
-	// El resto es template (eliminando las secciones script/style)
+	// El resto es template
 	result.template = content
 		.replace(scriptRegex, '')
 		.replace(styleRegex, '')
@@ -71,79 +79,83 @@ function parseBoxContent(_content: string): ParsedBox {
 	return result;
 }
 
-function extractImports(scriptCode: string): { imports: string; logic: string } {
-    // Regex mejorado:
-    // - Captura líneas que empiezan con "import"
-    // - Soporta espacios, saltos de línea, type imports y side-effect imports
-    const importRegex = /^\s*import[\s\S]*?;$/gm;
+function extractImports(scriptCode: string): {
+	imports: string;
+	logic: string;
+} {
+	const importRegex = /^\s*import[\s\S]*?;$/gm;
+	const imports: string[] = [];
+	let cleanedCode = scriptCode;
 
-    const imports: string[] = [];
-    let cleanedCode = scriptCode;
+	let match;
+	while ((match = importRegex.exec(scriptCode)) !== null) {
+		imports.push(match[0].trim());
+	}
+	cleanedCode = cleanedCode.replace(importRegex, '').trim();
 
-    let match;
-    while ((match = importRegex.exec(scriptCode)) !== null) {
-        imports.push(match[0].trim());
-    }
-
-    // Elimina los imports del código original
-    cleanedCode = cleanedCode.replace(importRegex, '').trim();
-
-    return {
-        imports: imports.join('\n'),
-        logic: cleanedCode
-    };
+	return {
+		imports: imports.join('\n'),
+		logic: cleanedCode,
+	};
 }
 
-function generateScopedStyles(
+// ✅ Nuevo: PostCSS para scoping
+async function generateScopedStyles(
 	styles: string[],
 	filePath: string,
-): {
+	classNameStrategy: (className: string, hash: string) => string,
+): Promise<{
 	css: string;
 	classMap: Record<string, string>;
-} {
+}> {
 	const hash = shortHash(filePath);
 	const classMap: Record<string, string> = {};
-	let processedCSS = '';
 
-	for (const style of styles) {
-		// Procesar cada clase CSS para agregar un hash único
-		const scopedCSS = style.replace(
-			/\.([a-zA-Z0-9_-]+)/g,
-			(match, className) => {
-				const scopedName = `${className}-${hash}`;
-				classMap[className] = scopedName;
-				return `.${scopedName}`;
-			},
-		);
-		processedCSS += `${scopedCSS}\n`;
-	}
+	const processor = postcss([
+		(root: { walkRules: (arg0: (rule: { selector: any; }) => void) => void; }) => {
+			root.walkRules((rule: { selector: any; }) => {
+				const transformed = selectorParser((selectors: { walkClasses: (arg0: (node: any) => void) => void; }) => {
+					selectors.walkClasses((node) => {
+						const original = node.value;
+						const scopedName = classNameStrategy(original, hash);
+						classMap[original] = scopedName;
+						node.value = scopedName;
+					});
+				}).processSync(rule.selector);
+				rule.selector = transformed;
+			});
+		},
+	]);
 
-	return { css: processedCSS, classMap };
+	const result = await processor.process(styles.join('\n'), {
+		from: undefined,
+	});
+	return { css: result.css, classMap };
 }
 
-// Función para convertir TypeScript props a JavaScript válido
 function convertTypeScriptPropsToJS(propsDirective: string): string {
 	try {
-		// Remover tipos TypeScript y mantener solo los nombres de las props
 		return propsDirective
 			.replace(/\s*:\s*\w+/g, '')
 			.replace(/\?/g, '')
 			.replace(/(\w+),/g, '"$1",')
 			.replace(/(\w+)\s*}/, '"$1"}');
-	} catch (e) {
-		console.warn('Error converting TypeScript props to JS, using empty object');
+	} catch {
+		console.warn('Error converting TypeScript props to JS');
 		return '{}';
 	}
 }
 
-export default function boxPlugin(
-	opts: { extensions?: string[]; jsxImport?: string } = {},
-): Plugin {
+export default function boxPlugin(opts: BoxPluginOptions = {}): Plugin {
 	const extensions = opts.extensions || ['.box'];
-	const jsxImport = opts.jsxImport || 'react';
+	const jsxImport = opts.jsxImport || 'boxels/jsx-runtime';
 	const resolvedIds = new Map<string, string>();
-	const virtualToRealMap = new Map<string, string>(); // Nuevo mapa para mapeo inverso
+	const virtualToRealMap = new Map<string, string>();
 	let server: ViteDevServer | undefined;
+
+	const classNameStrategy =
+		opts.classNameStrategy ||
+		((className: string, hash: string) => `${className}-${hash}`);
 
 	return {
 		name: 'vite-plugin-box',
@@ -159,11 +171,6 @@ export default function boxPlugin(
 					jsx: 'automatic',
 					include: /\.(tsx|jsx|ts|js|box)$/,
 				},
-				optimizeDeps: {
-					esbuildOptions: {
-						jsx: 'automatic',
-					},
-				},
 			};
 		},
 
@@ -175,7 +182,6 @@ export default function boxPlugin(
 			const cleanId = id.split('?')[0].split('#')[0];
 			if (!extensions.some((ext) => cleanId.endsWith(ext))) return null;
 
-			// Obtener ruta real del importador si es virtual
 			let realImporter = importer;
 			if (importer && importer.startsWith(INTERNAL_PREFIX)) {
 				const parts = importer.slice(INTERNAL_PREFIX.length).split(':');
@@ -191,7 +197,7 @@ export default function boxPlugin(
 				const hash = shortHash(absPath);
 				const resolved = `${INTERNAL_PREFIX}main:${hash}:${absPath}`;
 				resolvedIds.set(absPath, resolved);
-				virtualToRealMap.set(resolved, absPath); // Guardar mapeo inverso
+				virtualToRealMap.set(resolved, absPath);
 				return resolved;
 			} catch {
 				return null;
@@ -208,17 +214,14 @@ export default function boxPlugin(
 			if (!filePath) return { code: '', map: null };
 
 			try {
-				// Módulo principal (.box)
 				if (type === 'main') {
 					this.addWatchFile(filePath);
 					const source = await readFile(filePath, 'utf-8');
-					const { template, scripts, styles, propsDirective, stylesDirective } =
+					const { template, scripts, styles, propsDirective } =
 						parseBoxContent(source);
 
-					// Generar hash para el archivo
 					const hash = shortHash(filePath);
 
-					// Procesar template a JSX
 					const jsxResult = await transform(template, {
 						loader: 'tsx',
 						target: 'esnext',
@@ -230,30 +233,24 @@ export default function boxPlugin(
 						.replace(/^import\s.*?;$/gm, '')
 						.replace(/^export\s.*?;$/gm, '')
 						.trim();
+					if (jsxCode.endsWith(';')) jsxCode = jsxCode.slice(0, -1);
 
-					if (jsxCode.endsWith(';')) {
-						jsxCode = jsxCode.slice(0, -1);
-					}
-
-					// Combinar todos los scripts
 					const combinedScript = scripts.join('\n');
 					const { imports, logic } = extractImports(combinedScript);
 
-					// Procesar estilos con scoping
 					let styleImport = '';
 					let styleObject = '{}';
 
 					if (styles.length > 0) {
-						const { css, classMap } = generateScopedStyles(styles, filePath);
+						const { css, classMap } = await generateScopedStyles(
+							styles,
+							filePath,
+							classNameStrategy,
+						);
 						const styleId = `${VIRTUAL_PREFIX}style:${hash}:${filePath}`;
-
-						// Crear objeto de estilos con nombres mapeados
 						styleObject = JSON.stringify(classMap).replace(/"/g, "'");
-
-						// Importar el módulo de estilo
 						styleImport = `import '${styleId}';\n`;
 
-						// Guardar el CSS procesado para el módulo de estilo
 						this.emitFile({
 							type: 'asset',
 							fileName: `${path.basename(filePath, path.extname(filePath))}_${hash}.css`,
@@ -261,7 +258,6 @@ export default function boxPlugin(
 						});
 					}
 
-					// Convertir TypeScript props a JavaScript válido
 					const processedPropsDirective =
 						convertTypeScriptPropsToJS(propsDirective);
 
@@ -270,46 +266,24 @@ import { jsx, jsxs, Fragment } from '${jsxImport}';
 ${imports}
 ${styleImport}
 
-// Directivas especiales
 const __props = ${processedPropsDirective};
 const __styles = ${styleObject};
 
 export default function BoxComponent(____props = {}) {
-  // Combinar props recibidas con las definidas en @props
-  const props = {
-    ...Object.fromEntries(
-      Object.keys(__props).map(key => [key, props[key] !== undefined ? props[key] : undefined])
-    ),
-    ...____props
-  };
-  
-  // Hacer disponibles los estilos definidos
+  const props = { ...Object.fromEntries(Object.keys(__props).map(key => [key, props[key]])), ...____props };
   const styles = __styles;
-  
   ${logic}
-  
   return ${jsxCode};
 }
 
-// Soporte HMR mejorado
 if (import.meta.hot) {
-  import.meta.hot.accept(async (newModule) => {
-    if (newModule) {
-      // Recarga completa de la página
-      window.location.reload();
-    }
-  });
-  
-  import.meta.hot.dispose(() => {
-    // Cleanup si es necesario
-  });
+  import.meta.hot.accept(() => window.location.reload());
 }
 `.trim();
 
 					return { code, map: null };
 				}
 
-				// Módulo de estilo
 				if (type === 'style') {
 					this.addWatchFile(filePath);
 					const source = await readFile(filePath, 'utf-8');
@@ -317,38 +291,22 @@ if (import.meta.hot) {
 
 					if (styles.length === 0) return { code: '', map: null };
 
-					// Procesar estilos con scoping
-					const { css } = generateScopedStyles(styles, filePath);
+					const { css } = await generateScopedStyles(
+						styles,
+						filePath,
+						classNameStrategy,
+					);
 
 					const code = `
 (function() {
   const css = \`${css.replace(/`/g, '\\`')}\`;
   const styleId = 'box-style-${shortHash(filePath)}';
-  
-  // Eliminar estilo anterior si existe
   const existingStyle = document.getElementById(styleId);
-  if (existingStyle) {
-    existingStyle.parentNode.removeChild(existingStyle);
-  }
-  
-  // Crear y agregar nuevo estilo
+  if (existingStyle) existingStyle.remove();
   const styleEl = document.createElement('style');
   styleEl.id = styleId;
   styleEl.textContent = css;
   document.head.appendChild(styleEl);
-
-  // HMR para estilos
-  if (import.meta.hot) {
-    import.meta.hot.accept(() => {
-      // El estilo ya se actualizó automáticamente
-    });
-
-    import.meta.hot.dispose(() => {
-      if (styleEl && styleEl.parentNode) {
-        styleEl.parentNode.removeChild(styleEl);
-      }
-    });
-  }
 })();
 `.trim();
 
@@ -363,25 +321,18 @@ if (import.meta.hot) {
 		},
 
 		handleHotUpdate(ctx) {
-			// Invalidar caché cuando los archivos cambian
 			const modules = [];
 			const resolvedId = resolvedIds.get(ctx.file);
 
 			if (resolvedId && server) {
 				const module = server.moduleGraph.getModuleById(resolvedId);
-				if (module) {
-					modules.push(module);
-				}
+				if (module) modules.push(module);
 
-				// También buscar y actualizar módulos de estilo relacionados
 				const styleId = resolvedId.replace('main:', 'style:');
 				const styleModule = server.moduleGraph.getModuleById(styleId);
-				if (styleModule) {
-					modules.push(styleModule);
-				}
+				if (styleModule) modules.push(styleModule);
 			}
 
-			// Limpiar mapeos para archivos eliminados
 			if (!existsSync(ctx.file)) {
 				resolvedIds.delete(ctx.file);
 				virtualToRealMap.forEach((value, key) => {

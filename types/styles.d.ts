@@ -16,7 +16,9 @@ declare module '*.css' {
 }
 
 declare module '*.box' {
-	export default () => JSX.Element;
+	export default <T extends keyof HTMLElementTagNameMap = 'div'>(
+		props: JSX.DOMAttributes<T>,
+	) => JSX.Component<T>;
 }
 
 declare module '*.png' {
