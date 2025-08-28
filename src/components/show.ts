@@ -1,9 +1,10 @@
 // Importa utilidades para extraer señales de un conjunto de valores
+import { $ } from '@dom/index';
 import { Fragment } from './fragment';
 import { extractSignalsFromValues } from './utils';
 
 // Importa funciones y tipos del sistema reactivo
-import { effect, isSignal, signal, type ReactiveSignal } from '@core/reactive';
+import { effect, isSignal, signal, type MaybeSignal, type ReactiveSignal } from '@core/reactive';
 
 /**
  * Tipos de valores que pueden usarse como condición:
@@ -79,7 +80,11 @@ function isConditionTrue(condition: ShowCondition): boolean {
  * </Show>
  * ```
  */
-export function Show({ when, children, fallback }: ShowProps) {
+export function Show({
+	when,
+	children,
+	fallback = $(document.createDocumentFragment(), {}),
+}: ShowProps) {
 	// Contenedor reactivo para almacenar el contenido actual a mostrar (children o fallback)
 	const content = signal(fallback);
 

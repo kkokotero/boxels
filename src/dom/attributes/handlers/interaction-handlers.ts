@@ -152,3 +152,27 @@ addGlobalHandler('$interaction:linger', (el, handler) => {
 		el.removeEventListener('mouseleave', onMouseLeave);
 	};
 });
+
+/*
+ * Dispara el handler cuando se da click afuera del elemento.
+ */
+addGlobalHandler(
+	'$interaction:click-outside',
+	(el, handler: (ev: MouseEvent | TouchEvent) => void) => {
+		const listener = (event: MouseEvent | TouchEvent) => {
+			if (!el.contains(event.target as Node)) {
+				handler(event);
+			}
+		};
+
+		// Escuchamos tanto click como touchstart
+		document.addEventListener('click', listener, true);
+		document.addEventListener('touchstart', listener, true);
+
+		// Cleanup
+		return () => {
+			document.removeEventListener('click', listener, true);
+			document.removeEventListener('touchstart', listener, true);
+		};
+	},
+);

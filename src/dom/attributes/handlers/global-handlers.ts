@@ -1,4 +1,4 @@
-import type { MaybeSignal, ReactiveSignal } from '@core/index';
+import type { ComboKey, MaybeSignal, ReactiveSignal } from '@core/index';
 import type { BoxelsElementNode } from '../elements';
 
 /**
@@ -325,6 +325,8 @@ declare global {
 				// Atributo que define la duración en milisegundos para `$interaction:linger`.
 				'$interaction:linger-ms'?: number;
 
+				'$interaction:click-outside'?: (ev: MouseEvent | TouchEvent) => void;
+
 				// Eventos de gesto
 				'$gesture:tap'?: (e: TouchEvent) => void;
 				'$gesture:doubletap'?: (e: TouchEvent) => void;
@@ -345,6 +347,9 @@ declare global {
 				'$view:name'?: string;
 				'$view:update'?: () => void;
 				'$view:finished'?: () => void;
+
+				'$combo-keys'?: ComboKey[][] | ComboKey[];
+				'$on:combo-key'?: (combo: ComboKey[]) => void;
 			};
 }
 

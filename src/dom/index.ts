@@ -224,7 +224,7 @@ export function $<T extends keyof HTMLElementTagNameMap>(
 		if ((node as BoxelsElement).__destroyed) return;
 		(node as BoxelsElement).__mounted = false;
 		(node as BoxelsElement).__destroyed = true;
-		
+
 		result['$lifecycle:destroy']?.(node as BoxelsElementNode<T>);
 		(node as ChildNode).remove();
 	};

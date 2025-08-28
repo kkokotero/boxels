@@ -1,7 +1,7 @@
 // testing/signalTestUtils.ts
 
 // Importa el tipo ReactiveSignal, que representa un valor reactivo que puede emitir actualizaciones.
-import type { ReactiveSignal } from '@core/reactive/types';
+import type { ReactiveSignal, Widen } from '@core/reactive/types';
 
 // Importa la función 'queue', que permite encolar tareas para ejecutarse en el siguiente ciclo del scheduler.
 import { queue } from '@core/scheduler';
@@ -20,7 +20,7 @@ import { queue } from '@core/scheduler';
  */
 export function captureSignal<T>(signal: ReactiveSignal<T>) {
 	// Arreglo donde se almacenarán los valores emitidos por el signal.
-	const values: T[] = [];
+	const values: (Widen<T> | Widen<Widen<T>>)[] = [];
 
 	// Se suscribe al signal y agrega cada nuevo valor al arreglo.
 	const unsubscribe = signal.subscribe((v) => {
@@ -56,10 +56,10 @@ export function captureSignal<T>(signal: ReactiveSignal<T>) {
  */
 export function spySignal<T>(signal: ReactiveSignal<T>) {
 	// Arreglo para almacenar los valores con los que fue llamada la función espía.
-	const calls: T[] = [];
+	const calls: (Widen<T> | Widen<Widen<T>>)[] = [];
 
 	// Función que actuará como callback del signal, y registrará cada valor recibido.
-	const spy = (v: T) => {
+	const spy = (v: Widen<T> | Widen<Widen<T>>) => {
 		calls.push(v);
 	};
 
@@ -90,13 +90,11 @@ export function spySignal<T>(signal: ReactiveSignal<T>) {
  * @param signal El `ReactiveSignal` que se desea observar.
  * @returns Una promesa que se resuelve con el siguiente valor emitido por el `signal`.
  */
-export function once<T>(signal: ReactiveSignal<T>): Promise<T> {
-	// Retorna una promesa que se resolverá en cuanto el signal emita un valor.
-	return new Promise<T>((resolve) => {
-		// Se suscribe al signal. Apenas se emita un valor, se cancela la suscripción y se resuelve la promesa.
+export function once<T>(signal: ReactiveSignal<T>): Promise<Widen<T>> {
+	return new Promise<Widen<T>>((resolve) => {
 		const stop = signal.subscribe((v) => {
-			stop();     // Cancela la suscripción inmediatamente después de la primera emisión.
-			resolve(v); // Resuelve la promesa con el valor emitido.
+			stop();
+			resolve(v as Widen<T>);
 		});
 	});
 }

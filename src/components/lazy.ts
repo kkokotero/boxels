@@ -1,5 +1,5 @@
 import { effect, signal, type ReactiveSignal } from '@core/reactive';
-import type { BoxelsElement } from '@dom/index';
+import { $, type BoxelsElement } from '@dom/index';
 import { Fragment } from './fragment';
 
 /**
@@ -32,8 +32,8 @@ type LazyProps<C = any> = {
  */
 export function Lazy({
 	loader,
-	loading,
-	error,
+	loading = $(document.createDocumentFragment(), {}),
+	error = $(document.createDocumentFragment(), {}),
 	when = 'immediate',
 	...props
 }: LazyProps): JSX.Component {

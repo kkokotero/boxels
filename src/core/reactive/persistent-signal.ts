@@ -5,7 +5,7 @@ import { session, storage } from '../../data/storage';
 import { signal } from './signal';
 
 // Importa el tipo para funciones de actualización reactiva
-import type { ReactiveUpdate } from './types';
+import type { ReactiveUpdate, Widen } from './types';
 
 /**
  * Crea una señal reactiva cuyo valor se guarda de forma persistente en `sessionStorage` o `localStorage`.
@@ -33,7 +33,7 @@ import type { ReactiveUpdate } from './types';
  */
 export function persistentSignal<T>(
 	key: string,
-	initialValue: T,
+	initialValue: Widen<T>,
 	data: { local: 'session' | 'storage' } = { local: 'session' },
 ) {
 	// Clave interna usada para evitar colisiones en el almacenamiento
@@ -43,10 +43,10 @@ export function persistentSignal<T>(
 	const local = data.local === 'session' ? session : storage;
 
 	// Intenta recuperar un valor previamente almacenado desde el almacenamiento persistente
-	const stored = local.get<T>(sessionKey);
+	const stored = local.get<Widen<T>>(sessionKey);
 
 	// Crea una señal reactiva con el valor recuperado o el valor inicial si no hay datos almacenados
-	const base = signal<T>(stored || initialValue);
+	const base = signal<Widen<T>>(stored || initialValue);
 
 	// Guarda la implementación original del método `set` de la señal
 	const originalSet = base.set;
@@ -56,24 +56,24 @@ export function persistentSignal<T>(
 	 *
 	 * @param newValue El nuevo valor a establecer.
 	 */
-	base.set = (newValue: T) => {
-		originalSet(newValue);           // Actualiza internamente el valor de la señal
-		local.set(sessionKey, base());  // Guarda el valor actual en el almacenamiento persistente
+	base.set = (newValue: Widen<Widen<T>> | Widen<Widen<Widen<T>>>) => {
+		originalSet(newValue); // Actualiza internamente el valor de la señal
+		local.set(sessionKey, base()); // Guarda el valor actual en el almacenamiento persistente
 	};
 
 	/**
 	 * Sobrescribe el método `update` para aplicar una función de transformación y guardar el nuevo valor.
 	 *
 	 * @param updater Función que recibe el valor actual y retorna el nuevo.
-	 * 
+	 *
 	 * @example
 	 * ```ts
 	 * theme.update(prev => prev === 'light' ? 'dark' : 'light');
 	 * ```
 	 */
-	base.update = (updater: ReactiveUpdate<T>) => {
-		const result = updater(base()); // Aplica función al valor actual
-		base.set(result);               // Usa el nuevo valor y lo guarda automáticamente
+	base.update = (updater: ReactiveUpdate<Widen<Widen<T>> | Widen<Widen<Widen<T>>>>) => {
+		const result = updater(base() as any); // casteo necesario
+		base.set(result as Widen<Widen<T>> | Widen<Widen<Widen<T>>>); // lo reduces de vuelta a T
 	};
 
 	// Guarda la implementación original del método `destroy` de la señal
@@ -84,7 +84,7 @@ export function persistentSignal<T>(
 	 */
 	base.destroy = () => {
 		local.delete(sessionKey); // Elimina el valor asociado del almacenamiento
-		originalDestroy();        // Limpia recursos internos de la señal
+		originalDestroy(); // Limpia recursos internos de la señal
 	};
 
 	// Devuelve la señal extendida con persistencia

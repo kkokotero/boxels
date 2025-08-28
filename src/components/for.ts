@@ -2,7 +2,7 @@ import { effect, isSignal, queue, type ReactiveSignal } from '@core/index';
 import { strictDeepEqual } from 'fast-equals';
 import { Fragment } from './fragment';
 import { debug } from '@testing/debugger';
-import { createChangeOverlay } from '@dom/index';
+import { $, createChangeOverlay } from '@dom/index';
 
 function normalizeNode(node: any): Node {
 	if (node == null) return document.createTextNode('');
@@ -88,7 +88,12 @@ type Entry<T> = {
  *
  * @template T - Tipo de cada elemento en la lista
  */
-export function For<T>({ each, children, fallback, track }: ForProps<T>) {
+export function For<T>({
+	each,
+	children,
+	fallback = $(document.createDocumentFragment(), {}),
+	track,
+}: ForProps<T>) {
 	// Marcadores para envolver toda la sección del <For />
 	const forStartMarker = document.createComment(
 		debug.isShowCommentNames() ? 'for:start' : '',

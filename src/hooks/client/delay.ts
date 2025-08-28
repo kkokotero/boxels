@@ -118,5 +118,5 @@ export class Delay implements Hook {
  * @param delay Tiempo en milisegundos antes de ejecutar la función.
  * @returns Instancia de `Delay`.
  */
-export const createDelay = (callback: () => void, delay: number) =>
+export const createDelay = (callback: () => void, delay = 1) =>
 	new Delay(callback, delay);

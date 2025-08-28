@@ -1,5 +1,5 @@
-import { runViewTransition } from '@dom/index';
-import type { ReactiveSignal } from './reactive/types';
+import { runViewTransition, type BoxelsElement } from '@dom/index';
+import { isSignal, type ReactiveSignal } from './reactive/types';
 
 /**
  * Opciones para abrir una nueva ventana/pestaña.
@@ -29,6 +29,183 @@ type EventMapFor<T> = T extends Window
  */
 type MsgCallback<T = unknown> = (payload: T, event: MessageEvent) => void;
 
+type ModifierKey =
+	| 'ctrl'
+	| 'alt'
+	| 'shift'
+	| 'meta' // (⌘ en Mac, Windows en PC)
+	| 'altgr'; // Alt derecho (teclados internacionales)
+
+type SpecialKey =
+	// control básico
+	| 'escape'
+	| 'enter'
+	| 'tab'
+	| 'backspace'
+	| 'delete'
+	| 'insert'
+	| 'capslock'
+	| 'numlock'
+	| 'scrolllock'
+	| 'pause'
+	| 'printscreen'
+	| 'contextmenu'
+
+	// espacio
+	| 'space'
+
+	// flechas
+	| 'arrowup'
+	| 'arrowdown'
+	| 'arrowleft'
+	| 'arrowright'
+
+	// navegación
+	| 'home'
+	| 'end'
+	| 'pageup'
+	| 'pagedown'
+
+	// edición
+	| 'select'
+	| 'help'
+	| 'clear'
+
+	// funciones F1–F24
+	| 'f1'
+	| 'f2'
+	| 'f3'
+	| 'f4'
+	| 'f5'
+	| 'f6'
+	| 'f7'
+	| 'f8'
+	| 'f9'
+	| 'f10'
+	| 'f11'
+	| 'f12'
+	| 'f13'
+	| 'f14'
+	| 'f15'
+	| 'f16'
+	| 'f17'
+	| 'f18'
+	| 'f19'
+	| 'f20'
+	| 'f21'
+	| 'f22'
+	| 'f23'
+	| 'f24';
+
+type AlphaNumericKey =
+	| 'a'
+	| 'b'
+	| 'c'
+	| 'd'
+	| 'e'
+	| 'f'
+	| 'g'
+	| 'h'
+	| 'i'
+	| 'j'
+	| 'k'
+	| 'l'
+	| 'm'
+	| 'n'
+	| 'ñ'
+	| 'o'
+	| 'p'
+	| 'q'
+	| 'r'
+	| 's'
+	| 't'
+	| 'u'
+	| 'v'
+	| 'w'
+	| 'x'
+	| 'y'
+	| 'z'
+	| '0'
+	| '1'
+	| '2'
+	| '3'
+	| '4'
+	| '5'
+	| '6'
+	| '7'
+	| '8'
+	| '9';
+
+type SymbolKey =
+	// fila superior
+	| '`'
+	| '~'
+	| '!'
+	| '@'
+	| '#'
+	| '$'
+	| '%'
+	| '^'
+	| '&'
+	| '*'
+	| '('
+	| ')'
+	| '-'
+	| '_'
+	| '='
+	| '+'
+
+	// puntuación
+	| '['
+	| '{'
+	| ']'
+	| '}'
+	| ';'
+	| ':'
+	| "'"
+	| '"'
+	| ','
+	| '<'
+	| '.'
+	| '>'
+	| '/'
+	| '?'
+	| '\\'
+	| '|'
+
+	// teclas adicionales ISO/ABNT
+	| '¡'
+	| '¿' // español
+	| '§'
+	| '±'; // símbolos internacionales
+
+type NumpadKey =
+	| 'numpad0'
+	| 'numpad1'
+	| 'numpad2'
+	| 'numpad3'
+	| 'numpad4'
+	| 'numpad5'
+	| 'numpad6'
+	| 'numpad7'
+	| 'numpad8'
+	| 'numpad9'
+	| 'numpadadd'
+	| 'numpadsubtract'
+	| 'numpadmultiply'
+	| 'numpaddivide'
+	| 'numpaddecimal'
+	| 'numpadenter'
+	| 'numpadclear'
+	| 'numpadequals'; // (en algunos Mac y teclados extendidos)
+
+export type ComboKey =
+	| ModifierKey
+	| SpecialKey
+	| AlphaNumericKey
+	| SymbolKey
+	| NumpadKey;
+
 /**
  * Módulo `page`: utilidades para manipular y consultar el estado de la página,
  * incluyendo título, visibilidad, ventanas emergentes, mensajes entre ventanas,
@@ -41,20 +218,63 @@ export const page = (() => {
 	 */
 	const listeners: Record<string, MsgCallback<any>[]> = {};
 
+	let titleUnsubscribe: (() => void) | null = null;
+
 	/**
 	 * Obtiene o establece el título del documento.
-	 * @overload Si no recibe parámetros, devuelve el título actual.
-	 * @overload Si recibe un string, establece un nuevo título.
+	 * - Si no recibe parámetros, devuelve el título actual.
+	 * - Si recibe un string, establece un nuevo título estático.
+	 * - Si recibe un signal o función, lo vincula de forma reactiva y
+	 *   actualiza el título cada vez que cambie.
 	 */
 	function title(
 		newTitle?: string | ReactiveSignal<string> | (() => string),
 	): string {
+		// Getter
 		if (newTitle === undefined) return document.title;
 
-		if (typeof newTitle === 'function') {
-			document.title = newTitle();
-		} else {
+		// Limpia suscripción previa
+		if (titleUnsubscribe) {
+			titleUnsubscribe();
+			titleUnsubscribe = null;
+		}
+
+		// Caso string estático
+		if (typeof newTitle === 'string') {
 			document.title = newTitle;
+			return document.title;
+		}
+
+		// Caso signal
+		if (isSignal(newTitle)) {
+			titleUnsubscribe = newTitle.subscribe((val) => {
+				document.title = val ?? '';
+			});
+			// setear inicial
+			document.title = newTitle();
+			return document.title;
+		}
+
+		// Caso función "computed"
+		if (typeof newTitle === 'function') {
+			const computeAndSet = () => {
+				try {
+					document.title = newTitle() ?? '';
+				} catch (err) {
+					console.error('Error evaluando título reactivo:', err);
+				}
+			};
+			computeAndSet();
+
+			// Si la función depende de signals, podemos wrappearla con un autorun
+			// (ej. si tienes un sistema de tracking/autorun en tu reactive core).
+			// Si no, basta con ejecutarla una vez.
+			// 👇 Si tu core tiene algo como `autorun`, úsalo aquí:
+			/*
+		titleUnsubscribe = autorun(computeAndSet);
+		*/
+
+			return document.title;
 		}
 
 		return document.title;
@@ -237,43 +457,53 @@ export const page = (() => {
 	}
 
 	/**
-	 * Escucha un evento de teclado filtrando por tecla o combinación de teclas con "+".
-	 * Ej: "Ctrl+S", "Shift+Alt+ArrowUp", "Escape"
+	 * Escucha un evento de teclado filtrando por una lista de teclas/modificadores.
+	 * Ej: ["ctrl", "s"], ["shift", "alt", "arrowup"], ["escape"]
 	 */
-	function onKey(
-		combo: string,
+	function onKeyCombo(
+		element: BoxelsElement | Window | Document | HTMLElement,
+		keys: ComboKey[],
 		cb: (event: KeyboardEvent) => void,
 		options?: boolean | AddEventListenerOptions,
 	): () => void {
-		// Normalizamos la combinación
-		const parts = combo
-			.toLowerCase()
-			.split('+')
-			.map((k) => k.trim());
-		const mainKey = parts.find(
-			(k) => !['ctrl', 'alt', 'shift', 'meta'].includes(k),
-		);
-		const modifiers = {
-			ctrl: parts.includes('ctrl'),
-			alt: parts.includes('alt'),
-			shift: parts.includes('shift'),
-			meta: parts.includes('meta'), // Command en Mac
-		};
+		const normalized = keys.map((k) => k.toLowerCase());
 
 		const handler = (event: KeyboardEvent) => {
+			const expected = {
+				ctrl: normalized.includes('ctrl'),
+				alt: normalized.includes('alt'),
+				shift: normalized.includes('shift'),
+				meta: normalized.includes('meta'),
+			};
+			const mainKey = normalized.find(
+				(k) => !['ctrl', 'alt', 'shift', 'meta'].includes(k),
+			);
+
 			if (
-				modifiers.ctrl === event.ctrlKey &&
-				modifiers.alt === event.altKey &&
-				modifiers.shift === event.shiftKey &&
-				modifiers.meta === event.metaKey &&
+				expected.ctrl === event.ctrlKey &&
+				expected.alt === event.altKey &&
+				expected.shift === event.shiftKey &&
+				expected.meta === event.metaKey &&
 				(!mainKey || event.key.toLowerCase() === mainKey)
 			) {
 				cb(event);
 			}
 		};
 
-		window.addEventListener('keydown', handler, options);
-		return () => window.removeEventListener('keydown', handler, options);
+		// Normalizamos el target (para soportar BoxelsElement)
+		const target: any =
+			typeof (element as any).addEventListener === 'function'
+				? element
+				: (element as any).el;
+
+		if (!target || typeof target.addEventListener !== 'function') {
+			throw new Error(
+				'El elemento proporcionado no soporta eventos de teclado',
+			);
+		}
+
+		target.addEventListener('keydown', handler, options);
+		return () => target.removeEventListener('keydown', handler, options);
 	}
 
 	/**
@@ -291,12 +521,12 @@ export const page = (() => {
 			target.removeEventListener(type as string, cb as EventListener, options);
 	}
 
-	const startViewTransition = () => runViewTransition() 
+	const startViewTransition = () => runViewTransition();
 
 	return {
 		startViewTransition,
 		onEvent,
-		onKey,
+		onKeyCombo,
 		title,
 		vibrate,
 		open,

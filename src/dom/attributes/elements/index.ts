@@ -20,6 +20,7 @@ export type Child =
 	| number
 	| null
 	| false
+	| true
 	| undefined
 	| BoxlesChildren
 	| Child[]
@@ -131,7 +132,7 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 
 			let currentChild: BoxlesChildren | null = null;
 			let unsub: ReactiveUnsubscribe | null = null;
-			
+
 			// Suscribir
 			unsub = s.subscribe((val) => {
 				// Limpieza del child actual

@@ -113,6 +113,54 @@ theme.set("dark");
 
 ---
 
+## Acceso reactivo vs estático a propiedades
+
+Una característica clave de los signals en **Boxels** es que los objetos dentro de un signal exponen **sus propiedades también como signals**, gracias al uso de *Proxies*.
+
+Esto permite elegir entre dos formas de acceso:
+
+### 🔹 Acceso estático (snapshot del valor actual)
+
+```ts
+const user = signal({ name: "Alice", age: 25 });
+
+// Acceso al valor completo (no reactivo)
+console.log(user()); // { name: "Alice", age: 25 }
+
+// Acceso estático a una propiedad
+console.log(user().name); // "Alice"
+```
+
+➡️ Aquí se obtiene el valor en ese momento, pero **no se actualiza automáticamente** si cambia.
+
+---
+
+### 🔹 Acceso reactivo (propiedad como signal hijo)
+
+```ts
+// Acceso reactivo a una propiedad
+const name = user.name;
+
+console.log(name()); // "Alice"
+
+// Responde automáticamente a cambios
+user.set({ name: "Bob", age: 25 });
+console.log(name()); // "Bob"
+```
+
+➡️ Aquí `user.name` es un **signal hijo**: se mantiene sincronizado con el padre y notifica suscripciones.
+
+---
+
+📌 **Resumen**
+
+* `user().name` → valor estático, snapshot en el momento.
+* `user.name()` → acceso reactivo, se actualiza automáticamente cuando cambie.
+
+Esto permite un control muy flexible: usar lectura directa para operaciones puntuales y signals hijos cuando se necesita reactividad granular.
+
+---
+
 ## Características clave
 
 * **Reactividad automática**: `computed` y `effect` detectan y reaccionan a cambios sin suscripción manual.
@@ -129,6 +177,7 @@ theme.set("dark");
 1. **Cambio en un signal**
 2. Se encola en el **scheduler** para evitar ráfagas de actualizaciones
 3. El scheduler procesa la cola y actualiza:
+
    * Computeds dependientes
    * Effects asociados
    * Suscriptores directos

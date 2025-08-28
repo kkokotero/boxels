@@ -10,6 +10,7 @@ import {
 	type ReactiveSignal,
 	computed,
 	type ReactiveUnsubscribe,
+	type Widen,
 } from '@core/reactive';
 
 /**
@@ -54,7 +55,7 @@ export class Field<T> {
 	public readonly touched: ReactiveSignal<boolean>;
 
 	// Valor inicial guardado para poder hacer reset
-	private initialValue: T;
+	private initialValue: Widen<T>;
 
 	// Lista de funciones para cancelar efectos reactivos al destruir el campo
 	private cleanUps: ReactiveUnsubscribe[] = [];
@@ -75,7 +76,7 @@ export class Field<T> {
 	 */
 	constructor(
 		public readonly name: string,
-		initialValue: T,
+		initialValue: Widen<T>,
 		private validateFn: CompiledValidator<T>,
 		options: FieldOptions = {},
 	) {
@@ -88,11 +89,11 @@ export class Field<T> {
 
 		// Crear señal reactiva del valor, persistente si se indica una clave
 		this.value = this.opts.persistentKey
-			? (persistentSignal(
+			? (persistentSignal<T>(
 					this.opts.persistentKey,
 					initialValue,
 				) as ReactiveSignal<T>)
-			: signal(initialValue);
+			: signal<T>(initialValue) as any;
 
 		// Validar inmediatamente el valor inicial y guardar errores
 		const initialErrors = this.validateFn.validateDetailed(initialValue, {
@@ -241,7 +242,7 @@ export class Field<T> {
 	 *
 	 * @param newInitial - Nuevo valor inicial opcional para reemplazar el anterior
 	 */
-	public reset(newInitial?: T): void {
+	public reset(newInitial?: Widen<T>): void {
 		if (typeof newInitial !== 'undefined') {
 			this.initialValue = newInitial;
 			this.value.set(newInitial);
@@ -308,7 +309,7 @@ export class Field<T> {
  */
 export function createField<T>(
 	name: string,
-	initialValue: T,
+	initialValue: Widen<T>,
 	validator: CompiledValidator<T>,
 	options?: FieldOptions,
 ): Field<T> {

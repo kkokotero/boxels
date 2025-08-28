@@ -19,8 +19,6 @@ export default defineConfig([
 		tsconfig: './tsconfig.json',
 		onSuccess: 'node scripts/copy-types.mjs',
 	},
-
-	// Compilación para plugins (sin bundle, tal cual TS → JS)
 	{
 		entry: ['src/plugins/**/*.ts'],
 		format: ['cjs', 'esm'],

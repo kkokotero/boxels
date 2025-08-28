@@ -1,4 +1,15 @@
 /**
+ * Evita que los literales (true, false, 0, "x") se queden como literales,
+ * los ensancha a boolean, number, string.
+ */
+export type Widen<T> =
+	T extends true | false ? boolean :
+	T extends number ? number :
+	T extends string ? string :
+	T extends bigint ? bigint :
+	T;
+
+/**
  * Una función que recibe el valor actual de una señal y devuelve el nuevo valor.
  * Es usada para actualizar el estado de forma reactiva y derivada del valor anterior.
  *
@@ -8,7 +19,7 @@
  * signal.update(v => v + 1);
  * ```
  */
-export type ReactiveUpdate<T> = (v: T) => T;
+export type ReactiveUpdate<T> = (v: Widen<T>) => Widen<T>;
 
 /**
  * Función que se devuelve al suscribirse a una señal mediante `subscribe()`.
@@ -34,9 +45,9 @@ export type ReactiveUnsubscribe = () => void;
  * };
  * ```
  */
-export type ReactiveSubscribe<T> = (newValue: T) => void;
+export type ReactiveSubscribe<T> = (newValue: Widen<T>) => void;
 
-export type MaybeSignal<T> = T | ReactiveSignal<T>;
+export type MaybeSignal<T> = Widen<T> | ReactiveSignal<Widen<T>>;
 
 /**
  * Interfaz que representa una señal reactiva.
@@ -67,8 +78,8 @@ export interface ReactiveSignal<T> {
      * signal.set(10);
      * ```
      */
-    set(newValue: T, force?: boolean): void;
-
+    set(newValue: Widen<T> | T, force?: boolean): void;
+ 
     /**
      * Actualiza el valor de la señal utilizando una función que recibe el valor actual
      * y devuelve el nuevo valor. Es útil para realizar actualizaciones basadas en el valor anterior.
@@ -79,7 +90,7 @@ export interface ReactiveSignal<T> {
      * signal.update((v) => v * 2);
      * ```
      */
-    update(updater: ReactiveUpdate<T>): void;
+    update(updater: ReactiveUpdate<Widen<T> | T>): void;
 
     /**
      * Se suscribe a los cambios del valor de la señal. La función pasada será ejecutada
@@ -97,7 +108,7 @@ export interface ReactiveSignal<T> {
      * unsubscribe();
      * ```
      */
-    subscribe(subscriber: ReactiveSubscribe<T>): ReactiveUnsubscribe;
+    subscribe(subscriber: ReactiveSubscribe<Widen<T> | T>): ReactiveUnsubscribe;
 
     /**
      * Destruye la señal, limpiando todos los suscriptores y referencias internas.

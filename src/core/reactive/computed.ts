@@ -1,5 +1,5 @@
-import { signal } from './signal';
-import type { ReactiveSignal } from './types';
+import { signal, type Signalize } from './signal';
+import type { ReactiveSignal, Widen } from './types';
 
 /**
  * Crea una **señal computada** (`computed signal`) basada en una o más dependencias reactivas.
@@ -27,8 +27,8 @@ import type { ReactiveSignal } from './types';
  */
 export function computed<T>(
 	dependencies: ReactiveSignal<unknown>[],
-	compute: () => T,
-): ReactiveSignal<T> {
+	compute: () => Widen<T>,
+): Signalize<Widen<T>> & ReactiveSignal<Widen<T>> {
 	// Crea una señal base que almacena el resultado inicial de la función computada.
 	// Esta señal se comporta como cualquier otra, pero su valor será controlado internamente.
 	const result = signal<T>(compute());
