@@ -22,12 +22,15 @@ import { __development__ } from '../../environment';
  * Mapea tipos primitivos a sus "objetos wrapper" correspondientes (String, Number, Boolean, ...).
  * Esto permite poder exponer también métodos y propiedades de esos wrappers en los signals.
  */
-export type PrimitiveToObject<T> =
-	T extends string ? String :
-	T extends number ? Number :
-	T extends boolean ? Boolean :
-	T extends bigint ? Object :
-	{};
+export type PrimitiveToObject<T> = T extends string
+	? String
+	: T extends number
+		? Number
+		: T extends boolean
+			? Boolean
+			: T extends bigint
+				? Object
+				: {};
 
 /**
  * @description
@@ -36,10 +39,9 @@ export type PrimitiveToObject<T> =
  * - Si la propiedad es un valor, se convierte recursivamente en `Signalize`.
  */
 export type SignalProps<O> = {
-	[K in keyof O]:
-		O[K] extends (...args: infer P) => infer R
-			? (...args: P) => Signalize<R>
-			: Signalize<O[K]>;
+	[K in keyof O]: O[K] extends (...args: infer P) => infer R
+		? (...args: P) => Signalize<R>
+		: Signalize<O[K]>;
 };
 
 /**
@@ -49,9 +51,9 @@ export type SignalProps<O> = {
  * - Primitivos → `ReactiveSignal<T>` extendido con métodos/props del wrapper.
  * - Objetos → `ReactiveSignal<T>` con cada propiedad envuelta en un `Signalize`.
  */
-export type Signalize<T> =
-	T extends (...args: infer P) => infer R ? (...args: P) => Signalize<R> :
-	[T] extends [string | number | boolean | bigint]
+export type Signalize<T> = T extends (...args: infer P) => infer R
+	? (...args: P) => Signalize<R>
+	: [T] extends [string | number | boolean | bigint]
 		? ReactiveSignal<T> & SignalProps<PrimitiveToObject<T>>
 		: T extends object
 			? ReactiveSignal<T> & { [K in keyof T]: Signalize<T[K]> }
@@ -73,7 +75,9 @@ export type Signalize<T> =
  * @param initialValue Valor inicial del signal
  * @returns Un `Signalize<T>`, que combina el valor con API reactiva.
  */
-export function signal<T>(initialValue: Widen<T> | T): Signalize<Widen<T>> & ReactiveSignal<Widen<T>> {
+export function signal<T>(
+	initialValue: Widen<T> | T,
+): Signalize<Widen<T>> & ReactiveSignal<Widen<T>> {
 	// Estado interno del valor actual
 	let value = initialValue as Widen<T>;
 
@@ -201,7 +205,8 @@ export function signal<T>(initialValue: Widen<T> | T): Signalize<Widen<T>> & Rea
 			// Si es un método: crear signal derivado
 			if (typeof current === 'function') {
 				return (...args: any[]) => {
-					const initial = value != null ? current.apply(value, args) : undefined;
+					const initial =
+						value != null ? current.apply(value, args) : undefined;
 					const derived = signal(initial);
 
 					// Resuscribir a cambios del padre
@@ -237,11 +242,28 @@ export function signal<T>(initialValue: Widen<T> | T): Signalize<Widen<T>> & Rea
 		},
 
 		// No se permite asignación directa a propiedades del proxy
-		set() {
-			console.warn(
-				'La asignación directa a propiedades del signal no está soportada. Usa `.set` en el signal raíz o en un signal hijo.'
-			);
-			return false;
+		set(target, prop, value, receiver) {
+			// Si la propiedad existe en la API del signal (ej: .set, .update, .destroy),
+			// asignar directamente al target
+			if (prop in target) {
+				return Reflect.set(target, prop, value, receiver);
+			}
+
+			// Actualizar el valor "crudo" interno
+			const current = target(); // obtiene el valor actual del signal raíz
+			if (current != null && typeof current === 'object') {
+				(current as any)[prop] = value;
+				// Notificar al signal raíz para que emita el nuevo objeto
+				target.set({ ...current });
+			}
+
+			// Si existe un childSignal para esa propiedad → actualizarlo también
+			if (childSignals.has(prop)) {
+				const child = childSignals.get(prop)!;
+				if (isSignal(child)) child.set(value);
+			}
+
+			return true;
 		},
 	});
 
