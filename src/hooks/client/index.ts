@@ -1,4 +1,5 @@
 export * from './channel';
+export * from './context';
 export * from './delay';
 export * from './device';
 export * from './repeat';

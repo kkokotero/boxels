@@ -52,9 +52,9 @@ count.destroy();
 Un valor **derivado** de uno o más signals, recalculado automáticamente cuando cambian sus dependencias.
 
 ```ts
-import { signal, computed } from "boxles/core";
+import { signal, computed, type Signal } from "boxles/core";
 
-const price = signal(10);
+const price: Signal<number> = signal(10);
 const quantity = signal(2);
 
 // Se especifican dependencias para un tracking explícito

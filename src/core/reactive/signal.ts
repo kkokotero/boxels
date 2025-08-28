@@ -65,6 +65,8 @@ export type Signalize<T> = T extends (...args: infer P) => infer R
  * ======================================================
  */
 
+export type Signal<T> = Signalize<Widen<T>> & ReactiveSignal<Widen<T>>;
+
 /**
  * @description
  * Crea un `signal` reactivo a partir de un valor inicial.
@@ -77,7 +79,7 @@ export type Signalize<T> = T extends (...args: infer P) => infer R
  */
 export function signal<T>(
 	initialValue: Widen<T> | T,
-): Signalize<Widen<T>> & ReactiveSignal<Widen<T>> {
+): Signal<T> {
 	// Estado interno del valor actual
 	let value = initialValue as Widen<T>;
 
@@ -279,5 +281,5 @@ export function signal<T>(
 	}
 
 	// Retorno final tipado como `Signalize<T>`
-	return proxy as unknown as Signalize<Widen<T>> & ReactiveSignal<Widen<T>>;
+	return proxy as unknown as Signal<T>;
 }
