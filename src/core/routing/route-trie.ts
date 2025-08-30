@@ -21,6 +21,7 @@ export type GuardResult =
 	| {
 			redirect?: string;
 			message?: string;
+			component?: () => JSX.Element;
 	  };
 
 /**
@@ -60,6 +61,8 @@ export interface FindResult {
 	message?: string;
 
 	redirect?: string;
+
+	component?: () => JSX.Element;
 }
 
 /**
@@ -290,6 +293,14 @@ export class TriNode {
 
 				if (typeof result === 'object' && result) {
 					const nextMessage = result.message ?? carryMessage;
+
+					if (result.component) {
+						return {
+							component: result.component,
+							params,
+							message: nextMessage,
+						};
+					}
 
 					if (result.redirect) {
 						return { redirect: result.redirect, params, message: nextMessage };

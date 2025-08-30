@@ -16,7 +16,11 @@ type RouterOutletProps = {
 	beforeChange?: (url: string) => void;
 };
 
-export const RouterOutlet = async ({ config, afterChange, beforeChange }: RouterOutletProps) => {
+export const RouterOutlet = async ({
+	config,
+	afterChange,
+	beforeChange,
+}: RouterOutletProps) => {
 	setGlobalRouter(config);
 
 	interceptLinks();
@@ -26,13 +30,19 @@ export const RouterOutlet = async ({ config, afterChange, beforeChange }: Router
 
 	await router.ready;
 	const update = async (node: FindResult) => {
+		if (node.component) {
+			view.set(node.component());
+		}
+
 		if (node.redirect) {
 			router.navigate(node.redirect);
 			return;
 		}
 
 		if (!node.handler && !node.message) {
-			view.set($('pre', {}, '404 - Ruta no encontrada: ', router.url!()));
+			if (router.routerConfig.onNotFound)
+				view.set(router.routerConfig.onNotFound());
+			else view.set($('pre', {}, '404 - Ruta no encontrada: ', router.url!()));
 			return;
 		}
 

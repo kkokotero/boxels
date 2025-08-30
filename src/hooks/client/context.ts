@@ -1,20 +1,22 @@
 // context.ts
-import { type Signal, type Widen, signal } from '@core/reactive';
+import { type Signal, type Widen, persistentSignal, signal } from '@core/reactive';
 
 type Context<T> = {
-	provide(value: Widen<T>): void;
-	use(): Signal<T>;
+	provide(value: T): void;
+	use(): Signal<Widen<T> | T>;
 	destroy(): void;
 };
 
-export function createContext<T>(defaultValue: T): Context<T> {
+let keys = 0;
+
+export function createContext<T>(defaultValue: T, cache = false): Context<T> {
 	// Estado compartido (signal raíz)
-	const state = signal(defaultValue);
+	const state = cache ? persistentSignal(`boxels-context-${keys++}`, defaultValue as Widen<T>) : signal(defaultValue);
 
 	return {
 		// Proveer un nuevo valor (desde el provider)
-		provide(value: Widen<T>) {
-			state.set(value);
+		provide(value: T) {
+			(state.set as (v: T) => void)(value);
 		},
 		// Usar el valor en hijos
 		use() {

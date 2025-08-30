@@ -11,7 +11,7 @@ import type { HttpClientOptions, HttpResponse, ResponseType } from './http-clien
  * Representa un mock de respuesta HTTP.
  * Permite simular status, datos, delay y tipo de respuesta.
  */
-type MockEntry<TBody = any, T = any> = {
+export type MockEntry<TBody = any, T = any> = {
 	/** Código HTTP simulado (por defecto 200 si no se indica) */
 	status?: number;
 	/** Datos de respuesta:

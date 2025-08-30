@@ -34,6 +34,8 @@ export type RouterConfig = {
 	preserveScrollOnReload?: boolean;
 	scrollTopOnNavigate?: boolean;
 	trackHashChanges?: boolean;
+	onNotFound?: () => JSX.Element;
+	onError?: () => JSX.Element;
 };
 
 /**
@@ -114,6 +116,7 @@ class Router {
 	/** Navega reemplazando la URL actual */
 	public async replace(url: string) {
 		await this.navigate(url, true);
+		return url;
 	}
 
 	/**
@@ -130,6 +133,7 @@ class Router {
 		this.isNavigating = true;
 		await this.changeUrl(url, replace);
 		this.isNavigating = false;
+		return url;
 	}
 
 	/**
