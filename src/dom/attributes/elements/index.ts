@@ -37,7 +37,7 @@ export type BoxlesChildren = {
 export type BoxelsElement = HTMLElement & {
 	mount: (parent: HTMLElement | DocumentFragment | Comment) => void;
 	destroy: () => void;
-	mountEffect: () => void;
+	mountEffect: () => () => void;
 	isFragment: boolean;
 	__boxels: true;
 	__mounted: boolean;
@@ -106,8 +106,7 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 		// BoxelsElement
 		if (isBoxelsElement(child)) {
 			nodes.push(child);
-			if (child.isFragment) onMounts.push(child.mountEffect);
-			cleanUps.push(() => child.destroy());
+			cleanUps.push(child.mountEffect());
 			continue;
 		}
 
@@ -133,31 +132,45 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 			let currentChild: BoxlesChildren | null = null;
 			let unsub: ReactiveUnsubscribe | null = null;
 
-			// Suscribir
 			unsub = s.subscribe((val) => {
-				// Limpieza del child actual
-				currentChild?.cleanup();
+				if (!start.parentElement || !end.parentElement) return;
+				if (typeof currentChild?.cleanup === 'function')
+					currentChild?.cleanup();
 				currentChild = null;
+				const localCleanUps: (() => void)[] = [];
 
-				// Normalizar el nuevo valor y generar fragmento
-				const normalized = normalizeChildren(val);
-
-				currentChild = normalized;
-
+				// 1. Limpieza del valor previo
 				const range = document.createRange();
 				range.setStartAfter(start);
 				range.setEndBefore(end);
 				range.deleteContents();
 
+				// 2. Normalizar nuevo valor
+				const normalized = normalizeChildren(val);
+
+				// 3. Insertar nodos en el DOM
 				normalized.nodes.forEach((n) => {
+					if (isBoxelsElement(n)) {
+						const cleanUp = n.mountEffect();
+						if (typeof cleanUp === 'function')
+							localCleanUps.push(cleanUp, () => n.remove());
+					}
 					end.before(n);
 				});
+				if (localCleanUps.length !== 0) {
+					const origCleanup = normalized.cleanup;
+					normalized.cleanup = () => {
+						if (typeof origCleanup === 'function') origCleanup();
+						localCleanUps.forEach((fn) => fn());
+					};
+				}
 
+				// 4. Ejecutar onMount del nuevo valor
 				normalized.onMount();
 
-				// Visual overlays (si aplica)
-				const overlayCleanups: (() => void)[] = [];
+				// 5. Overlays de debug
 				if (debug.isShowChanges()) {
+					const overlayCleanups: (() => void)[] = [];
 					normalized.nodes.forEach((n) => {
 						const cleanupOverlay = createChangeOverlay(n);
 						overlayCleanups.push(cleanupOverlay);
@@ -168,14 +181,27 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 						overlayCleanups.forEach((fn) => fn());
 					};
 				}
+
+				currentChild = normalized;
 			});
 
-			// Registro de limpieza
+			// Registro de limpieza global
 			cleanUps.push(() => {
 				currentChild?.cleanup();
+
 				unsub?.();
+				const range = document.createRange();
+				range.setStartAfter(start);
+				range.setEndBefore(end);
+				range.deleteContents();
+				range.collapse();
+				start.remove();
+				end.remove();
+
+				currentChild = null;
 			});
 
+			// Suscribir
 			continue;
 		}
 
@@ -258,7 +284,7 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 			for (const fn of onMounts) fn();
 		},
 		cleanup: () => {
-			for (let i = cleanUps.length - 1; i >= 0; i--) cleanUps[i]();
+			for (const fn of cleanUps) if (typeof fn === 'function') fn();
 		},
 	};
 }

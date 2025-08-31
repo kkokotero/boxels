@@ -169,16 +169,24 @@ export function $<T extends keyof HTMLElementTagNameMap>(
 
 	// Si es un fragmento manual (ej. selector instanceof DocumentFragment)
 	if (selector === Fragment || selector instanceof DocumentFragment) {
-		const result = normalizeChildren(props?.children);
-
-		result.nodes.forEach((n) => node.appendChild(n));
+		let cleanUp: any | undefined;
 
 		const mount = (parent: HTMLElement | DocumentFragment) => {
 			if ((node as BoxelsElement).__mounted) return;
 			(node as BoxelsElement).__mounted = true;
 
-			result.onMount();
-			props?.['$lifecycle:mount']?.(undefined as any);
+			const result = handleAttributes(node as any, props || {});
+			result['$lifecycle:mount']?.(undefined as any);
+
+			if ((node as BoxelsElement).__destroyed) {
+				props?.['$lifecycle:remount']?.(undefined as any);
+				(node as BoxelsElement).__destroyed = false;
+			} else {
+				props?.['$lifecycle:mount']?.(undefined as any);
+			}
+
+			cleanUp = result['$lifecycle:destroy'];
+
 			parent.appendChild(node);
 		};
 
@@ -187,19 +195,35 @@ export function $<T extends keyof HTMLElementTagNameMap>(
 			(node as BoxelsElement).__mounted = false;
 			(node as BoxelsElement).__destroyed = true;
 
-			result.cleanup();
 			props?.['$lifecycle:destroy']?.(undefined as any);
 			while (node.firstChild) {
 				node.firstChild.remove();
 			}
+			cleanUp?.();
 		};
 
 		return Object.assign(node, {
 			mount,
 			destroy,
 			mountEffect: () => {
+				const result = normalizeChildren(props?.children);
 				result.onMount();
-				props?.['$lifecycle:mount']?.(undefined as any);
+
+				if ((node as BoxelsElement).__destroyed) {
+					props?.['$lifecycle:remount']?.(undefined as any);
+					(node as BoxelsElement).__destroyed = false;
+				} else {
+					props?.['$lifecycle:mount']?.(undefined as any);
+				}
+
+				return () => {
+					if ((node as BoxelsElement).__destroyed) return;
+					(node as BoxelsElement).__mounted = false;
+					(node as BoxelsElement).__destroyed = true;
+
+					result.cleanup();
+					props?.['$lifecycle:destroy']?.(undefined as any);
+				};
 			},
 			isFragment: true,
 			__boxels: true,
@@ -209,14 +233,25 @@ export function $<T extends keyof HTMLElementTagNameMap>(
 	}
 
 	// Si es un elemento HTML estándar
-	const result = handleAttributes(node as HTMLElement, props ?? {});
+
+	let cleanUp: any;
 
 	const mount = (parent: HTMLElement | DocumentFragment) => {
 		// Prevención de recursión infinita
+		const result = handleAttributes(node as HTMLElement, props ?? {});
+
 		if ((node as BoxelsElement).__mounted) return;
 		(node as BoxelsElement).__mounted = true;
 
+		cleanUp = result['$lifecycle:destroy'];
+
 		result['$lifecycle:mount']?.(node as BoxelsElementNode<T>);
+
+		if ((node as BoxelsElement).__destroyed) {
+			props?.['$lifecycle:remount']?.(node as any);
+			(node as BoxelsElement).__destroyed = false;
+		}
+
 		parent.appendChild(node);
 	};
 
@@ -225,15 +260,34 @@ export function $<T extends keyof HTMLElementTagNameMap>(
 		(node as BoxelsElement).__mounted = false;
 		(node as BoxelsElement).__destroyed = true;
 
-		result['$lifecycle:destroy']?.(node as BoxelsElementNode<T>);
 		(node as ChildNode).remove();
+		cleanUp?.(node as BoxelsElementNode<T>);
 	};
 
 	return Object.assign(node, {
 		mount,
 		destroy,
-		mountEffect: () =>
-			result['$lifecycle:mount']?.(node as BoxelsElementNode<T>),
+		mountEffect: () => {
+			if ((node as BoxelsElement).__mounted) return;
+			(node as BoxelsElement).__mounted = true;
+
+			const result = handleAttributes(node as HTMLElement, props ?? {});
+			result['$lifecycle:mount']?.(node as any);
+
+			if ((node as BoxelsElement).__destroyed) {
+				props?.['$lifecycle:remount']?.(node as any);
+				(node as BoxelsElement).__destroyed = false;
+			}
+
+			return () => {
+				if ((node as BoxelsElement).__destroyed) return;
+				(node as BoxelsElement).__mounted = false;
+				(node as BoxelsElement).__destroyed = true;
+
+				result['$lifecycle:destroy']?.(node as any);
+				(node as ChildNode).remove();
+			};
+		},
 		isFragment: false,
 		__boxels: true,
 		__mounted: false,

@@ -23,14 +23,14 @@ import { __development__ } from '../../environment';
  * Esto permite poder exponer también métodos y propiedades de esos wrappers en los signals.
  */
 export type PrimitiveToObject<T> = T extends string
-	? String
+	? string
 	: T extends number
-		? Number
+		? number
 		: T extends boolean
-			? Boolean
+			? boolean
 			: T extends bigint
-				? Object
-				: {};
+				? object
+				: Record<any, any>;
 
 /**
  * @description
@@ -77,9 +77,7 @@ export type Signal<T> = Signalize<Widen<T>> & ReactiveSignal<Widen<T>>;
  * @param initialValue Valor inicial del signal
  * @returns Un `Signalize<T>`, que combina el valor con API reactiva.
  */
-export function signal<T>(
-	initialValue: Widen<T> | T,
-): Signal<T> {
+export function signal<T>(initialValue: Widen<T> | T): Signal<T> {
 	// Estado interno del valor actual
 	let value = initialValue as Widen<T>;
 

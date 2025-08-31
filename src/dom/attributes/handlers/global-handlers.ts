@@ -21,6 +21,7 @@ type DOMEventHandlers = {
  */
 export type LifecycleEventHandlers<T extends keyof HTMLElementTagNameMap> = {
 	'$lifecycle:mount'?: (e: BoxelsElementNode<T>) => void;
+	'$lifecycle:remount'?: (e: BoxelsElementNode<T>) => void;
 	'$lifecycle:destroy'?: (e: BoxelsElementNode<T>) => void;
 };
 

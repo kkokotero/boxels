@@ -14,7 +14,7 @@ import {
 import { handleClassAttribute, handleStyleAttribute } from './styles/index';
 
 // Utilidad para hijos de elementos
-import { normalizeChildren } from './elements/index';
+import { normalizeChildren, type BoxelsElement } from './elements/index';
 import { appendChild } from '../utils';
 
 /**
@@ -44,8 +44,8 @@ export function handleAttributes<T extends keyof HTMLElementTagNameMap>(
 		if (key === 'children') {
 			const result = normalizeChildren(raw);
 			for (const node of result.nodes) appendChild(element, node);
-			mounts.push(result.onMount);
-			cleanUps.push(result.cleanup);
+			result.onMount();
+			cleanUps.push(() => result.cleanup());
 			continue;
 		}
 
@@ -72,7 +72,11 @@ export function handleAttributes<T extends keyof HTMLElementTagNameMap>(
 
 		// --- lifecycle ---
 		if (key === '$lifecycle:mount' && typeof raw === 'function') {
-			raw(element);
+			if (!(element as BoxelsElement).__destroyed) raw(element);
+			continue;
+		}
+
+		if (key === '$lifecycle:remount' && typeof raw === 'function') {
 			continue;
 		}
 		if (key === '$lifecycle:destroy' && typeof raw === 'function') {

@@ -145,7 +145,7 @@ export function Demo() {
 
   return (
     <section>
-      <button $on:click={() => count.update((v) => v + 1)} $lifecycle:mount={() => console.log("Botón montado")} class={{ active: visible, "btn-primary": true }} style={{ color: visible.map((v) => (v ? "green" : "gray")), fontWeight: "bold" }}>
+      <button $on:click={() => count.update((v) => v + 1)} $lifecycle:mount={() => console.log("Botón montado")} $lifecycle:remount={() => console.log("Botón remontado")} class={{ active: visible, "btn-primary": true }} style={{ color: visible.map((v) => (v ? "green" : "gray")), fontWeight: "bold" }}>
         Incrementar ({count})
       </button>
       <button $on:click={() => visible.update((v) => !v)}>Toggle visible</button>
