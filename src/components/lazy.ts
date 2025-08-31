@@ -1,6 +1,7 @@
 import { effect, signal, type ReactiveSignal } from '@core/reactive';
 import { $, type BoxelsElement } from '@dom/index';
 import { Fragment } from './fragment';
+import { queue } from '@core/scheduler';
 
 /**
  * Tipos de estrategia para determinar cuándo cargar el componente de forma perezosa (lazy).
@@ -179,7 +180,7 @@ export function Lazy({
 		'$lifecycle:destroy': () => element.destroy(),
 		'$lifecycle:mount': () => {
 			// Inicia la estrategia de carga al montar
-			setupLoadStrategy();
+			queue(() => setupLoadStrategy());
 		},
 		children: element,
 	});

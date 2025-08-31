@@ -21,7 +21,7 @@ export type GuardResult =
 	| {
 			redirect?: string;
 			message?: string;
-			component?: () => JSX.Element;
+			component?: () => JSX.Element | (() => Promise<JSX.Element>);
 	  };
 
 /**
@@ -62,7 +62,7 @@ export interface FindResult {
 
 	redirect?: string;
 
-	component?: () => JSX.Element;
+	component?: () => JSX.Element | (() => Promise<JSX.Element>)
 }
 
 /**

@@ -26,12 +26,12 @@ export const RouterOutlet = async ({
 	interceptLinks();
 	attachBrowserEvents();
 
-	const view = signal($('div', {}));
+	const view = signal<JSX.Element>($('div', {}));
 
 	await router.ready;
 	const update = async (node: FindResult) => {
 		if (node.component) {
-			view.set(node.component());
+			view.set(await node.component());
 		}
 
 		if (node.redirect) {
@@ -41,15 +41,18 @@ export const RouterOutlet = async ({
 
 		if (!node.handler && !node.message) {
 			if (router.routerConfig.onNotFound)
-				view.set(router.routerConfig.onNotFound());
+				view.set(await router.routerConfig.onNotFound());
 			else view.set($('pre', {}, '404 - Ruta no encontrada: ', router.url!()));
 			return;
 		}
 
 		if (node.message) {
-			view.set(
-				$('pre', {}, '403 - Prohibido: ', router.url!(), '\n', node.message),
-			);
+			if (router.routerConfig.onError)
+				view.set(await router.routerConfig.onError({ msg: node.message }));
+			else
+				view.set(
+					$('pre', {}, '403 - Prohibido: ', router.url!(), '\n', node.message),
+				);
 			return;
 		}
 

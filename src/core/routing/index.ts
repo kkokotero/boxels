@@ -34,8 +34,12 @@ export type RouterConfig = {
 	preserveScrollOnReload?: boolean;
 	scrollTopOnNavigate?: boolean;
 	trackHashChanges?: boolean;
-	onNotFound?: () => JSX.Element;
-	onError?: () => JSX.Element;
+	onNotFound?: () => JSX.Element | (() => Promise<JSX.Element>);
+	onError?: ({
+		msg,
+	}: {
+		msg?: string;
+	}) => JSX.Element | (({ msg }: { msg?: string }) => Promise<JSX.Element>);
 };
 
 /**
@@ -81,7 +85,7 @@ class Router {
 		// Navega automáticamente a la URL actual al inicializar
 		await this.navigate(
 			window.location.pathname + window.location.search + window.location.hash,
-			true
+			true,
 		);
 	}
 
@@ -90,7 +94,10 @@ class Router {
 	 * Une dos paths eliminando slashes redundantes.
 	 */
 	private joinPaths(a: string, b: string) {
-		return [a, b].map((s) => s.replace(/^\/|\/$/g, '')).filter(Boolean).join('/');
+		return [a, b]
+			.map((s) => s.replace(/^\/|\/$/g, ''))
+			.filter(Boolean)
+			.join('/');
 	}
 
 	/** Navega hacia atrás en el historial */
@@ -166,7 +173,10 @@ class Router {
 			}
 		};
 
-		if (this.routerConfig?.useViewTransitions && (document as any).startViewTransition) {
+		if (
+			this.routerConfig?.useViewTransitions &&
+			(document as any).startViewTransition
+		) {
 			(document as any).startViewTransition(apply);
 		} else {
 			apply();
@@ -191,7 +201,8 @@ export function interceptLinks() {
 			!anchor.target &&
 			!anchor.hasAttribute('download') &&
 			!anchor.getAttribute('rel')?.includes('external') &&
-			(anchor.href.startsWith(window.location.origin) || anchor.href.startsWith('/'))
+			(anchor.href.startsWith(window.location.origin) ||
+				anchor.href.startsWith('/'))
 		) {
 			e.preventDefault();
 			const href = anchor.pathname + anchor.search + anchor.hash;
@@ -212,7 +223,7 @@ export function attachBrowserEvents() {
 	window.addEventListener('popstate', () => {
 		router.navigate(
 			window.location.pathname + window.location.search + window.location.hash,
-			true
+			true,
 		);
 	});
 
@@ -220,8 +231,10 @@ export function attachBrowserEvents() {
 	if (router.routerConfig?.trackHashChanges) {
 		window.addEventListener('hashchange', () => {
 			router.navigate(
-				window.location.pathname + window.location.search + window.location.hash,
-				true
+				window.location.pathname +
+					window.location.search +
+					window.location.hash,
+				true,
 			);
 		});
 	}
