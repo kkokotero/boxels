@@ -1,9 +1,9 @@
-## [2.3.2](https://github.com/kkokotero/boxels/compare/ab188da9438357482d9a412f234f391bf99cea60...v2.3.2) (2025-09-01)
+## [2.3.3](https://github.com/kkokotero/boxels/compare/b90bedfc457fa14098f37baa331f52a9855ea5de...v2.3.3) (2025-09-01)
 
 
 ### Bug Fixes
 
-* **svg:** corregir el efecto de montaje para que los SVG se inicialicen correctamente ([ab188da](https://github.com/kkokotero/boxels/commit/ab188da9438357482d9a412f234f391bf99cea60))
+* **dom:** corregir error al intentar eliminar nodos que no tienen padre ([b90bedf](https://github.com/kkokotero/boxels/commit/b90bedfc457fa14098f37baa331f52a9855ea5de))
 
 
 
