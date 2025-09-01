@@ -45,6 +45,7 @@ export function createSvg<T extends keyof SVGElementTagNameMap>(
 	return Object.assign(node, {
 		mount,
 		destroy,
+		mountEffect: () => {},
 		__boxels: true,
 		__mounted: false,
 		__destroyed: false,
