@@ -8,6 +8,7 @@ import {
 } from './attributes/elements';
 import { createSvg } from './svg';
 import { appendChild } from './utils';
+import { debug } from '@testing/debugger';
 
 export const Fragment: unique symbol = Symbol('Boxles-Fragment');
 export const Comment: unique symbol = Symbol('Boxles-Fragment');
@@ -131,12 +132,92 @@ export function isClassComponent(fn: unknown): fn is ClassComponent {
 	);
 }
 
+function createLifecycle<T extends Node>(
+	node: T,
+	build: () => any,
+	options: {
+		isFragment: boolean;
+		props?: any;
+		appendChildren?: (node: T, result: any) => void;
+		cleanupChildren?: (node: T, result: any) => void;
+		onMountResult?: (result: any, node: T) => void;
+		onDestroyResult?: (result: any, node: T) => void;
+	},
+) {
+	let result = build();
+	let everMounted = false;
+
+	const destroy = () => {
+		if ((node as any).__destroyed) return;
+		(node as any).__mounted = false;
+		(node as any).__destroyed = true;
+
+		options.props?.['$lifecycle:destroy']?.(node);
+		options.cleanupChildren?.(node, result);
+		options.onDestroyResult?.(result, node);
+	};
+
+	const mount = (parent: HTMLElement | DocumentFragment) => {
+		// Si ya estaba montado → rerender
+		if ((node as any).__mounted) {
+			options.cleanupChildren?.(node, result);
+			result = build();
+			options.appendChildren?.(node, result);
+
+			// 🚀 activar hooks de hijos en fragments
+			if (options.isFragment) {
+				result.onMount?.();
+			}
+
+			options.props?.['$lifecycle:remount']?.(node);
+			return;
+		}
+
+		// Primer montaje
+		result = build();
+		options.appendChildren?.(node, result);
+
+		(node as any).__mounted = true;
+		(node as any).__destroyed = false;
+		everMounted = true;
+
+		options.props?.['$lifecycle:mount']?.(node);
+		parent.appendChild(node);
+		options.onMountResult?.(result, node);
+	};
+
+	const mountEffect = () => {
+		if ((node as any).__mounted) return;
+		(node as any).__mounted = true;
+		(node as any).__destroyed = false;
+
+		if (everMounted) {
+			options.props?.['$lifecycle:remount']?.(node);
+		} else {
+			options.props?.['$lifecycle:mount']?.(node);
+		}
+
+		options.onMountResult?.(result, node);
+
+		return () => destroy();
+	};
+
+	return Object.assign(node, {
+		mount,
+		destroy,
+		mountEffect,
+		isFragment: options.isFragment,
+		__boxels: true,
+		__mounted: false,
+		__destroyed: false,
+	});
+}
+
 export function $<T extends keyof HTMLElementTagNameMap>(
 	selector: BoxelsElementSelector<T>,
 	props?: BoxelsElementAttributes<T>,
 	...children: Child[]
 ): BoxelsElement {
-	// Inyecta children si no están en props
 	if (props) {
 		props.children =
 			props.children ??
@@ -149,146 +230,93 @@ export function $<T extends keyof HTMLElementTagNameMap>(
 
 	let node: Node;
 
+	// --- Fragmento ---
 	if (selector === Fragment) {
-		node = document.createDocumentFragment();
-	} else if (isClassComponent(selector)) {
+		const start = document.createComment(
+			debug.isShowCommentNames() ? 'fragment:start' : '',
+		);
+		const end = document.createComment(
+			debug.isShowCommentNames() ? 'fragment:end' : '',
+		);
+
+		// truco: usar un contenedor solo lógico, sin nodo extra en el DOM
+		const container = document.createDocumentFragment();
+		container.appendChild(start);
+		container.appendChild(end);
+
+		return createLifecycle(
+			container,
+			() => normalizeChildren(props?.children || {}),
+			{
+				isFragment: true,
+				props,
+				appendChildren: (_node, result) => {
+					// insertar entre start y end
+					for (const n of result.nodes) {
+						end.parentNode?.insertBefore(n, end);
+					}
+				},
+				cleanupChildren: (_node, result) => {
+					// limpiar todo entre start y end
+					let next = start.nextSibling;
+					while (next && next !== end) {
+						const toRemove = next;
+						next = next.nextSibling;
+						toRemove.remove();
+					}
+					result.cleanup();
+				},
+				onMountResult: (result) => result.onMount(),
+				onDestroyResult: (result) => result.cleanup(),
+			},
+		) as unknown as BoxelsElement;
+	}
+
+	// --- Otros tipos ---
+	if (isClassComponent(selector)) {
 		const instance = new selector(props);
 		return instance.render();
-	} else if (isSignal(selector)) {
+	}
+	if (isSignal(selector)) {
 		const nodes = normalizeChildren(selector as Child);
 		return $(Fragment, {}, nodes);
-	} else if (typeof selector === 'function') {
+	}
+	if (typeof selector === 'function') {
 		return selector(props);
-	} else if (typeof selector === 'string' && svgTags.has(selector)) {
+	}
+	if (typeof selector === 'string' && svgTags.has(selector)) {
 		return createSvg(selector as any, props as BoxelsElementAttributes<'div'>);
-	} else if (typeof selector === 'string') {
+	}
+	if (typeof selector === 'string') {
 		node = document.createElement(selector);
 	} else {
 		node = selector;
 	}
 
-	// Si es un fragmento manual (ej. selector instanceof DocumentFragment)
-	if (
-		selector === Fragment ||
-		selector instanceof DocumentFragment ||
-		node instanceof DocumentFragment
-	) {
-		const result = normalizeChildren(props?.children || {});
-
-		result.nodes.forEach((n) => node.appendChild(n));
-		
-		const mount = (parent: HTMLElement | DocumentFragment) => {
-			if ((node as BoxelsElement).__mounted) return;
-			(node as BoxelsElement).__mounted = true;
-
-			if ((node as BoxelsElement).__destroyed) {
-				props?.['$lifecycle:remount']?.(undefined as any);
-				(node as BoxelsElement).__destroyed = false;
-			} else {
-				props?.['$lifecycle:mount']?.(undefined as any);
-			}
-			
-			result.onMount();
-			parent.appendChild(node);
-		};
-
-		const destroy = () => {
-			if ((node as BoxelsElement).__destroyed) return;
-			(node as BoxelsElement).__mounted = false;
-			(node as BoxelsElement).__destroyed = true;
-
-			props?.['$lifecycle:destroy']?.(undefined as any);
-			while (node.firstChild) {
-				node.firstChild.remove();
-			}
-		};
-
-		return Object.assign(node, {
-			mount,
-			destroy,
-			mountEffect: () => {
-				if ((node as BoxelsElement).__mounted) return;
-				(node as BoxelsElement).__mounted = true;
-
-				result.onMount();
-				if ((node as BoxelsElement).__destroyed) {
-					props?.['$lifecycle:remount']?.(undefined as any);
-					(node as BoxelsElement).__destroyed = false;
-				} else {
-					props?.['$lifecycle:mount']?.(undefined as any);
+	// --- Nodo normal ---
+	return createLifecycle(
+		node,
+		() => handleAttributes(node as HTMLElement, props ?? {}),
+		{
+			isFragment: false,
+			props,
+			cleanupChildren: (node, result) => {
+				if (typeof (node as ChildNode).remove === 'function') {
+					(node as ChildNode).remove();
 				}
-
-				return () => {
-					if ((node as BoxelsElement).__destroyed) return;
-					(node as BoxelsElement).__mounted = false;
-					(node as BoxelsElement).__destroyed = true;
-
-					result.cleanup();
-					props?.['$lifecycle:destroy']?.(undefined as any);
-				};
+				result['$lifecycle:destroy']?.(node);
 			},
-			isFragment: true,
-			__boxels: true,
-			__mounted: false,
-			__destroyed: false,
-		}) as BoxelsElement;
-	}
-
-	// Si es un elemento HTML estándar
-	const result = handleAttributes(node as HTMLElement, props ?? {});
-
-	const mount = (parent: HTMLElement | DocumentFragment) => {
-		// Prevención de recursión infinita
-		if ((node as BoxelsElement).__mounted) return;
-		(node as BoxelsElement).__mounted = true;
-
-		if ((node as BoxelsElement).__destroyed) {
-			props?.['$lifecycle:remount']?.(node as any);
-			(node as BoxelsElement).__destroyed = false;
-		} else {
-			result['$lifecycle:mount']?.(node as BoxelsElementNode<T>);
-		}
-
-		parent.appendChild(node);
-	};
-
-	const destroy = () => {
-		if ((node as BoxelsElement).__destroyed) return;
-		(node as BoxelsElement).__mounted = false;
-		(node as BoxelsElement).__destroyed = true;
-
-		(node as ChildNode).remove();
-		result['$lifecycle:destroy']?.(node as unknown as any);
-	};
-
-	return Object.assign(node, {
-		mount,
-		destroy,
-		mountEffect: () => {
-			if ((node as BoxelsElement).__mounted) return;
-			(node as BoxelsElement).__mounted = true;
-
-			if ((node as BoxelsElement).__destroyed) {
-				props?.['$lifecycle:remount']?.(node as any);
-				(node as BoxelsElement).__destroyed = false;
-			} else {
-				result['$lifecycle:mount']?.(node as BoxelsElementNode<T>);
-			}
-
-			return () => {
-				if ((node as BoxelsElement).__destroyed) return;
-				(node as BoxelsElement).__mounted = false;
-				(node as BoxelsElement).__destroyed = true;
-
-				result['$lifecycle:destroy']?.(node as any);
-				(node as ChildNode).remove();
-			};
+			onDestroyResult: (result, node) =>
+				result['$lifecycle:destroy']?.(node as any),
+			onMountResult: (result, node) => {
+				if ((node as any).__destroyed) {
+					props?.['$lifecycle:remount']?.(node as BoxelsElementNode<T>);
+				} else {
+					result['$lifecycle:mount']?.(node as BoxelsElementNode<T>);
+				}
+			},
 		},
-		isFragment: false,
-		__boxels: true,
-		__mounted: false,
-		__destroyed: false,
-	}) as BoxelsElement;
+	) as unknown as BoxelsElement;
 }
 
 export * from './attributes/elements/index';

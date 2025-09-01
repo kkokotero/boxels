@@ -100,18 +100,119 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 
 	const queue: Child[] = Array.isArray(input) ? [...input] : [input];
 
+	// Helper: envuelve un BoxlesChildren con sus propios anchors (start/end)
+	function wrapScoped(
+		inner: BoxlesChildren,
+		name = 'fragment',
+	): BoxlesChildren {
+		const start = document.createComment(
+			debug.isShowCommentNames() ? `${name}:start` : '',
+		);
+		const end = document.createComment(
+			debug.isShowCommentNames() ? `${name}:end` : '',
+		);
+
+		const wrappedNodes: Node[] = [start, ...inner.nodes, end];
+
+		const onMount = () => {
+			inner.onMount();
+		};
+
+		const cleanup = () => {
+			// eliminar lo que quede entre start y end (si están montados)
+			try {
+				let next = start.nextSibling;
+				while (next && next !== end) {
+					const toRemove = next;
+					next = next.nextSibling;
+					if (isBoxelsElement(toRemove)) {
+						try {
+							(toRemove as BoxelsElement).destroy?.();
+						} catch (e) {
+							/* swallow */
+						}
+					} else {
+						try {
+							toRemove.remove();
+						} catch (e) {
+							/* swallow */
+						}
+					}
+				}
+			} catch (e) {
+				/* swallow */
+			}
+
+			// delegar cleanup original
+			try {
+				inner.cleanup();
+			} catch (e) {
+				/* swallow */
+			}
+
+			// remover anchors si quedaron sueltos
+			try {
+				start.remove();
+			} catch (e) {
+				/* swallow */
+			}
+			try {
+				end.remove();
+			} catch (e) {
+				/* swallow */
+			}
+		};
+
+		return {
+			nodes: wrappedNodes,
+			onMount,
+			cleanup,
+		};
+	}
+
 	while (queue.length) {
 		const child = queue.shift();
 
-		// BoxelsElement
 		if (isBoxelsElement(child)) {
-			cleanUps.push(child.mountEffect());
-			nodes.push(child);
+			const elementChild: BoxelsElement = child;
+
+			// cada BoxelsElement se normaliza como un "mini-BoxlesChildren"
+			nodes.push(elementChild);
+
+			elementChild.mountEffect();
+			onMounts.push(() => {
+				if (!elementChild.__mounted) {
+					try {
+						const cleanup = elementChild.mountEffect();
+						if (typeof cleanup === 'function') cleanUps.push(cleanup);
+					} catch (e) {
+						console.error('mountEffect error (deferred):', e);
+					}
+				}
+			});
+
 			continue;
 		}
 
 		// Si ya está normalizado
 		if (isNormalizedChild(child)) {
+			// Si parece provenir de un fragmento (múltiples nodos), envolverlo para tener scope propio
+			if (child.nodes.length > 1) {
+				const first = child.nodes[0];
+				const last = child.nodes[child.nodes.length - 1];
+				const looksWrapped =
+					first?.nodeType === Node.COMMENT_NODE &&
+					last?.nodeType === Node.COMMENT_NODE;
+
+				if (!looksWrapped) {
+					const wrapped = wrapScoped(child, 'wrapped');
+					nodes.push(...wrapped.nodes);
+					onMounts.push(wrapped.onMount);
+					cleanUps.push(wrapped.cleanup);
+					continue;
+				}
+			}
+
 			nodes.push(...child.nodes);
 			onMounts.push(child.onMount);
 			cleanUps.push(child.cleanup);
@@ -132,76 +233,179 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 
 			let currentChild: BoxlesChildren | null = null;
 
-			const fn = (val: Child) => {
-				if (typeof currentChild?.cleanup === 'function')
-					currentChild?.cleanup();
-				const localCleanUps: (() => void)[] = [];
+			// función que maneja la inserción/reemplazo del valor
+			const handleValue = (val: Child) => {
+				// Normalizar nuevo valor
+				let normalized = normalizeChildren(val);
 
-				// 1. Limpieza del valor previo
-				const range = document.createRange();
-				range.setStartAfter(start);
-				range.setEndBefore(end);
-				range.deleteContents();
-
-				// 2. Normalizar nuevo valor
-				const normalized = normalizeChildren(val);
-
-				// 3. Insertar nodos en el DOM
-				normalized.nodes.forEach((n) => {
-					if (isBoxelsElement(n)) {
-						const cleanUp = n.mountEffect();
-						if (typeof cleanUp === 'function') localCleanUps.push(cleanUp);
-					}
-					end.before(n);
-				});
-				if (localCleanUps.length !== 0) {
-					const origCleanup = normalized.cleanup;
-					normalized.cleanup = () => {
-						if (typeof origCleanup === 'function') origCleanup();
-						localCleanUps.forEach((fn) => fn());
-					};
+				// Si el resultado tiene múltiples nodos, envolverlo en su propio scope
+				if (normalized.nodes.length > 1) {
+					normalized = (function wrapScoped(
+						inner: BoxlesChildren,
+						name = 'signal-frag',
+					): BoxlesChildren {
+						const sStart = document.createComment(
+							debug.isShowCommentNames() ? `${name}:start` : '',
+						);
+						const sEnd = document.createComment(
+							debug.isShowCommentNames() ? `${name}:end` : '',
+						);
+						return {
+							nodes: [sStart, ...inner.nodes, sEnd],
+							onMount: inner.onMount,
+							cleanup: inner.cleanup,
+						};
+					})(normalized, 'signal-frag');
 				}
 
-				// 4. Ejecutar onMount del nuevo valor
-				normalized.onMount();
+				// Si es exactamente el mismo conjunto de nodos (misma referencia), no hacemos nada
+				// (evita duplicados si la señal re-emite el mismo BoxlesChildren)
+				if (currentChild && currentChild === normalized) return;
 
-				// 5. Overlays de debug
+				// Borrar contenido actual entre start y end de forma segura
+				if (start.parentNode && end.parentNode) {
+					let next = start.nextSibling;
+					while (next && next !== end) {
+						const toRemove = next;
+						next = next.nextSibling;
+						// destruir si es BoxelsElement
+						if (isBoxelsElement(toRemove)) {
+							try {
+								(toRemove as BoxelsElement).destroy?.();
+							} catch (e) {
+								/* swallow */
+							}
+						} else {
+							try {
+								toRemove.remove();
+							} catch (e) {
+								/* swallow */
+							}
+						}
+					}
+				}
+
+				// Insertar atómicamente con DocumentFragment
+				if (end.parentNode) {
+					const frag = document.createDocumentFragment();
+					for (const n of normalized.nodes) frag.appendChild(n);
+					end.parentNode.insertBefore(frag, end);
+				}
+
+				// Ejecutar onMount del nuevo valor
+				try {
+					normalized.onMount();
+				} catch (e) {
+					console.error('onMount error (signal):', e);
+				}
+
+				// limpiar el anterior (solo después de montar el nuevo para evitar parpadeos)
+				try {
+					currentChild?.cleanup();
+				} catch (e) {
+					/* swallow */
+				}
+
+				// debug overlays: envolver cleanup si aplica (mantén tu lógica)
 				if (debug.isShowChanges()) {
 					const overlayCleanups: (() => void)[] = [];
 					normalized.nodes.forEach((n) => {
 						const cleanupOverlay = createChangeOverlay(n);
 						overlayCleanups.push(cleanupOverlay);
 					});
-					const origCleanup = normalized.cleanup;
+					const orig = normalized.cleanup;
 					normalized.cleanup = () => {
-						origCleanup();
+						orig();
 						overlayCleanups.forEach((fn) => fn());
 					};
 				}
+
 				currentChild = normalized;
 			};
 
+			// Registramos la suscripción en onMount (deferred)
 			onMounts.push(() => {
-				const unsub = s.subscribe(fn);
+				let localCurrent: BoxlesChildren | null = null;
 
-				// Registro de limpieza global
+				// local handler que sincroniza localCurrent con currentChild
+				const localHandler = (v: Child) => {
+					handleValue(v);
+					localCurrent = currentChild;
+				};
+
+				// subscribe puede llamar el handler sincrónicamente; está bien porque
+				// handleValue es idempotente en limpieza/inserción.
+				const unsub: ReactiveUnsubscribe = s.subscribe(localHandler);
+
+				// cleanup para cuando el padre limpie esta normalizeChildren
 				cleanUps.push(() => {
-					currentChild?.cleanup();
-					unsub();
-					currentChild?.nodes.forEach((n) => {
-						if (isBoxelsElement(n) && typeof n.destroy === 'function')
-							n.destroy();
-						else (n as ChildNode).remove();
-					});
+					// limpiar el contenido actual insertado por esta suscripción
+					try {
+						localCurrent?.cleanup();
+					} catch (e) {
+						/* swallow */
+					}
 
-					const range = document.createRange();
-					range.setStartAfter(start);
-					range.setEndBefore(end);
-					range.deleteContents();
+					// eliminar nodos si todavía están en el DOM
+					if (localCurrent?.nodes) {
+						for (const n of localCurrent.nodes) {
+							if (
+								isBoxelsElement(n) &&
+								typeof (n as BoxelsElement).destroy === 'function'
+							) {
+								try {
+									(n as BoxelsElement).destroy();
+								} catch (e) {
+									/* swallow */
+								}
+							} else {
+								try {
+									(n as ChildNode).remove();
+								} catch (e) {
+									/* swallow */
+								}
+							}
+						}
+					}
+
+					// desuscribir
+					try {
+						unsub();
+					} catch (e) {
+						/* swallow */
+					}
+
+					// si los anchors ya no están montados, quitar anchors
+					if (!start.parentElement || !end.parentElement) {
+						try {
+							start.remove();
+						} catch (e) {
+							/* swallow */
+						}
+						try {
+							end.remove();
+						} catch (e) {
+							/* swallow */
+						}
+						return;
+					}
+
+					// borrar lo que pueda quedar entre start y end (seguro)
+					if (start.parentNode && end.parentNode) {
+						let next = start.nextSibling;
+						while (next && next !== end) {
+							const toRemove = next;
+							next = next.nextSibling;
+							try {
+								toRemove.remove();
+							} catch (e) {
+								/* swallow */
+							}
+						}
+					}
 				});
 			});
 
-			// Suscribir
 			continue;
 		}
 
@@ -235,7 +439,7 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 			continue;
 		}
 
-		// Función
+		// Función (evaluar y reintentar)
 		if (typeof child === 'function') {
 			try {
 				const result = (child as () => Child | Promise<Child>)();
@@ -246,15 +450,19 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 			continue;
 		}
 
-		// DocumentFragment
+		// DocumentFragment -> normalizamos y lo envolvemos en scope propio
 		if (child instanceof DocumentFragment) {
-			const children = normalizeChildren(Array.from(child.childNodes));
-			onMounts.push(children.onMount);
-			cleanUps.push(children.cleanup);
-			nodes.push(...children.nodes);
+			const children = normalizeChildren(
+				Array.from(child.cloneNode(true).childNodes) as unknown as Child,
+			);
+			const wrapped = wrapScoped(children, 'docfrag');
+			onMounts.push(wrapped.onMount);
+			cleanUps.push(wrapped.cleanup);
+			nodes.push(...wrapped.nodes);
 			continue;
 		}
 
+		// Nodos DOM normales
 		if (child instanceof Node) {
 			if (child instanceof Element) {
 				const isSvgNode =
@@ -271,10 +479,14 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 			nodes.push(child);
 			continue;
 		}
+
+		// Objetos -> text node
 		if (typeof child === 'object') {
 			nodes.push(document.createTextNode(JSON.stringify(child, null, 2)));
 			continue;
 		}
+
+		// Primitivos
 		nodes.push(document.createTextNode(String(child)));
 	}
 
