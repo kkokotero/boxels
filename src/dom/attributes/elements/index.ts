@@ -194,8 +194,16 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 			// Registro de limpieza global
 			cleanUps.push(() => {
 				currentChild?.cleanup();
-
 				unsub?.();
+				currentChild?.nodes.forEach((n) => {
+					if (isBoxelsElement(n) && typeof n.destroy === 'function') n.destroy();
+					else (n as ChildNode).remove();
+				});
+
+				currentChild = null;
+
+				if (!start.parentElement || !end.parentElement) return;
+
 				const range = document.createRange();
 				range.setStartAfter(start);
 				range.setEndBefore(end);
@@ -203,8 +211,6 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 				range.collapse();
 				start.remove();
 				end.remove();
-
-				currentChild = null;
 			});
 
 			// Suscribir

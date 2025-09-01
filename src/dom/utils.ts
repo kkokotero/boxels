@@ -173,7 +173,8 @@ export function appendChild(
 		!(parent instanceof DocumentFragment) &&
 		child instanceof DocumentFragment
 	) {
-		insertNode(parent, child, position);
+		const children = Array.from(child.childNodes);
+		children.forEach((n) => insertNode(parent, n, position));
 		return;
 	}
 

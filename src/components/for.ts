@@ -122,6 +122,10 @@ export function For<T>({
 
 		// Si el arreglo está vacío, limpiar DOM y mostrar fallback
 		if (items.length === 0) {
+			isEmpty = true;
+			entries.clear();
+
+			if (!forStartMarker.parentElement && ! forEndMarker.parentElement) return;
 			const range = document.createRange();
 			range.setStartAfter(forStartMarker);
 			range.setEndBefore(forEndMarker);
@@ -129,18 +133,19 @@ export function For<T>({
 
 			// Insertar fallback
 			forEndMarker.before(fallback || '');
-			entries.clear();
-			isEmpty = true;
 			return;
 		}
 
 		// Si anteriormente estaba vacío, limpiar el fallback
 		if (isEmpty) {
+			isEmpty = false;
+
+			if (!forStartMarker.parentElement && ! forEndMarker.parentElement) return;
+
 			const range = document.createRange();
 			range.setStartAfter(forStartMarker);
 			range.setEndBefore(forEndMarker);
 			range.deleteContents();
-			isEmpty = false;
 		}
 
 		const newMap = new Map<unknown, Entry<T>>();
