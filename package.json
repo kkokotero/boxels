@@ -2,7 +2,7 @@
   "name": "boxels",
   "description": "Librería frontend moderna, ligera y sin dependencias, con sistema reactivo propio, JSX personalizado y ciclo de vida declarativo para construir SPAs eficientes.",
   "type": "module",
-  "version": "2.3.1",
+  "version": "2.3.2",
   "private": false,
   "keywords": [
     "frontend",
