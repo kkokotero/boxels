@@ -55,7 +55,7 @@ export class Form<S extends Record<string, CompiledValidator<any>>> {
 			// Se crea una instancia de Field con nombre, valor inicial, validador y opciones (si se requieren).
 			this.fields[key] = new Field<InferValidator<S[typeof key]>>(
 				String(key),
-				typeof initial === 'undefined' ? (undefined as any) : initial,
+				typeof initial === 'undefined' ? '' : initial,
 				validator,
 				// Aquí podrían pasarse opciones como `persistentKey`, `debounce`, etc., si están soportadas por Field.
 			) as FieldsMap<S>[typeof key];

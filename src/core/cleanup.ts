@@ -9,8 +9,8 @@ interface CleanupRecord {
 const cleanupMap = new WeakMap<object, CleanupRecord>();
 
 // Registro global único
-const registry = new FinalizationRegistry<object>((target) => {
-	const record = cleanupMap.get(target);
+// Registro global único
+const registry = new FinalizationRegistry<CleanupRecord>((record) => {
 	if (!record) return;
 	for (const fn of record.fns) {
 		try {
@@ -21,7 +21,7 @@ const registry = new FinalizationRegistry<object>((target) => {
 	}
 	record.fns.clear();
 	record.destroyed = true;
-	cleanupMap.delete(target);
+	// Nota: no podemos borrar del WeakMap aquí porque no tenemos el target
 });
 
 /**
@@ -32,7 +32,8 @@ export function autoCleanup(target: object) {
 	if (!record) {
 		record = { fns: new Set(), destroyed: false };
 		cleanupMap.set(target, record);
-		registry.register(target, target);
+		// Registramos usando el record como holding y el target como unregisterToken
+		registry.register(target, record, target);
 	}
 
 	const run = () => {
