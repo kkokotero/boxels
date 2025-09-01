@@ -1,11 +1,12 @@
-// Tipo que representa una función de limpieza. 
+// Tipo que representa una función de limpieza.
 
-import type { Hook } from "@hooks/hook";
+import { autoCleanup } from '@core/cleanup';
+import type { Hook } from '@hooks/hook';
 
 // Esta función se utiliza para deshacer efectos secundarios cuando un estado cambia o se destruye.
 type CleanupFn = () => void;
 
-// Tipo que representa una función manejadora de estado. 
+// Tipo que representa una función manejadora de estado.
 // Puede devolver una función de limpieza opcional.
 type StateHandler = () => void | CleanupFn;
 
@@ -15,10 +16,10 @@ type StateMap<T extends string> = Record<T, StateHandler>;
 /**
  * Clase `State` que permite manejar un sistema de estados con cambio controlado,
  * manejo de efecto secundario y limpieza al cambiar de estado.
- * 
+ *
  * @typeParam T - Tipo que extiende `string` e indica los posibles nombres de estados válidos.
  */
-export class State<T extends string>  implements Hook {
+export class State<T extends string> implements Hook {
 	// Estado actual activo
 	private current?: T;
 
@@ -30,16 +31,18 @@ export class State<T extends string>  implements Hook {
 
 	/**
 	 * Constructor de la clase State
-	 * 
+	 *
 	 * @param states - Un objeto donde cada clave representa un estado y su valor es una función manejadora asociada.
 	 */
-	constructor(public readonly states: StateMap<T>) {}
+	constructor(public readonly states: StateMap<T>) {
+		autoCleanup(this).onCleanup(() => this.destroy());
+	}
 
 	/**
-	 * Cambia al estado especificado. 
+	 * Cambia al estado especificado.
 	 * Si ya está en ese estado, no hace nada.
 	 * Ejecuta la función de limpieza del estado anterior si existe.
-	 * 
+	 *
 	 * @param to - Nombre del nuevo estado al que se desea cambiar.
 	 */
 	public go(to: T) {
@@ -73,7 +76,7 @@ export class State<T extends string>  implements Hook {
 
 	/**
 	 * Obtiene el estado actual activo.
-	 * 
+	 *
 	 * @returns El nombre del estado actual o `undefined` si no hay ninguno activo.
 	 */
 	public getCurrent(): T | undefined {
@@ -82,7 +85,7 @@ export class State<T extends string>  implements Hook {
 
 	/**
 	 * Obtiene el último estado previo al cambio más reciente.
-	 * 
+	 *
 	 * @returns El nombre del estado anterior o `undefined` si no hay historial.
 	 */
 	public getLast(): T | undefined {
@@ -90,7 +93,7 @@ export class State<T extends string>  implements Hook {
 	}
 
 	/**
-	 * Elimina cualquier estado activo, ejecuta la limpieza actual si existe 
+	 * Elimina cualquier estado activo, ejecuta la limpieza actual si existe
 	 * y reinicia las referencias internas.
 	 */
 	public destroy() {
@@ -103,7 +106,7 @@ export class State<T extends string>  implements Hook {
 
 /**
  * Función de utilidad para crear una instancia de la clase `State` de forma más concisa.
- * 
+ *
  * @param states - Mapa de estados y sus manejadores asociados.
  * @returns Una instancia de `State`.
  */

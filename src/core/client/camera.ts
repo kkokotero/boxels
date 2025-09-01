@@ -1,3 +1,5 @@
+import { autoCleanup } from '@core/cleanup';
+
 // Tipo que define la orientación de la cámara:
 //  - 'user': cámara frontal (selfie).
 //  - 'environment': cámara trasera (entorno).
@@ -74,7 +76,9 @@ export class NoVideoTrackFoundError extends Error {
  * @throws CameraAccessDeniedError Si el usuario deniega el permiso o hay un error de acceso.
  * @throws NoVideoTrackFoundError  Si no se encuentra ninguna pista de video en el stream.
  */
-export async function useCamera(options: CameraOptions = {}): Promise<ActiveCamera> {
+export async function useCamera(
+	options: CameraOptions = {},
+): Promise<ActiveCamera> {
 	// Verificar si la API de captura de medios está disponible.
 	if (!navigator.mediaDevices?.getUserMedia) {
 		throw new CameraNotSupportedError();
@@ -109,10 +113,15 @@ export async function useCamera(options: CameraOptions = {}): Promise<ActiveCame
 	}
 
 	// Devolver un objeto que contiene la información y control de la cámara.
-	return {
+	const active: ActiveCamera = {
 		stream,
 		videoTrack,
-		// Función para detener todas las pistas y liberar recursos.
 		destroy: () => stream.getTracks().forEach((t) => t.stop()),
 	};
+
+	autoCleanup(active).onCleanup(() => {
+		stream.getTracks().forEach((t) => t.stop());
+	});
+
+	return active;
 }

@@ -1,4 +1,5 @@
 // Importaciones desde el sistema reactivo central
+import { autoCleanup } from '@core/cleanup';
 import {
 	isSignal, // Verifica si un valor es una señal reactiva
 	signal, // Crea una señal reactiva
@@ -10,7 +11,7 @@ import type { Hook } from '@hooks/hook';
 // Tipo que representa una zona dentro del rango con un manejador asociado
 export type RangeZone = {
 	from: number; // Porcentaje mínimo (0 a 1) del rango donde se activa el handler
-	to: number;   // Porcentaje máximo (0 a 1) del rango donde se activa el handler
+	to: number; // Porcentaje máximo (0 a 1) del rango donde se activa el handler
 	handler: () => void; // Función que se ejecuta cuando el valor actual está en el rango
 };
 
@@ -40,6 +41,8 @@ export class Range implements Hook {
 	) {
 		// Validación: min debe ser estrictamente menor que max
 		if (min >= max) throw new Error('min debe ser menor que max');
+
+		autoCleanup(this).onCleanup(() => this.destroy());
 	}
 
 	/**

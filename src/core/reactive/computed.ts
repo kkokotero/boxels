@@ -1,5 +1,6 @@
 import { signal, type Signalize } from './signal';
 import type { ReactiveSignal, Widen } from './types';
+import { autoCleanup } from '@core/cleanup';
 
 /**
  * Crea una **señal computada** (`computed signal`) basada en una o más dependencias reactivas.
@@ -40,7 +41,7 @@ export function computed<T>(
 	 */
 	const update = () => {
 		const value = compute(); // Vuelve a calcular el valor
-		result.set(value);       // Actualiza el valor de la señal resultante
+		result.set(value); // Actualiza el valor de la señal resultante
 	};
 
 	// Se suscribe a todas las señales dependientes. Cada vez que alguna cambie, se ejecutará `update`.
@@ -54,7 +55,7 @@ export function computed<T>(
 	 */
 	const destroy = () => {
 		if (result.destroyed) return; // Evita destruir más de una vez
-		result.destroyed = true;     // Marca la señal como destruida
+		result.destroyed = true; // Marca la señal como destruida
 
 		// Llama a cada función de limpieza para cancelar las suscripciones
 		cleanups.forEach((unsub) => unsub());
@@ -62,6 +63,8 @@ export function computed<T>(
 		// Destruye la señal interna (libera memoria, listeners, etc.)
 		result.destroy();
 	};
+
+	autoCleanup(result).onCleanup(destroy);
 
 	// Devuelve la señal computada (`result`), pero con el método `destroy` incorporado.
 	// Esto permite que los consumidores puedan limpiar manualmente si lo necesitan.

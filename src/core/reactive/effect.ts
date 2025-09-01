@@ -4,13 +4,14 @@ import type { ReactiveSignal, ReactiveUnsubscribe } from './types';
 
 // Importa el programador (scheduler), utilizado para ejecutar funciones en la cola reactiva.
 import { queue } from '../scheduler';
+import { autoCleanup } from '@core/cleanup';
 
 /**
  * Ejecuta un efecto reactivo cuando una o más señales cambian.
  *
  * Esta utilidad observa un conjunto de señales reactivas y vuelve a ejecutar
  * la función `run()` cada vez que alguna de ellas se actualiza.
- * 
+ *
  * Si `run()` devuelve una función de limpieza (sincrónica o asincrónica),
  * esta será llamada antes de la siguiente ejecución.
  *
@@ -44,7 +45,7 @@ import { queue } from '../scheduler';
  */
 export function effect(
 	dependencies: ReactiveSignal<unknown>[], // Lista de señales a observar
-	run: () => Promise<void> | void,        // Función efecto a ejecutar cuando cambien
+	run: () => Promise<void> | void, // Función efecto a ejecutar cuando cambien
 ): ReactiveUnsubscribe {
 	// Lista de funciones para cancelar suscripciones a las señales observadas
 	let cleanups: ReactiveUnsubscribe[] = [];
@@ -58,8 +59,8 @@ export function effect(
 	 * - Llama a `run()`, y si devuelve una función de limpieza, la almacena.
 	 */
 	const wrappedRun = async () => {
-		if (lastCleanup) lastCleanup();      // Llama a la limpieza anterior si existe
-		lastCleanup = await run();           // Ejecuta el efecto y guarda la nueva limpieza
+		if (lastCleanup) lastCleanup(); // Llama a la limpieza anterior si existe
+		lastCleanup = await run(); // Ejecuta el efecto y guarda la nueva limpieza
 	};
 
 	if (dependencies.length > 0) {
@@ -75,8 +76,13 @@ export function effect(
 	 * - Cancela todas las suscripciones a señales.
 	 * - Ejecuta la última función de limpieza devuelta por `run()`, si existe.
 	 */
-	return () => {
+	const cleanup = () => {
 		cleanups.forEach((unsub) => unsub()); // Cancela todas las suscripciones
-		if (lastCleanup) lastCleanup();       // Ejecuta limpieza final
+		if (lastCleanup) lastCleanup(); // Ejecuta limpieza final
 	};
+
+	const token = {};
+	autoCleanup(token).onCleanup(cleanup);
+
+	return cleanup;
 }

@@ -1,3 +1,5 @@
+import { autoCleanup } from '@core/cleanup';
+
 /**
  * Tipo genérico que representa cualquier función.
  * Acepta cualquier número de argumentos y retorna cualquier valor.
@@ -18,7 +20,7 @@ export interface CallableWorker<F extends AnyFunction> {
 /**
  * Convierte una función en su representación serializada en forma de string.
  * Esto es necesario para poder inyectar la función dentro del cuerpo del Worker.
- * 
+ *
  * @param fn Función a serializar.
  * @returns String que representa la función como código fuente.
  */
@@ -30,7 +32,7 @@ function serializeFunction(fn: AnyFunction): string {
  * Convierte un objeto de variables globales a una cadena de código JavaScript.
  * Esto permite que las variables sean accesibles dentro del Worker.
  * Soporta funciones, objetos y valores primitivos.
- * 
+ *
  * @param globals Objeto con claves y valores que se inyectarán en el Worker.
  * @returns Código JavaScript como string para definir las variables dentro del Worker.
  */
@@ -51,7 +53,7 @@ function serializeGlobals(globals: Record<string, any>): string {
 /**
  * Clase que encapsula la creación y gestión de un Web Worker
  * que ejecuta una función pasada desde el hilo principal.
- * 
+ *
  * @template F Tipo de la función que se ejecutará en el Worker.
  */
 class WrappedWorker<F extends AnyFunction> {
@@ -68,7 +70,7 @@ class WrappedWorker<F extends AnyFunction> {
 
 	/**
 	 * Crea un nuevo Worker envolviendo la función dada.
-	 * 
+	 *
 	 * @param fn Función que se ejecutará dentro del Worker.
 	 * @param globals Variables globales que se deben inyectar en el contexto del Worker.
 	 */
@@ -115,11 +117,13 @@ class WrappedWorker<F extends AnyFunction> {
 				else cb.reject(e.data.error);
 			}
 		};
+
+		autoCleanup(this).onCleanup(() => this.destroy());
 	}
 
 	/**
 	 * Ejecuta la función dentro del Worker con los argumentos proporcionados.
-	 * 
+	 *
 	 * @param args Argumentos a pasar a la función.
 	 * @param transfer Objetos transferibles opcionales para mejorar el rendimiento.
 	 * @returns Promesa con el resultado de la ejecución.
@@ -141,11 +145,11 @@ class WrappedWorker<F extends AnyFunction> {
 
 /**
  * Función auxiliar que crea un Worker a partir de una función dada.
- * 
+ *
  * Retorna una función callable que actúa como la función original,
  * pero que se ejecuta de forma asincrónica en un hilo separado (Worker).
  * También expone el Worker original y un método para destruirlo.
- * 
+ *
  * @param fn Función a ejecutar en el Worker.
  * @param globals Variables globales accesibles dentro del Worker.
  * @returns Un objeto callable que actúa como la función original, con propiedades adicionales.

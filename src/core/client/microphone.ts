@@ -1,3 +1,5 @@
+import { autoCleanup } from "@core/cleanup";
+
 /**
  * Opciones configurables para inicializar el micrófono.
  */
@@ -72,7 +74,9 @@ export class NoAudioTrackFoundError extends Error {
  * @throws MicrophoneAccessDeniedError Si el usuario deniega el permiso o hay un error de acceso.
  * @throws NoAudioTrackFoundError      Si no se encuentra ninguna pista de audio en el stream.
  */
-export async function useMicrophone(options: MicrophoneOptions = {}): Promise<ActiveMicrophone> {
+export async function useMicrophone(
+	options: MicrophoneOptions = {},
+): Promise<ActiveMicrophone> {
 	// Verificar si la API de captura de medios está disponible.
 	if (!navigator.mediaDevices?.getUserMedia) {
 		throw new MicrophoneNotSupportedError();
@@ -113,10 +117,16 @@ export async function useMicrophone(options: MicrophoneOptions = {}): Promise<Ac
 	}
 
 	// Devolver un objeto con el control del micrófono activo.
-	return {
+	const active = {
 		stream,
 		audioTrack,
 		// Función para detener todas las pistas y liberar recursos.
 		destroy: () => stream.getTracks().forEach((t) => t.stop()),
 	};
+
+	autoCleanup(active).onCleanup(() => {
+		stream.getTracks().forEach((t) => t.stop());
+	});
+
+	return active;
 }

@@ -1,4 +1,5 @@
 import type { Hook } from '@hooks/hook';
+import { autoCleanup } from '@core/cleanup';
 
 /**
  * --- Scheduler global para manejar múltiples "delays" usando un único requestAnimationFrame ---
@@ -83,6 +84,9 @@ const globalScheduler = new RafScheduler();
  * 
  * Implementa la interfaz `Hook` para integrarse fácilmente en sistemas que
  * gestionan recursos/instancias que se deben destruir.
+ * 
+ * Además, está integrado con `autoCleanup`, por lo que si la instancia pierde
+ * todas sus referencias será recogida por el GC y se cancelará automáticamente.
  */
 export class Delay implements Hook {
 	/** Función para cancelar la ejecución del delay. */
@@ -98,6 +102,10 @@ export class Delay implements Hook {
 	) {
 		// Programa el delay usando el scheduler global y guarda la función de cancelación
 		this.cancelFn = globalScheduler.schedule(callback, delay);
+
+		// Registro de limpieza automática con autoCleanup
+		const cleanup = autoCleanup(this);
+		cleanup.onCleanup(() => this.destroy());
 	}
 
 	/**

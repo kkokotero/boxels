@@ -1,4 +1,5 @@
 // Importamos utilidades y tipos del sistema reactivo personalizado.
+import { autoCleanup } from '@core/cleanup';
 import {
 	computed, // Crea valores derivados de señales reactivas.
 	isSignal, // Verifica si un valor es una señal reactiva.
@@ -58,7 +59,7 @@ function parseStyle(style: StyleObject) {
  * Clase `Style` permite combinar estilos estáticos y reactivos,
  * generando una cadena de estilo CSS reactiva (`this.value`).
  */
-export class Style  implements Hook {
+export class Style implements Hook {
 	// Almacena funciones de limpieza para eliminar suscripciones reactivas.
 	private cleanUps: ReactiveUnsubscribe[] = [];
 
@@ -97,6 +98,8 @@ export class Style  implements Hook {
 				);
 			}
 		}
+
+		autoCleanup(this).onCleanup(() => this.destroy());
 	}
 
 	/**

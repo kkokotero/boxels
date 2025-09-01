@@ -1,13 +1,13 @@
 # Signals en Boxels
 
-Un **signal** es una unidad de estado **reactivo**: una variable especial que *sabe* cuándo cambia y notifica automáticamente a las partes de la aplicación que dependen de su valor.
+Un **signal** es una unidad de estado **reactivo**: una variable especial que _sabe_ cuándo cambia y notifica automáticamente a las partes de la aplicación que dependen de su valor.
 Son una forma eficiente de **gestionar el estado y las dependencias** sin propagar manualmente los cambios.
 
 Cuando un signal cambia:
 
-* Los **effects** que lo usan se vuelven a ejecutar.
-* Los **computed** que lo derivan recalculan su valor.
-* Los suscriptores reciben una notificación.
+- Los **effects** que lo usan se vuelven a ejecutar.
+- Los **computed** que lo derivan recalculan su valor.
+- Los suscriptores reciben una notificación.
 
 Todos los signals, computeds y effects cuentan con un **método `destroy()`** para limpiar sus suscripciones y liberar recursos cuando ya no se usan.
 
@@ -64,7 +64,7 @@ console.log(total()); // 20
 price.set(15);
 console.log(total()); // 30 (recalculado automáticamente)
 
-// Limpieza cuando ya no se use
+// Limpieza manual cuando ya no se use
 total.destroy();
 ```
 
@@ -115,7 +115,7 @@ theme.set("dark");
 
 ## Acceso reactivo vs estático a propiedades
 
-Una característica clave de los signals en **Boxels** es que los objetos dentro de un signal exponen **sus propiedades también como signals**, gracias al uso de *Proxies*.
+Una característica clave de los signals en **Boxels** es que los objetos dentro de un signal exponen **sus propiedades también como signals**, gracias al uso de _Proxies_.
 
 Esto permite elegir entre dos formas de acceso:
 
@@ -154,8 +154,8 @@ console.log(name()); // "Bob"
 
 📌 **Resumen**
 
-* `user().name` → valor estático, snapshot en el momento.
-* `user.name()` → acceso reactivo, se actualiza automáticamente cuando cambie.
+- `user().name` → valor estático, snapshot en el momento.
+- `user.name()` → acceso reactivo, se actualiza automáticamente cuando cambie.
 
 Esto permite un control muy flexible: usar lectura directa para operaciones puntuales y signals hijos cuando se necesita reactividad granular.
 
@@ -163,12 +163,13 @@ Esto permite un control muy flexible: usar lectura directa para operaciones punt
 
 ## Características clave
 
-* **Reactividad automática**: `computed` y `effect` detectan y reaccionan a cambios sin suscripción manual.
-* **Suscripción directa**: Todos los signals permiten `subscribe((valor) => {...})` y devuelven una función `unsubscribe`.
-* **Destrucción controlada**: `destroy()` limpia efectos, suscripciones y dependencias.
-* **Scheduler interno**: El sistema usa un **gestor de tareas** para agrupar y optimizar actualizaciones, evitando ejecuciones redundantes y mejorando el rendimiento en cambios masivos.
-* **Persistencia opcional**: `persistentSignal` guarda datos en almacenamiento local sin esfuerzo adicional.
-* **Optimización automática**: Solo recalcula lo estrictamente necesario.
+- **Reactividad automática**: `computed` y `effect` detectan y reaccionan a cambios sin suscripción manual.
+- **Suscripción directa**: Todos los signals permiten `subscribe((valor) => {...})` y devuelven una función `unsubscribe`.
+- **Destrucción controlada**: `destroy()` limpia efectos, suscripciones y dependencias.
+- **Scheduler interno**: El sistema usa un **gestor de tareas** para agrupar y optimizar actualizaciones, evitando ejecuciones redundantes y mejorando el rendimiento en cambios masivos.
+- **Persistencia opcional**: `persistentSignal` guarda datos en almacenamiento local sin esfuerzo adicional.
+- **Optimización automática**: Solo recalcula lo estrictamente necesario.
+- **Limpieza hibrida**: Tu decides si se limpia de forma manual o el sistema lo hace automaticamente
 
 ---
 
@@ -178,9 +179,10 @@ Esto permite un control muy flexible: usar lectura directa para operaciones punt
 2. Se encola en el **scheduler** para evitar ráfagas de actualizaciones
 3. El scheduler procesa la cola y actualiza:
 
-   * Computeds dependientes
-   * Effects asociados
-   * Suscriptores directos
+   - Computeds dependientes
+   - Effects asociados
+   - Suscriptores directos
+
 4. La UI y la lógica reaccionan con datos frescos.
 
 ![Boxels Signals](./assets/signals.svg)

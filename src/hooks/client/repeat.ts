@@ -1,4 +1,5 @@
 import type { Hook } from '@hooks/hook';
+import { autoCleanup } from '@core/cleanup';
 
 /**
  * Tipo de tarea repetitiva gestionada por el scheduler.
@@ -99,6 +100,9 @@ const globalRepeatScheduler = new RafRepeatScheduler();
  *
  * Implementa la interfaz `Hook` para integrarse con sistemas que gestionan
  * recursos y requieren limpieza (`destroy`).
+ *
+ * Además, está integrada con `autoCleanup`, por lo que si la instancia pierde
+ * todas sus referencias será recogida por el GC y se cancelará automáticamente.
  */
 export class Repeat implements Hook {
 	/** Función para cancelar la ejecución periódica. */
@@ -113,6 +117,10 @@ export class Repeat implements Hook {
 		private interval: number,
 	) {
 		this.cancelFn = globalRepeatScheduler.schedule(callback, interval);
+
+		// Registro de limpieza automática
+		const cleanup = autoCleanup(this);
+		cleanup.onCleanup(() => this.destroy());
 	}
 
 	/**

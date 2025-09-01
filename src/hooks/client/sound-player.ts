@@ -1,4 +1,5 @@
 import type { Hook } from '@hooks/hook';
+import { autoCleanup } from '@core/cleanup';
 
 /**
  * Interfaz para definir los eventos que puede manejar un sonido.
@@ -48,6 +49,8 @@ export class Sound implements Hook {
 		this.sourceNode.connect(this.panner).connect(Sound.ctx.destination);
 
 		this.setupEvents(); // Configura eventos
+
+		autoCleanup(this).onCleanup(() => this.destroy());
 	}
 
 	/**

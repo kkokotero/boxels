@@ -6,6 +6,7 @@ import { signal } from './signal';
 
 // Importa el tipo para funciones de actualización reactiva
 import type { ReactiveUpdate, Widen } from './types';
+import { autoCleanup } from '@core/cleanup';
 
 /**
  * Crea una señal reactiva cuyo valor se guarda de forma persistente en `sessionStorage` o `localStorage`.
@@ -71,7 +72,9 @@ export function persistentSignal<T>(
 	 * theme.update(prev => prev === 'light' ? 'dark' : 'light');
 	 * ```
 	 */
-	base.update = (updater: ReactiveUpdate<Widen<Widen<T>> | Widen<Widen<Widen<T>>>>) => {
+	base.update = (
+		updater: ReactiveUpdate<Widen<Widen<T>> | Widen<Widen<Widen<T>>>>,
+	) => {
 		const result = updater(base() as any); // casteo necesario
 		base.set(result as Widen<Widen<T>> | Widen<Widen<Widen<T>>>); // lo reduces de vuelta a T
 	};
@@ -86,6 +89,10 @@ export function persistentSignal<T>(
 		local.delete(sessionKey); // Elimina el valor asociado del almacenamiento
 		originalDestroy(); // Limpia recursos internos de la señal
 	};
+
+	autoCleanup(base).onCleanup(() => {
+		originalDestroy();
+	});
 
 	// Devuelve la señal extendida con persistencia
 	return base;

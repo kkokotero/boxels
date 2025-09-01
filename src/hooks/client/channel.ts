@@ -36,7 +36,7 @@ type Channel<Events extends EventMap> = {
    *
    * @param event - (Opcional) Nombre del evento a limpiar
    */
-  clear(event?: keyof Events): void;
+  clearListeners(event?: keyof Events): void;
 
   /**
    * Elimina completamente el canal de la caché global
@@ -49,13 +49,23 @@ type Channel<Events extends EventMap> = {
 // Permite reutilizar canales y tener un sistema de eventos compartido.
 const globalChannelCache = new Map<string, Channel<any>>();
 
+// Registro global único para detectar cuándo un canal ya no tiene referencias.
+const registry = new FinalizationRegistry<string>((name) => {
+  // Si el canal fue recolectado por el GC, lo quitamos de la caché
+  const channel = globalChannelCache.get(name);
+  if (channel) {
+    channel.destroy();
+  }
+  globalChannelCache.delete(name);
+});
+
 /**
  * Elimina todos los canales registrados globalmente.
  * Se limpian todos los listeners de cada canal y se borra la caché.
  */
 export function destroyAllChannels(): void {
   for (const [, channel] of globalChannelCache) {
-    channel.clear(); // Limpia todos los eventos del canal
+    channel.clearListeners(); // Limpia todos los eventos del canal
   }
   globalChannelCache.clear(); // Borra la caché global
 }
@@ -63,6 +73,9 @@ export function destroyAllChannels(): void {
 /**
  * Hook/fábrica que crea o reutiliza un canal de eventos con nombre único.
  * Si el canal ya existe, lo devuelve desde la caché. Si no, lo crea y registra.
+ *
+ * Además, si un canal queda sin referencias en memoria, se destruye automáticamente
+ * para evitar fugas de memoria y se elimina de la caché global.
  *
  * @param name - Nombre único del canal
  * @returns Un canal con métodos para manejar eventos personalizados
@@ -100,7 +113,7 @@ export function useChannel<
         }
       },
       // Limpia todos los listeners de un evento, o de todos si no se especifica
-      clear(event) {
+      clearListeners(event) {
         if (event) {
           listeners[event]?.clear();
         } else {
@@ -117,6 +130,11 @@ export function useChannel<
         globalChannelCache.delete(name);
       }
     };
+
+    // Registramos el canal en el FinalizationRegistry.
+    // Usamos WeakRef implícitamente: si nadie guarda la referencia,
+    // el GC lo liberará y el registro llamará a la limpieza.
+    registry.register(channel, name);
 
     // Guardamos el canal en la caché global para su reutilización
     globalChannelCache.set(name, channel);

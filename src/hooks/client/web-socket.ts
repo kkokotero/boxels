@@ -1,3 +1,4 @@
+import { autoCleanup } from '@core/cleanup';
 import type { Hook } from '@hooks/hook';
 
 /**
@@ -6,7 +7,7 @@ import type { Hook } from '@hooks/hook';
  */
 type WSMessage<T = unknown> = {
 	type: string; // Tipo o nombre del mensaje (puede usarse como identificador de acción)
-	data: T;      // Datos enviados o recibidos
+	data: T; // Datos enviados o recibidos
 };
 
 /**
@@ -66,6 +67,8 @@ export class WSClient implements Hook {
 			maxRetries: options?.maxRetries ?? 5, // Máx. 5 intentos.
 			retryDelay: options?.retryDelay ?? 2000, // Esperar 2 segundos entre intentos.
 		};
+
+		autoCleanup(this).onCleanup(() => this.destroy());
 	}
 
 	/**
@@ -109,7 +112,7 @@ export class WSClient implements Hook {
 					this.emit('reconnect', { attempt: this.retries });
 					this.connect();
 				}, this.options.retryDelay);
-			} 
+			}
 			// Si se alcanzó el máximo de intentos:
 			else if (this.retries >= this.options.maxRetries) {
 				this.emit('maxRetriesReached', undefined);

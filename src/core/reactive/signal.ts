@@ -10,6 +10,7 @@ import {
 	type Widen,
 } from './types';
 import { __development__ } from '../../environment';
+import { autoCleanup } from '@core/cleanup';
 
 /**
  * ======================================================
@@ -277,6 +278,8 @@ export function signal<T>(initialValue: Widen<T> | T): Signal<T> {
 			proxy as ReactiveSignal<unknown>,
 		);
 	}
+
+	autoCleanup(proxy).onCleanup(() => destroy());
 
 	// Retorno final tipado como `Signalize<T>`
 	return proxy as unknown as Signal<T>;

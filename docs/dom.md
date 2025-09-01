@@ -34,7 +34,7 @@ El módulo `src/dom` abstrae el ciclo de vida de los elementos DOM para integrar
 ## Reactividad
 
 El módulo DOM está profundamente integrado con el sistema reactivo de Boxels (`src/core/reactive`). Sin embargo, el manejo reactivo de hijos y nodos es único y mucho más granular que en otros frameworks:
-
+return
 - **Hijos reactivos**: Los hijos de cualquier elemento pueden ser señales, promesas, funciones, fragmentos, arrays, nodos o valores primitivos. El sistema detecta automáticamente el tipo y los normaliza usando `normalizeChildren`.
 - **Actualización incremental**: Cuando una señal usada como hijo cambia, Boxels reemplaza solo la región afectada del DOM usando comentarios como delimitadores y `DocumentFragment`, sin volver a renderizar todo el árbol.
 - **Promesas y funciones**: Si un hijo es una promesa, se muestra un placeholder y se reemplaza cuando la promesa se resuelve. Si es una función, se ejecuta y se normaliza el resultado.
@@ -160,7 +160,7 @@ export function Demo() {
 **Notas sobre la sintaxis JSX de Boxels:**
 
 - Los eventos DOM se declaran como `$on:evento` (ej: `$on:click`).
-- Los eventos de ciclo de vida se declaran como `$lifecycle:mount` y `$lifecycle:destroy`.
+- Los eventos de ciclo de vida se declaran como `$lifecycle:mount`, `$lifecycle:remount` y `$lifecycle:destroy`.
 - Los atributos `class` y `style` aceptan objetos, señales, funciones y mapas reactivos.
 - Los hijos (`children`) pueden ser señales, arrays, promesas o cualquier valor renderizable.
 - Todos los atributos pueden ser señales reactivas y se actualizarán automáticamente.

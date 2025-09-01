@@ -1,5 +1,6 @@
 import { detectDevice, type DeviceInfo } from '@data/detect-device';
 import { signal } from '@core/index';
+import { autoCleanup } from '@core/cleanup';
 
 /**
  * `deviceSignal` — Señal reactiva que almacena la información actual del dispositivo.
@@ -36,13 +37,24 @@ function startListeners() {
 	const update = () => deviceSignal.set(detectDevice());
 
 	// Detecta cambios en la orientación de pantalla (portrait/landscape)
-	window.matchMedia('(orientation: portrait)').addEventListener('change', update);
+	const orientationQuery = window.matchMedia('(orientation: portrait)');
+	orientationQuery.addEventListener('change', update);
 
 	// Detecta cambios en el esquema de color preferido del usuario (dark/light mode)
-	window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', update);
+	const colorSchemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+	colorSchemeQuery.addEventListener('change', update);
 
 	// Detecta cambios de tamaño de ventana (útil en desktop o navegadores móviles con resize)
 	window.addEventListener('resize', update);
+
+	// Registro de limpieza automática cuando la señal ya no sea usada
+	const cleanup = autoCleanup(deviceSignal);
+	cleanup.onCleanup(() => {
+		orientationQuery.removeEventListener('change', update);
+		colorSchemeQuery.removeEventListener('change', update);
+		window.removeEventListener('resize', update);
+		initialized = false;
+	});
 }
 
 /**

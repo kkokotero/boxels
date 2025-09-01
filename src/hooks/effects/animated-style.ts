@@ -1,3 +1,4 @@
+import { autoCleanup } from '@core/cleanup';
 import {
 	isSignal,
 	signal,
@@ -47,6 +48,8 @@ export class AnimatedStyle implements Hook {
 			// Si es un valor estático, actualizar directamente
 			this.update(percent);
 		}
+
+		autoCleanup(this).onCleanup(() => this.destroy());
 	}
 
 	/**

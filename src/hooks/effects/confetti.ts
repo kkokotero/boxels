@@ -1,3 +1,4 @@
+import { autoCleanup } from '@core/cleanup';
 import type { Hook } from '@hooks/hook';
 
 /**
@@ -30,7 +31,10 @@ const DEFAULTS: Required<ConfettiOptions> = {
  * Representa un vector 2D, útil para posiciones y velocidades.
  */
 class Vec2 {
-	constructor(public x = 0, public y = 0) {}
+	constructor(
+		public x = 0,
+		public y = 0,
+	) {}
 
 	add(v: Vec2): this {
 		this.x += v.x;
@@ -138,7 +142,10 @@ class ConfettiParticle {
 	private alpha: number;
 	private lifetime: number;
 
-	constructor(origin: Vec2, private opts: Required<ConfettiOptions>) {
+	constructor(
+		origin: Vec2,
+		private opts: Required<ConfettiOptions>,
+	) {
 		const width = (16 * Math.random() + 4) * opts.particleSize;
 		const height = (4 * Math.random() + 4) * opts.particleSize;
 
@@ -249,6 +256,8 @@ export class Confetti implements Hook {
 		SharedCanvas.ensure(this.options.zIndex, this.options.pointerEvents);
 		this.lastTime = performance.now();
 		this.rafId = requestAnimationFrame(this.loop.bind(this));
+
+		autoCleanup(this).onCleanup(() => this.destroy());
 	}
 
 	/**
