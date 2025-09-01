@@ -34,9 +34,9 @@ export const mount = (
 	parent: HTMLElement | DocumentFragment,
 	...children: JSX.Element[]
 ) => {
-	children.forEach((child) => {
+	children.forEach(async (child) => {
 		// Insertar hijo en el contenedor
-		appendChild(parent, typeof child === 'function' ? child() : child);
+		appendChild(parent, await (typeof child === 'function' ? child() : child));
 	});
 };
 

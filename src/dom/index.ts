@@ -168,15 +168,23 @@ export function $<T extends keyof HTMLElementTagNameMap>(
 	}
 
 	// Si es un fragmento manual (ej. selector instanceof DocumentFragment)
-	if (selector === Fragment || selector instanceof DocumentFragment) {
+	if (
+		selector === Fragment ||
+		selector instanceof DocumentFragment ||
+		node instanceof DocumentFragment
+	) {
 		let cleanUp: any | undefined;
+
+		const result = normalizeChildren(props?.children || {});
+
+		result.nodes.forEach((n) => appendChild(node as DocumentFragment, n));
 
 		const mount = (parent: HTMLElement | DocumentFragment) => {
 			if ((node as BoxelsElement).__mounted) return;
 			(node as BoxelsElement).__mounted = true;
 
-			const result = handleAttributes(node as any, props || {});
-			result['$lifecycle:mount']?.(undefined as any);
+			const result = normalizeChildren(props?.children || {});
+			result.onMount?.();
 
 			if ((node as BoxelsElement).__destroyed) {
 				props?.['$lifecycle:remount']?.(undefined as any);
@@ -185,9 +193,8 @@ export function $<T extends keyof HTMLElementTagNameMap>(
 				props?.['$lifecycle:mount']?.(undefined as any);
 			}
 
-			cleanUp = result['$lifecycle:destroy'];
-
-			parent.appendChild(node);
+			cleanUp = result.cleanup;
+			result.nodes.forEach((n) => parent.appendChild(n));
 		};
 
 		const destroy = () => {
@@ -206,7 +213,10 @@ export function $<T extends keyof HTMLElementTagNameMap>(
 			mount,
 			destroy,
 			mountEffect: () => {
+				if ((node as BoxelsElement).__mounted) return;
+				(node as BoxelsElement).__mounted = true;
 				const result = normalizeChildren(props?.children);
+
 				result.onMount();
 
 				if ((node as BoxelsElement).__destroyed) {
@@ -238,18 +248,18 @@ export function $<T extends keyof HTMLElementTagNameMap>(
 
 	const mount = (parent: HTMLElement | DocumentFragment) => {
 		// Prevención de recursión infinita
-		const result = handleAttributes(node as HTMLElement, props ?? {});
-
 		if ((node as BoxelsElement).__mounted) return;
 		(node as BoxelsElement).__mounted = true;
 
-		cleanUp = result['$lifecycle:destroy'];
+		const result = handleAttributes(node as HTMLElement, props ?? {});
 
-		result['$lifecycle:mount']?.(node as BoxelsElementNode<T>);
+		cleanUp = result['$lifecycle:destroy'];
 
 		if ((node as BoxelsElement).__destroyed) {
 			props?.['$lifecycle:remount']?.(node as any);
 			(node as BoxelsElement).__destroyed = false;
+		} else {
+			result['$lifecycle:mount']?.(node as BoxelsElementNode<T>);
 		}
 
 		parent.appendChild(node);
@@ -272,11 +282,12 @@ export function $<T extends keyof HTMLElementTagNameMap>(
 			(node as BoxelsElement).__mounted = true;
 
 			const result = handleAttributes(node as HTMLElement, props ?? {});
-			result['$lifecycle:mount']?.(node as any);
 
 			if ((node as BoxelsElement).__destroyed) {
 				props?.['$lifecycle:remount']?.(node as any);
 				(node as BoxelsElement).__destroyed = false;
+			} else {
+				result['$lifecycle:mount']?.(node as BoxelsElementNode<T>);
 			}
 
 			return () => {

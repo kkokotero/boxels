@@ -105,8 +105,15 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 
 		// BoxelsElement
 		if (isBoxelsElement(child)) {
-			nodes.push(child);
 			cleanUps.push(child.mountEffect());
+			if (child.isFragment) {
+				const children = normalizeChildren(Array.from(child.childNodes));
+				onMounts.push(children.onMount);
+				cleanUps.push(children.cleanup);
+				nodes.push(...children.nodes);
+			} else {
+				nodes.push(child);
+			}
 			continue;
 		}
 
@@ -152,8 +159,7 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 				normalized.nodes.forEach((n) => {
 					if (isBoxelsElement(n)) {
 						const cleanUp = n.mountEffect();
-						if (typeof cleanUp === 'function')
-							localCleanUps.push(cleanUp, () => n.remove());
+						if (typeof cleanUp === 'function') localCleanUps.push(cleanUp);
 					}
 					end.before(n);
 				});
