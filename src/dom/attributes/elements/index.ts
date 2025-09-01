@@ -106,14 +106,7 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 		// BoxelsElement
 		if (isBoxelsElement(child)) {
 			cleanUps.push(child.mountEffect());
-			if (child.isFragment) {
-				const children = normalizeChildren(Array.from(child.childNodes));
-				onMounts.push(children.onMount);
-				cleanUps.push(children.cleanup);
-				nodes.push(...children.nodes);
-			} else {
-				nodes.push(child);
-			}
+			nodes.push(child);
 			continue;
 		}
 
@@ -134,16 +127,14 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 			const end = document.createComment(
 				debug.isShowCommentNames() ? 'signal:end' : '',
 			);
+
 			nodes.push(start, end);
 
 			let currentChild: BoxlesChildren | null = null;
-			let unsub: ReactiveUnsubscribe | null = null;
 
-			unsub = s.subscribe((val) => {
-				if (!start.parentElement || !end.parentElement) return;
+			const fn = (val: Child) => {
 				if (typeof currentChild?.cleanup === 'function')
 					currentChild?.cleanup();
-				currentChild = null;
 				const localCleanUps: (() => void)[] = [];
 
 				// 1. Limpieza del valor previo
@@ -187,30 +178,27 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 						overlayCleanups.forEach((fn) => fn());
 					};
 				}
-
 				currentChild = normalized;
-			});
+			};
 
-			// Registro de limpieza global
-			cleanUps.push(() => {
-				currentChild?.cleanup();
-				unsub?.();
-				currentChild?.nodes.forEach((n) => {
-					if (isBoxelsElement(n) && typeof n.destroy === 'function') n.destroy();
-					else (n as ChildNode).remove();
+			onMounts.push(() => {
+				const unsub = s.subscribe(fn);
+
+				// Registro de limpieza global
+				cleanUps.push(() => {
+					currentChild?.cleanup();
+					unsub();
+					currentChild?.nodes.forEach((n) => {
+						if (isBoxelsElement(n) && typeof n.destroy === 'function')
+							n.destroy();
+						else (n as ChildNode).remove();
+					});
+
+					const range = document.createRange();
+					range.setStartAfter(start);
+					range.setEndBefore(end);
+					range.deleteContents();
 				});
-
-				currentChild = null;
-
-				if (!start.parentElement || !end.parentElement) return;
-
-				const range = document.createRange();
-				range.setStartAfter(start);
-				range.setEndBefore(end);
-				range.deleteContents();
-				range.collapse();
-				start.remove();
-				end.remove();
 			});
 
 			// Suscribir
