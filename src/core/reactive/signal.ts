@@ -87,6 +87,7 @@ export function signal<T>(initialValue: Widen<T> | T): Signal<T> {
 
 	// Bandera de destrucción
 	let destroyed = false;
+	let isDisposed = false;
 
 	// Caché de signals hijos (para propiedades del objeto envuelto)
 	const childSignals = new Map<PropertyKey, ReactiveSignal<any>>();
@@ -158,7 +159,12 @@ export function signal<T>(initialValue: Widen<T> | T): Signal<T> {
 			}
 		});
 
-		return () => subscribers.delete(subscriber);
+		return () => {
+			subscribers.delete(subscriber);
+			if (isDisposed) {
+				destroy();
+			}
+		};
 	};
 
 	/**
@@ -279,7 +285,10 @@ export function signal<T>(initialValue: Widen<T> | T): Signal<T> {
 		);
 	}
 
-	autoCleanup(proxy).onCleanup(() => destroy());
+	autoCleanup(proxy).onCleanup(() => {
+		if (subscribers.size === 0) destroy();
+		isDisposed = true;
+	});
 
 	// Retorno final tipado como `Signalize<T>`
 	return proxy as unknown as Signal<T>;

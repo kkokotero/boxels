@@ -94,25 +94,10 @@ export function Show({
 	);
 
 	// Se crea un efecto reactivo que actualiza el contenido cada vez que cambien las dependencias
-	const unsub = effect(dependencies, () => {
+	effect(dependencies, () => {
 		content.set(isConditionTrue(when) ? children : fallback);
 	});
 
-	// Se establece el valor inicial antes de cualquier reactividad
-	content.set(isConditionTrue(when) ? children : fallback);
-
 	// Devuelve una señal reactiva que puede ser usada como JSX.Element en otros lugares
-	return Fragment({
-		'$lifecycle:destroy': () => {
-			content.destroy();
-			unsub();
-		},
-		'$lifecycle:mount': () => {
-			if (dependencies.length === 0) {
-				content.destroy();
-				unsub();
-			}
-		},
-		children: content,
-	});
+	return content
 }

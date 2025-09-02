@@ -179,7 +179,7 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 			// cada BoxelsElement se normaliza como un "mini-BoxlesChildren"
 			nodes.push(elementChild);
 
-			elementChild.mountEffect();
+			if (!child.isFragment) elementChild.mountEffect();
 			onMounts.push(() => {
 				if (!elementChild.__mounted) {
 					try {
