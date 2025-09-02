@@ -4,7 +4,6 @@ import type { ReactiveSignal, ReactiveUnsubscribe } from './types';
 
 // Importa el programador (scheduler), utilizado para ejecutar funciones en la cola reactiva.
 import { queue } from '../scheduler';
-import { autoCleanup } from '@core/cleanup';
 
 /**
  * Ejecuta un efecto reactivo cuando una o más señales cambian.
@@ -44,45 +43,47 @@ import { autoCleanup } from '@core/cleanup';
  * ```
  */
 export function effect(
-	dependencies: ReactiveSignal<unknown>[], // Lista de señales a observar
-	run: () => Promise<void> | void, // Función efecto a ejecutar cuando cambien
+	_dependencies: ReactiveSignal<unknown>[] | ReactiveSignal<unknown>,
+	run: () => Promise<void> | void,
 ): ReactiveUnsubscribe {
-	// Lista de funciones para cancelar suscripciones a las señales observadas
-	let cleanups: ReactiveUnsubscribe[] = [];
+	const dependencies = Array.isArray(_dependencies)
+		? _dependencies
+		: [_dependencies];
 
-	// Última función de limpieza devuelta por `run()`, si existe
+	let cleanups: ReactiveUnsubscribe[] = [];
 	let lastCleanup: (() => void) | void;
 
-	/**
-	 * Envoltura de la función del usuario (`run`):
-	 * - Ejecuta la limpieza previa si existe.
-	 * - Llama a `run()`, y si devuelve una función de limpieza, la almacena.
-	 */
 	const wrappedRun = async () => {
-		if (lastCleanup) lastCleanup(); // Llama a la limpieza anterior si existe
-		lastCleanup = await run(); // Ejecuta el efecto y guarda la nueva limpieza
+		// Limpieza previa solo una vez, no repetir después en cleanup global
+		if (lastCleanup) {
+			try {
+				lastCleanup();
+			} catch (e) {
+				console.error('error en cleanup previo', e);
+			}
+		}
+		lastCleanup = await run();
 	};
 
+	// Suscribirse
 	if (dependencies.length > 0) {
-		// Si hay señales, se suscribe a cada una y ejecuta el efecto cuando cambien
 		cleanups = dependencies.map((dep) => dep.subscribe(wrappedRun));
 	} else {
-		// Si no hay dependencias, se ejecuta una vez (por ejemplo, al montar)
 		queue(wrappedRun);
 	}
 
-	/**
-	 * Función de limpieza del efecto:
-	 * - Cancela todas las suscripciones a señales.
-	 * - Ejecuta la última función de limpieza devuelta por `run()`, si existe.
-	 */
 	const cleanup = () => {
-		cleanups.forEach((unsub) => unsub()); // Cancela todas las suscripciones
-		if (lastCleanup) lastCleanup(); // Ejecuta limpieza final
+		cleanups.forEach((unsub) => unsub());
+		cleanups = [];
+		if (lastCleanup) {
+			try {
+				lastCleanup();
+			} catch (e) {
+				console.error('error en cleanup final', e);
+			}
+			lastCleanup = undefined;
+		}
 	};
-
-	const token = {};
-	autoCleanup(token).onCleanup(cleanup);
 
 	return cleanup;
 }

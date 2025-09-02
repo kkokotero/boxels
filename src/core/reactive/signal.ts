@@ -161,7 +161,8 @@ export function signal<T>(initialValue: Widen<T> | T): Signal<T> {
 
 		return () => {
 			subscribers.delete(subscriber);
-			if (isDisposed) {
+			// Solo destruir si ya estamos marcados como disposed *y* no quedan suscriptores
+			if (isDisposed && subscribers.size === 0) {
 				destroy();
 			}
 		};
@@ -287,6 +288,7 @@ export function signal<T>(initialValue: Widen<T> | T): Signal<T> {
 
 	autoCleanup(proxy).onCleanup(() => {
 		if (subscribers.size === 0) destroy();
+		console.log(read());
 		isDisposed = true;
 	});
 

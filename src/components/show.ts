@@ -4,7 +4,13 @@ import { Fragment } from './fragment';
 import { extractSignalsFromValues } from './utils';
 
 // Importa funciones y tipos del sistema reactivo
-import { effect, isSignal, signal, type MaybeSignal, type ReactiveSignal } from '@core/reactive';
+import {
+	effect,
+	isSignal,
+	signal,
+	type MaybeSignal,
+	type ReactiveSignal,
+} from '@core/reactive';
 
 /**
  * Tipos de valores que pueden usarse como condición:
@@ -86,7 +92,9 @@ export function Show({
 	fallback = $(document.createDocumentFragment(), {}),
 }: ShowProps) {
 	// Contenedor reactivo para almacenar el contenido actual a mostrar (children o fallback)
-	const content = signal(fallback);
+	const content = signal<JSX.Element>(
+		isConditionTrue(when) ? children : fallback,
+	);
 
 	// Extrae todas las señales contenidas en la condición para poder observarlas
 	const dependencies = extractSignalsFromValues(
@@ -99,5 +107,5 @@ export function Show({
 	});
 
 	// Devuelve una señal reactiva que puede ser usada como JSX.Element en otros lugares
-	return content
+	return content;
 }
