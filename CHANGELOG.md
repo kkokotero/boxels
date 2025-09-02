@@ -1,9 +1,9 @@
-## [2.3.5](https://github.com/kkokotero/boxels/compare/ffbe5548232c3c8b4425dca07f75e423e1cd613c...v2.3.5) (2025-09-01)
+## [2.3.6](https://github.com/kkokotero/boxels/compare/efceaaa6e86835a9549a7e2a8a762fb4185b00ef...v2.3.6) (2025-09-02)
 
 
-### Features
+### Bug Fixes
 
-* **dom:** agregar prop `remount` y mejorar manejo de hijos reactivos y fragments ([ffbe554](https://github.com/kkokotero/boxels/commit/ffbe5548232c3c8b4425dca07f75e423e1cd613c))
+* **dom:** correcciones en hijos reactivos y fragmentos con valores estáticos, además de condiciones estáticas ([efceaaa](https://github.com/kkokotero/boxels/commit/efceaaa6e86835a9549a7e2a8a762fb4185b00ef))
 
 
 
