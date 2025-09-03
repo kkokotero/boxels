@@ -1,9 +1,9 @@
-## [2.3.7](https://github.com/kkokotero/boxels/compare/1693ccc813bb21a7b67259eb17642981ecd4179c...v2.3.7) (2025-09-02)
+# [2.4.0](https://github.com/kkokotero/boxels/compare/1d83ba1e1a4a27f9ac45998d7f0e851d54dd8b78...v2.4.0) (2025-09-03)
 
 
 ### Bug Fixes
 
-* **core:** prevenir eliminación anticipada de efectos en el sistema reactivo ([1693ccc](https://github.com/kkokotero/boxels/commit/1693ccc813bb21a7b67259eb17642981ecd4179c))
+* **router:** corregir guards en el sistema de rutas y permitir respuesta en forma de componente ([1d83ba1](https://github.com/kkokotero/boxels/commit/1d83ba1e1a4a27f9ac45998d7f0e851d54dd8b78))
 
 
 
