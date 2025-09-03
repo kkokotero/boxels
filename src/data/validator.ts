@@ -1,6 +1,6 @@
 /**
  * Validator — sistema de validación compilado, tipado, con soporte para i18n (internacionalización),
- * fast-fail (terminar al primer error) o gather-all (recolectar todos los errores), 
+ * fast-fail (terminar al primer error) o gather-all (recolectar todos los errores),
  * y errores con rutas (path) para estructuras anidadas.
  *
  * Principios:
@@ -22,7 +22,7 @@ export type ValidationDetailed = ErrorItem[];
 // Opciones que se pueden pasar a los validadores
 export type ValidatorOptions = {
 	fastFail?: boolean; // Si se detiene en el primer error
-	locale?: string;    // Idioma para mensajes
+	locale?: string; // Idioma para mensajes
 	messages?: Record<string, string>; // Mensajes personalizados por clave
 };
 
@@ -51,11 +51,25 @@ const DEFAULT_MESSAGES_ES: Record<string, string> = {
 	multipleOf: 'Se esperaba un múltiplo de $expected',
 	between: 'Se esperaba un número entre $expected y $recived',
 	items: 'Uno o más elementos del arreglo no son válidos',
-	minItems: 'Se esperaba un mínimo de $expected elementos, pero se recibieron $recived',
-	maxItems: 'Se esperaba un máximo de $expected elementos, pero se recibieron $recived',
+	minItems:
+		'Se esperaba un mínimo de $expected elementos, pero se recibieron $recived',
+	maxItems:
+		'Se esperaba un máximo de $expected elementos, pero se recibieron $recived',
 	shape: 'La validación de la estructura del objeto falló',
 	nonEmpty: 'El valor no debe estar vacío',
 	trimmed: 'El valor no debe contener espacios al inicio o al final',
+	alpha: 'El valor solo debe contener letras',
+	alphanum: 'El valor solo debe contener letras y números',
+	numeric: 'El valor solo debe contener dígitos',
+	startsWith: 'El valor debe comenzar con $expected',
+	endsWith: 'El valor debe terminar con $expected',
+	contains: 'El valor debe contener $expected',
+	minValue: 'El valor debe ser mayor o igual a $expected',
+	maxValue: 'El valor debe ser menor o igual a $expected',
+	precision: 'El número debe tener como máximo $expected decimales',
+	uniqueItems: 'Los elementos deben ser únicos',
+	containsItem: 'El arreglo debe contener el valor $expected',
+	exactShape: 'El objeto tiene propiedades no permitidas',
 };
 
 // Configuración global del sistema de validación
@@ -91,45 +105,68 @@ function mkRule(id: string, check: RuleCheck, msgKey?: string): Rule {
  * Es una función que valida un valor, y contiene métodos encadenables para extender la validación.
  */
 export type CompiledValidator<T = any> = ((value: any) => ValidationResult) & {
-	// Métodos encadenables para añadir reglas
+	// Métodos encadenables para añadir reglas generales
 	min: (n: number, msg?: string) => CompiledValidator<T>;
 	max: (n: number, msg?: string) => CompiledValidator<T>;
 	length: (n: number, msg?: string) => CompiledValidator<T>;
 	regex: (r: RegExp, msg?: string) => CompiledValidator<T>;
 	required: (msg?: string) => CompiledValidator<T>;
 	optional: () => CompiledValidator<T | null | undefined>;
+	nullable: () => CompiledValidator<T | null>;
+	default: (value: T) => CompiledValidator<T>;
 	custom: (
 		fn: (v: any) => boolean,
 		msg?: string,
 		id?: string,
 	) => CompiledValidator<T>;
+	id: (identifier: string) => CompiledValidator<T>;
+	describe: () => string;
+
+	// Números
 	integer: (msg?: string) => CompiledValidator<T>;
 	positive: (msg?: string) => CompiledValidator<T>;
 	negative: (msg?: string) => CompiledValidator<T>;
 	between: (a: number, b: number, msg?: string) => CompiledValidator<T>;
 	multipleOf: (n: number, msg?: string) => CompiledValidator<T>;
+	minValue: (n: number, msg?: string) => CompiledValidator<T>;
+	maxValue: (n: number, msg?: string) => CompiledValidator<T>;
+	precision: (decimals: number, msg?: string) => CompiledValidator<T>;
+
+	// Arrays
 	items: <U>(
 		itemV: CompiledValidator<U>,
 		msg?: string,
 	) => CompiledValidator<U[]>;
 	minItems: (n: number, msg?: string) => CompiledValidator<T>;
 	maxItems: (n: number, msg?: string) => CompiledValidator<T>;
-	oneOf: (vals: readonly any[], msg?: string) => CompiledValidator<T>;
+	uniqueItems: (msg?: string) => CompiledValidator<T>;
+	contains: (val: any, msg?: string) => CompiledValidator<T>;
+
+	// Objetos
 	shape: <O extends Record<string, CompiledValidator<any>>>(
 		shapeObj: O,
 		msg?: string,
 	) => CompiledValidator<{ [K in keyof O]: InferValidator<O[K]> }>;
-	id: (identifier: string) => CompiledValidator<T>;
-	describe: () => string;
-	// Métodos específicos para strings
+
+	// Strings
 	nonEmpty: (msg?: string) => CompiledValidator<T>;
 	trimmed: (msg?: string) => CompiledValidator<T>;
+	alpha: (msg?: string) => CompiledValidator<T>;
+	alphanum: (msg?: string) => CompiledValidator<T>;
+	numeric: (msg?: string) => CompiledValidator<T>;
+	startsWith: (prefix: string, msg?: string) => CompiledValidator<T>;
+	endsWith: (suffix: string, msg?: string) => CompiledValidator<T>;
+
+	// Conjuntos
+	oneOf: (vals: readonly any[], msg?: string) => CompiledValidator<T>;
+
 	// Ejecución detallada (devuelve errores con path)
 	validateDetailed: (
 		value: any,
 		options?: ValidatorOptions,
 	) => ValidationDetailed;
 };
+
 
 // Utilidades para inferir tipos a partir de validadores
 export type InferValidator<V> = V extends CompiledValidator<infer T> ? T : any;
@@ -166,6 +203,138 @@ function compile<T>(
 	};
 
 	const addRule = (r: Rule) => compile<T>([...rules, r], { id, optional });
+
+	validator.alpha = (m) =>
+		addRule(
+			mkRule(
+				'alpha',
+				(v) =>
+					typeof v === 'string' && !/^[A-Za-zÁÉÍÓÚáéíóúñÑ]+$/.test(v)
+						? [{ path: '', message: m ?? ValidatorConfig.messages.alpha }]
+						: [],
+				'alpha',
+			),
+		);
+
+	validator.alphanum = (m) =>
+		addRule(
+			mkRule(
+				'alphanum',
+				(v) =>
+					typeof v === 'string' && !/^[A-Za-z0-9]+$/.test(v)
+						? [{ path: '', message: m ?? ValidatorConfig.messages.alphanum }]
+						: [],
+				'alphanum',
+			),
+		);
+
+	validator.numeric = (m) =>
+		addRule(
+			mkRule(
+				'numeric',
+				(v) =>
+					typeof v === 'string' && !/^\d+$/.test(v)
+						? [{ path: '', message: m ?? ValidatorConfig.messages.numeric }]
+						: [],
+				'numeric',
+			),
+		);
+
+	validator.startsWith = (prefix: string, m?: string) =>
+		addRule(
+			mkRule(
+				`startsWith:${prefix}`,
+				(v) =>
+					typeof v !== 'string' || !v.startsWith(prefix)
+						? [
+								{
+									path: '',
+									message:
+										m ??
+										formatMessage(ValidatorConfig.messages.startsWith, {
+											expected: prefix,
+										}),
+								},
+							]
+						: [],
+				'startsWith',
+			),
+		);
+
+	validator.endsWith = (suffix: string, m?: string) =>
+		addRule(
+			mkRule(
+				`endsWith:${suffix}`,
+				(v) =>
+					typeof v !== 'string' || !v.endsWith(suffix)
+						? [
+								{
+									path: '',
+									message:
+										m ??
+										formatMessage(ValidatorConfig.messages.endsWith, {
+											expected: suffix,
+										}),
+								},
+							]
+						: [],
+				'endsWith',
+			),
+		);
+
+	validator.minValue = (n: number, m?: string) =>
+		addRule(
+			mkRule(
+				`minValue:${n}`,
+				(v) =>
+					typeof v !== 'number' || v < n
+						? [
+								{
+									path: '',
+									message:
+										m ??
+										formatMessage(ValidatorConfig.messages.minValue, {
+											expected: n,
+										}),
+								},
+							]
+						: [],
+				'minValue',
+			),
+		);
+
+	validator.maxValue = (n: number, m?: string) =>
+		addRule(
+			mkRule(
+				`maxValue:${n}`,
+				(v) =>
+					typeof v !== 'number' || v > n
+						? [
+								{
+									path: '',
+									message:
+										m ??
+										formatMessage(ValidatorConfig.messages.maxValue, {
+											expected: n,
+										}),
+								},
+							]
+						: [],
+				'maxValue',
+			),
+		);
+
+	validator.uniqueItems = (m?: string) =>
+		addRule(
+			mkRule(
+				'uniqueItems',
+				(v) =>
+					!Array.isArray(v) || new Set(v).size !== v.length
+						? [{ path: '', message: m ?? ValidatorConfig.messages.uniqueItems }]
+						: [],
+				'uniqueItems',
+			),
+		);
 
 	// Métodos base
 	validator.min = (n, m) =>
@@ -507,35 +676,62 @@ function compile<T>(
 }
 
 // Factories
+// Regex comunes
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const URL_RE = /^(https?:\/\/)?([\w-]+\.)+[\w-]{2,}(\/.*)?$/i;
+
+// Acepta http/https, localhost, dominios e IPs
+const URL_RE =
+	/^(https?:\/\/)(localhost(:\d+)?|(\d{1,3}\.){3}\d{1,3}|\[?[A-F0-9:]+\]?|([\w-]+\.)+[a-z]{2,})(:\d+)?(\/[^\s]*)?$/i;
+
 const UUID_RE =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
+
 const CREDIT_CARD_RE =
 	/^(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|6(?:011|5[0-9]{2})[0-9]{12})$/;
+
 const PHONE_RE = /^[\d+\-().\s]{7,20}$/;
 
+const IPV4_RE =
+	/^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
+
+const IPV6_RE =
+	/^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|::1|::)$/;
+
+const HEX_RE = /^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$/;
+
+const BASE64_RE = /^(?:[A-Za-z0-9+\/]{4})*(?:[A-Za-z0-9+\/]{2}==|[A-Za-z0-9+\/]{3}=)?$/;
+
+const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+const POSTAL_CODE_RE = /^[A-Za-z0-9\s\-]{3,10}$/;
+
+const USERNAME_RE = /^[a-zA-Z0-9_]{3,20}$/;
+
+const PASSWORD_STRONG_RE =
+	/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()\-_=+{};:,<.>]).{8,}$/;
+
 export const Validator = {
-	string: () => {
-		const base = mkRule(
-			'type:string',
-			(v) =>
-				typeof v !== 'string'
-					? [
-							{
-								path: '',
-								message: formatMessage(
-									ValidatorConfig.messages['type:string'],
-									{ recived: typeof v },
-								),
-							},
-						]
-					: [],
-			'type:string',
-		);
-		return compile<string>([base]);
-	},
+	string: () =>
+		compile<string>([
+			mkRule(
+				'type:string',
+				(v) =>
+					typeof v !== 'string'
+						? [
+								{
+									path: '',
+									message: formatMessage(
+										ValidatorConfig.messages['type:string'],
+										{ recived: typeof v },
+									),
+								},
+							]
+						: [],
+				'type:string',
+			),
+		]),
 	number: () =>
 		compile<number>([
 			mkRule(
@@ -632,26 +828,67 @@ export const Validator = {
 				'type:bigint',
 			),
 		]),
+
+	// Validadores específicos
 	email: () =>
 		Validator.string()
 			.regex(EMAIL_RE, ValidatorConfig.messages.email)
 			.id('email'),
+
 	url: () =>
 		Validator.string().regex(URL_RE, ValidatorConfig.messages.url).id('url'),
+
 	uuid: () =>
 		Validator.string().regex(UUID_RE, ValidatorConfig.messages.uuid).id('uuid'),
+
 	isoDate: () =>
 		Validator.string()
 			.regex(ISO_DATE_RE, ValidatorConfig.messages.isoDate)
 			.id('isoDate'),
+
 	creditCard: () =>
 		Validator.string()
 			.regex(CREDIT_CARD_RE, ValidatorConfig.messages.creditCard)
 			.id('creditCard'),
+
 	phone: () =>
 		Validator.string()
 			.regex(PHONE_RE, ValidatorConfig.messages.phone)
 			.id('phone'),
+
+	ipv4: () =>
+		Validator.string().regex(IPV4_RE, ValidatorConfig.messages.ipv4).id('ipv4'),
+
+	ipv6: () =>
+		Validator.string().regex(IPV6_RE, ValidatorConfig.messages.ipv6).id('ipv6'),
+
+	hex: () =>
+		Validator.string().regex(HEX_RE, ValidatorConfig.messages.hex).id('hex'),
+
+	base64: () =>
+		Validator.string()
+			.regex(BASE64_RE, ValidatorConfig.messages.base64)
+			.id('base64'),
+
+	slug: () =>
+		Validator.string().regex(SLUG_RE, ValidatorConfig.messages.slug).id('slug'),
+
+	postalCode: () =>
+		Validator.string()
+			.regex(POSTAL_CODE_RE, ValidatorConfig.messages.postalCode)
+			.id('postalCode'),
+
+	username: () =>
+		Validator.string()
+			.regex(USERNAME_RE, ValidatorConfig.messages.username)
+			.id('username'),
+
+	passwordStrong: () =>
+		Validator.string()
+			.regex(PASSWORD_STRONG_RE, ValidatorConfig.messages.passwordStrong)
+			.id('passwordStrong'),
+
+	// Otros
 	oneOf: <T>(vals: readonly T[]) =>
 		compile<T>([
 			mkRule(

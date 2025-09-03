@@ -4,6 +4,7 @@ import {
 	type BoxelsElement,
 	type BoxelsElementNode,
 	type Child,
+	isBoxelsElement,
 	normalizeChildren,
 } from './attributes/elements';
 import { createSvg } from './svg';
@@ -254,6 +255,7 @@ export function $<T extends keyof HTMLElementTagNameMap>(
 					// insertar entre start y end
 					for (const n of result.nodes) {
 						end.parentNode?.insertBefore(n, end);
+						if (isBoxelsElement(n)) n.mountEffect();
 					}
 				},
 				cleanupChildren: (_node, result) => {

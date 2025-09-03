@@ -32,6 +32,7 @@ export const RouterOutlet = async ({
 	const update = async (node: FindResult) => {
 		if (node.component) {
 			view.set(await node.component());
+			return;
 		}
 
 		if (node.redirect) {

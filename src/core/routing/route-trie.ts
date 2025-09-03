@@ -62,7 +62,7 @@ export interface FindResult {
 
 	redirect?: string;
 
-	component?: () => JSX.Element | (() => Promise<JSX.Element>)
+	component?: () => JSX.Element | (() => Promise<JSX.Element>);
 }
 
 /**
@@ -260,7 +260,7 @@ export class TriNode {
 			return { params: {}, message: carryMessage };
 		}
 
-		const { node, params } = this.match(path);
+		const { node, params, guardsChain } = await this.matchWithGuards(path);
 		if (!node) return { params, message: carryMessage };
 
 		// Obtén el handler real
@@ -278,40 +278,39 @@ export class TriNode {
 
 		if (!handler) return { params, message: carryMessage };
 
-		// Ejecutar guards si existen
-		if (handler.guards?.length) {
-			for (const guard of handler.guards) {
-				if (abortSignal?.aborted) {
-					return { params, message: carryMessage };
+		// Ejecutar guards acumulados (padres + propios)
+		for (const guard of guardsChain) {
+			if (abortSignal?.aborted) {
+				return { params, message: carryMessage };
+			}
+
+			const result = await guard();
+
+			if (result === false) {
+				return { params, message: carryMessage };
+			}
+
+			if (typeof result === 'object' && result) {
+				const nextMessage = result.message ?? carryMessage;
+
+				if (result.component) {
+					// ✅ Ahora el guard puede retornar un componente
+					return {
+						component: result.component,
+						params,
+						message: nextMessage,
+					};
 				}
 
-				const result = await guard();
-
-				if (result === false) {
-					return { params, message: carryMessage };
+				if (result.redirect) {
+					return { redirect: result.redirect, params, message: nextMessage };
 				}
 
-				if (typeof result === 'object' && result) {
-					const nextMessage = result.message ?? carryMessage;
-
-					if (result.component) {
-						return {
-							component: result.component,
-							params,
-							message: nextMessage,
-						};
-					}
-
-					if (result.redirect) {
-						return { redirect: result.redirect, params, message: nextMessage };
-					}
-
-					if (result.message) {
-						return { params, message: nextMessage };
-					}
-
+				if (result.message) {
 					return { params, message: nextMessage };
 				}
+
+				return { params, message: nextMessage };
 			}
 		}
 
@@ -320,42 +319,56 @@ export class TriNode {
 
 	/**
 	 * Busca un nodo que coincida con la ruta dada.
-	 * - Respeta orden: estático → param → wildcard.
+	 * - Además acumula los guards desde la raíz hasta el nodo encontrado.
 	 */
-	private match(path: string): { node?: Node; params: Record<string, string> } {
+	private async matchWithGuards(path: string): Promise<{
+		node?: Node;
+		params: Record<string, string>;
+		guardsChain: Guard[];
+	}> {
 		const parts = this.normalize(path);
 		const params: Record<string, string> = {};
 		let node: Node | undefined = this.root;
+		const guardsChain: Guard[] = [];
+
+		// Recorre acumulando guards de cada nodo visitado
+		const collectGuards = async (n: Node) => {
+			const handler = await this.getHandler(n);
+			if (handler?.guards?.length) {
+				guardsChain.push(...handler.guards);
+			}
+		};
+
+		collectGuards(this.root);
 
 		for (let i = 0; i < parts.length; i++) {
 			if (!node) break;
 			const seg = parts[i];
 
-			// Coincidencia exacta en hijos estáticos
 			if (node.staticChildren && node.staticChildren.has(seg)) {
 				node = node.staticChildren.get(seg)!;
+				await collectGuards(node);
 				continue;
 			}
 
-			// Coincidencia con parámetro dinámico
 			if (node.paramChild) {
 				params[node.paramChild.key] = seg;
 				node = node.paramChild.node;
+				await collectGuards(node);
 				continue;
 			}
 
-			// Coincidencia con comodín
 			if (node.wildcardChild) {
 				const rest = parts.slice(i).join('/');
 				if (rest) params.rest = rest;
 				node = node.wildcardChild;
+				await collectGuards(node);
 				break;
 			}
 
-			// No coincide
-			return { node: undefined, params };
+			return { node: undefined, params, guardsChain };
 		}
 
-		return { node, params };
+		return { node, params, guardsChain };
 	}
 }
