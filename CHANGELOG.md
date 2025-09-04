@@ -1,9 +1,9 @@
-## [2.4.1](https://github.com/kkokotero/boxels/compare/10ae587f199d7cf97078d1495daf774250ee6926...v2.4.1) (2025-09-04)
+## [2.4.2](https://github.com/kkokotero/boxels/compare/b572b4527bfaeac2f46378c0ff1d4856292dcf84...v2.4.2) (2025-09-04)
 
 
 ### Bug Fixes
 
-* **core:** mejorar manejo de SVG reactivos y fragments ([10ae587](https://github.com/kkokotero/boxels/commit/10ae587f199d7cf97078d1495daf774250ee6926))
+* **types:** ajustes en el tipado interno para mayor consistencia ([b572b45](https://github.com/kkokotero/boxels/commit/b572b4527bfaeac2f46378c0ff1d4856292dcf84))
 
 
 
