@@ -1,4 +1,4 @@
-import { signal, type Signalize } from './signal';
+import { signal, type Signal, type Signalize } from './signal';
 import type { ReactiveSignal, Widen } from './types';
 import { autoCleanup } from '@core/cleanup';
 
@@ -27,12 +27,12 @@ import { autoCleanup } from '@core/cleanup';
  * ```
  */
 export function computed<T>(
-	dependencies: ReactiveSignal<unknown>[],
-	compute: () => Widen<T>,
-): Signalize<Widen<T>> & ReactiveSignal<Widen<T>> {
+	dependencies: Signal<unknown>[],
+	compute: () => T | Widen<T>,
+): Signal<T> {
 	// Crea una señal base que almacena el resultado inicial de la función computada.
 	// Esta señal se comporta como cualquier otra, pero su valor será controlado internamente.
-	const result = signal<T>(compute());
+	const result = signal(compute());
 
 	/**
 	 * Función interna `update`.
@@ -41,7 +41,7 @@ export function computed<T>(
 	 */
 	const update = () => {
 		const value = compute(); // Vuelve a calcular el valor
-		result.set(value); // Actualiza el valor de la señal resultante
+		result.set(value as Widen<T>); // Actualiza el valor de la señal resultante
 	};
 
 	// Se suscribe a todas las señales dependientes. Cada vez que alguna cambie, se ejecutará `update`.
@@ -68,5 +68,5 @@ export function computed<T>(
 
 	// Devuelve la señal computada (`result`), pero con el método `destroy` incorporado.
 	// Esto permite que los consumidores puedan limpiar manualmente si lo necesitan.
-	return Object.assign(result, { destroy });
+	return Object.assign(result, { destroy }) as Signal<T>;
 }

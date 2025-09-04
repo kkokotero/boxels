@@ -11,6 +11,7 @@ import {
 	computed,
 	type ReactiveUnsubscribe,
 	type Widen,
+	type Signal,
 } from '@core/reactive';
 
 /**
@@ -92,8 +93,8 @@ export class Field<T> {
 			? (persistentSignal<T>(
 					this.opts.persistentKey,
 					initialValue,
-				) as ReactiveSignal<T>)
-			: signal<T>(initialValue) as any;
+				) as Signal<T>)
+			: signal(initialValue) as any;
 
 		// Validar inmediatamente el valor inicial y guardar errores
 		const initialErrors = this.validateFn.validateDetailed(initialValue, {
