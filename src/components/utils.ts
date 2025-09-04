@@ -1,20 +1,22 @@
-import { isSignal, type ReactiveSignal } from "@core/reactive";
+import { isSignal, signal, type ReactiveSignal } from '@core/reactive';
 
 /**
  * Extrae todas las señales reactivas (`ReactiveSignal`) presentes directa o indirectamente en un arreglo.
- * 
+ *
  * Esta función permite detectar y recolectar cualquier señal reactiva (`ReactiveSignal`) que se encuentre:
  *  - Directamente en el arreglo (`values`)
  *  - Indirectamente si es el resultado del llamado a una función contenida en el arreglo
- * 
+ *
  * Casos de uso:
  *  - Evaluar propiedades dinámicas que podrían ser señales o funciones que devuelven señales
  *  - Preparar una lista de dependencias reactivas para efectos o computaciones derivadas
- * 
+ *
  * @param values Arreglo de elementos desconocidos. Pueden ser valores estáticos, señales o funciones que retornan señales.
  * @returns Un arreglo plano con todas las señales encontradas.
  */
-export function extractSignalsFromValues(values: unknown[]): ReactiveSignal<unknown>[] {
+export function extractSignalsFromValues(
+	values: unknown[],
+): ReactiveSignal<unknown>[] {
 	// Arreglo acumulador donde se almacenan las señales detectadas
 	const collected: ReactiveSignal<unknown>[] = [];
 
@@ -23,7 +25,7 @@ export function extractSignalsFromValues(values: unknown[]): ReactiveSignal<unkn
 	 * - Si es una señal, se añade directamente.
 	 * - Si es una función, se invoca y se analiza el resultado.
 	 * - Si lanza error o no retorna una señal, se ignora silenciosamente.
-	 * 
+	 *
 	 * @param item Valor a analizar: puede ser una señal, una función o cualquier otro valor.
 	 */
 	const collect = (item: unknown) => {
@@ -42,6 +44,8 @@ export function extractSignalsFromValues(values: unknown[]): ReactiveSignal<unkn
 			} catch {
 				// Se ignoran funciones que generan errores o que no retornan señales
 			}
+		} else {
+			collected.push(signal(item));
 		}
 	};
 

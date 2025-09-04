@@ -100,7 +100,7 @@ export function Show({
 	const dependencies = extractSignalsFromValues(
 		Array.isArray(when) ? when : [when],
 	);
-
+	
 	// Se crea un efecto reactivo que actualiza el contenido cada vez que cambien las dependencias
 	effect(dependencies, () => {
 		content.set(isConditionTrue(when) ? children : fallback);

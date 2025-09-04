@@ -1,3 +1,5 @@
+import type { Signal } from "./signal";
+
 /**
  * Evita que los literales (true, false, 0, "x") se queden como literales,
  * los ensancha a boolean, number, string.
@@ -47,7 +49,7 @@ export type ReactiveUnsubscribe = () => void;
  */
 export type ReactiveSubscribe<T> = (newValue: Widen<T>) => void;
 
-export type MaybeSignal<T> = Widen<T> | ReactiveSignal<Widen<T>>;
+export type MaybeSignal<T> = T | Signal<T>;
 
 /**
  * Interfaz que representa una señal reactiva.

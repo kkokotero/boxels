@@ -125,7 +125,7 @@ export function For<T>({
 			isEmpty = true;
 			entries.clear();
 
-			if (!forStartMarker.parentElement && ! forEndMarker.parentElement) return;
+			if (!forStartMarker.parentElement && !forEndMarker.parentElement) return;
 			const range = document.createRange();
 			range.setStartAfter(forStartMarker);
 			range.setEndBefore(forEndMarker);
@@ -140,7 +140,7 @@ export function For<T>({
 		if (isEmpty) {
 			isEmpty = false;
 
-			if (!forStartMarker.parentElement && ! forEndMarker.parentElement) return;
+			if (!forStartMarker.parentElement && !forEndMarker.parentElement) return;
 
 			const range = document.createRange();
 			range.setStartAfter(forStartMarker);
@@ -302,18 +302,19 @@ export function For<T>({
 
 	let unsub = () => {};
 
-	// Si `each` es una señal reactiva, se crea un efecto que actualiza automáticamente
-	if (isSignal(each)) {
-		unsub = effect([each], update);
-	} else {
-		queue(update); // En caso contrario, solo se ejecuta una vez
-	}
-
 	// Retornar los nodos marcador para insertar el contenido generado
 	return Fragment({
 		'$lifecycle:destroy': () => {
 			unsub();
 			entries.clear();
+		},
+		'$lifecycle:mount': () => {
+			// Si `each` es una señal reactiva, se crea un efecto que actualiza automáticamente
+			if (isSignal(each)) {
+				unsub = effect([each], update);
+			} else {
+				queue(update); // En caso contrario, solo se ejecuta una vez
+			}
 		},
 		children: [forStartMarker, forEndMarker],
 	});

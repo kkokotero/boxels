@@ -1,6 +1,11 @@
 // Importa los tipos necesarios: ReactiveSignal representa una señal reactiva,
 // y ReactiveUnsubscribe es una función que cancela la suscripción a una señal.
-import type { ReactiveSignal, ReactiveUnsubscribe } from './types';
+import {
+	isSignal,
+	type MaybeSignal,
+	type ReactiveSignal,
+	type ReactiveUnsubscribe,
+} from './types';
 
 // Importa el programador (scheduler), utilizado para ejecutar funciones en la cola reactiva.
 import { queue } from '../scheduler';
@@ -43,7 +48,7 @@ import { queue } from '../scheduler';
  * ```
  */
 export function effect(
-	_dependencies: ReactiveSignal<unknown>[] | ReactiveSignal<unknown>,
+	_dependencies: MaybeSignal<unknown>[] | MaybeSignal<unknown>,
 	run: () => Promise<void> | void,
 ): ReactiveUnsubscribe {
 	const dependencies = Array.isArray(_dependencies)
@@ -67,7 +72,9 @@ export function effect(
 
 	// Suscribirse
 	if (dependencies.length > 0) {
-		cleanups = dependencies.map((dep) => dep.subscribe(wrappedRun));
+		cleanups = dependencies.map((dep) =>
+			isSignal(dep) ? dep.subscribe(wrappedRun) : () => {},
+		);
 	} else {
 		queue(wrappedRun);
 	}

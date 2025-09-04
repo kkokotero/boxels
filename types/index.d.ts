@@ -1,4 +1,4 @@
-import type { ReactiveSignal } from '../src/core/reactive';
+import type { MaybeSignal, ReactiveSignal } from '../src/core/reactive';
 import type {
 	BoxelsElement,
 	JSXBoxelsELementAttrs,
@@ -88,7 +88,7 @@ declare global {
 			props: LifecycleEventHandlers<'div'> & {
 				children?: any;
 			},
-		) => Element | ReactiveSignal<Element>;
+		) => MaybeSignal<Element>;
 
 		/** Componente funcional */
 		type FunctionComponent<P = object> = (
@@ -96,7 +96,7 @@ declare global {
 				BoxelsElement & {
 					children?: any;
 				},
-		) => Element | ReactiveSignal<Element>;
+		) => MaybeSignal<Element>;
 
 		type DynamicProps<T extends keyof HTMLElementTagNameMap = 'div'> =
 			JSXBoxelsELementAttrs<K>;
@@ -110,7 +110,7 @@ declare global {
 			props?: object & {
 				children?: any;
 			};
-			render: () => Element | ReactiveSignal<Element>;
+			render: () => MaybeSignal<Element>;
 		};
 
 		/** Vincula prop `props` como portador de atributos JSX */
@@ -120,7 +120,7 @@ declare global {
 
 		/** Vincula prop `children` como hijos JSX */
 		interface ElementChildrenAttribute {
-			children: object | ReactiveSignal<object>;
+			children: MaybeSignal<object>;
 		}
 	}
 }

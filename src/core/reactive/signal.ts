@@ -66,7 +66,7 @@ export type Signalize<T> = T extends (...args: infer P) => infer R
  * ======================================================
  */
 
-export type Signal<T> = Signalize<Widen<T>> & ReactiveSignal<Widen<T>>;
+export type Signal<T> = Signalize<T> & Signalize<Widen<T>> & ReactiveSignal<Widen<T>>;
 
 /**
  * @description
@@ -78,7 +78,7 @@ export type Signal<T> = Signalize<Widen<T>> & ReactiveSignal<Widen<T>>;
  * @param initialValue Valor inicial del signal
  * @returns Un `Signalize<T>`, que combina el valor con API reactiva.
  */
-export function signal<T>(initialValue: Widen<T> | T): Signal<T> {
+export function signal<T>(initialValue: T): Signal<T> {
 	// Estado interno del valor actual
 	let value = initialValue as Widen<T>;
 

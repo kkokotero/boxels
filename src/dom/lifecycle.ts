@@ -70,11 +70,6 @@ export function createLifecycle<T extends Node>(
 			options.props?.['$lifecycle:mount']?.(node);
 		}
 
-		if (options.isFragment) {
-			result = build();
-			options.appendChildren?.(node, result);
-		}
-
 		options.onMountResult?.(result, node);
 
 		return () => destroy();
