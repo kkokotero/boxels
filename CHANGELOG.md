@@ -1,9 +1,9 @@
-# [2.4.0](https://github.com/kkokotero/boxels/compare/1d83ba1e1a4a27f9ac45998d7f0e851d54dd8b78...v2.4.0) (2025-09-03)
+## [2.4.1](https://github.com/kkokotero/boxels/compare/10ae587f199d7cf97078d1495daf774250ee6926...v2.4.1) (2025-09-04)
 
 
 ### Bug Fixes
 
-* **router:** corregir guards en el sistema de rutas y permitir respuesta en forma de componente ([1d83ba1](https://github.com/kkokotero/boxels/commit/1d83ba1e1a4a27f9ac45998d7f0e851d54dd8b78))
+* **core:** mejorar manejo de SVG reactivos y fragments ([10ae587](https://github.com/kkokotero/boxels/commit/10ae587f199d7cf97078d1495daf774250ee6926))
 
 
 
