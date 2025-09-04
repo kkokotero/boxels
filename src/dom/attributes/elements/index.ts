@@ -176,10 +176,32 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 		if (isBoxelsElement(child)) {
 			const elementChild: BoxelsElement = child;
 
-			// cada BoxelsElement se normaliza como un "mini-BoxlesChildren"
-			nodes.push(elementChild);
+			// Si es un fragmento, aplanamos su contenido
+			if (child.isFragment) {
+				// Convertimos los nodos del fragmento a un array y los agregamos a la cola
+				const fragmentNodes = Array.from(elementChild.childNodes);
+				queue.unshift(...fragmentNodes);
 
-			if (!child.isFragment) elementChild.mountEffect();
+				onMounts.push(() => {
+					const result = child.mountEffect();
+
+					// Aseguramos que se limpie el fragmento
+					cleanUps.push(() => {
+						try {
+							elementChild.destroy();
+							result();
+						} catch (e) {
+							/* swallow */
+						}
+					});
+				});
+
+				continue;
+			}
+
+			// Si no es un fragmento, continúa con el comportamiento normal
+			nodes.push(elementChild);
+			elementChild.mountEffect();
 			onMounts.push(() => {
 				if (!elementChild.__mounted) {
 					try {
@@ -242,7 +264,7 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 				if (normalized.nodes.length > 1) {
 					normalized = (function wrapScoped(
 						inner: BoxlesChildren,
-						name = 'signal-frag',
+						name = 'signal-fragment',
 					): BoxlesChildren {
 						const sStart = document.createComment(
 							debug.isShowCommentNames() ? `${name}:start` : '',

@@ -169,10 +169,7 @@ export function appendChild(
 		return;
 	}
 
-	if (
-		!(parent instanceof DocumentFragment) &&
-		child instanceof DocumentFragment
-	) {
+	if (child instanceof DocumentFragment) {
 		const children = Array.from(child.childNodes);
 		children.forEach((n) => insertNode(parent, n, position));
 		return;

@@ -107,5 +107,5 @@ export function Show({
 	});
 
 	// Devuelve una señal reactiva que puede ser usada como JSX.Element en otros lugares
-	return content;
+	return $(Fragment, {}, content);
 }

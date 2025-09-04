@@ -1,53 +1,46 @@
 import { handleAttributes } from './attributes';
-import type { BoxelsElement, BoxelsElementNode } from './attributes/elements';
+import type { BoxelsElement } from './attributes/elements';
+import { createLifecycle } from './lifecycle';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-export function createSvg<T extends keyof SVGElementTagNameMap>(
+export function createSvg<T extends keyof HTMLElementTagNameMap>(
 	selector: T,
-	props?: BoxelsElementAttributes<'div'>,
+	props: BoxelsElementAttributes<'div'>,
 ): BoxelsElement {
-	// Crear el elemento con namespace correcto
-	const node = document.createElementNS(SVG_NS, selector) as SVGElement;
+	// Crear nodo en el namespace correcto y con tipado preciso
+	const node = document.createElementNS(
+		SVG_NS,
+		selector,
+	) as SVGElementTagNameMap['svg'];
 
-	const lifecycle = handleAttributes(node, props || {});
+	return createLifecycle(node, () => handleAttributes(node, props), {
+		isFragment: false,
+		props,
+		cleanupChildren: (node, result) => {
+			// limpiar hijos
+			node.remove();
+			// ejecutar cleanup de atributos
+			result['$lifecycle:destroy']?.(node as any);
+		},
+		onDestroyResult: (result, node) => {
+			// evitar duplicados: solo cleanup extra aquí
+			if (typeof result['$lifecycle:destroy'] === 'function') {
+				result['$lifecycle:destroy'](node as any);
+			}
+		},
+		onMountResult: (result, node) => {
+			// asegurar flags correctos
+			(node as any).__destroyed = false;
 
-	// Método para montar en cualquier padre (HTML, SVG, Fragment, Comment)
-	const mount = (
-		parent: HTMLElement | SVGElement | DocumentFragment | Comment,
-	) => {
-		if ((node as unknown as BoxelsElement).__mounted) return;
-		(node as unknown as BoxelsElement).__mounted = true;
+			if ((node as any).__remounted) {
+				props?.['$lifecycle:remount']?.(node as any);
+			} else {
+				result['$lifecycle:mount']?.(node as any);
+			}
 
-		lifecycle['$lifecycle:mount']?.(
-			node as unknown as BoxelsElementNode<'div'>,
-		);
-
-		if (parent instanceof Comment) {
-			parent.parentNode?.insertBefore(node, parent);
-		} else {
-			parent.appendChild(node);
-		}
-	};
-
-	// Método para destruir
-	const destroy = () => {
-		if ((node as unknown as BoxelsElement).__destroyed) return;
-		(node as unknown as BoxelsElement).__destroyed = true;
-		(node as unknown as BoxelsElement).__mounted = false;
-		lifecycle['$lifecycle:destroy']?.(
-			node as unknown as BoxelsElementNode<'div'>,
-		);
-		while (node.firstChild) node.firstChild.remove();
-		node.remove();
-	};
-
-	return Object.assign(node, {
-		mount,
-		destroy,
-		mountEffect: () => {},
-		__boxels: true,
-		__mounted: false,
-		__destroyed: false,
+			// marcar que ya tuvo al menos un mount
+			(node as any).__remounted = true;
+		},
 	}) as unknown as BoxelsElement;
 }

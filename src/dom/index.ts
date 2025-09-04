@@ -10,9 +10,9 @@ import {
 import { createSvg } from './svg';
 import { appendChild } from './utils';
 import { debug } from '@testing/debugger';
+import { createLifecycle } from './lifecycle';
 
 export const Fragment: unique symbol = Symbol('Boxles-Fragment');
-export const Comment: unique symbol = Symbol('Boxles-Fragment');
 
 const svgTags = new Set([
 	// Contenedor raíz
@@ -133,87 +133,6 @@ export function isClassComponent(fn: unknown): fn is ClassComponent {
 	);
 }
 
-function createLifecycle<T extends Node>(
-	node: T,
-	build: () => any,
-	options: {
-		isFragment: boolean;
-		props?: any;
-		appendChildren?: (node: T, result: any) => void;
-		cleanupChildren?: (node: T, result: any) => void;
-		onMountResult?: (result: any, node: T) => void;
-		onDestroyResult?: (result: any, node: T) => void;
-	},
-) {
-	let result = build();
-	let everMounted = false;
-
-	const destroy = () => {
-		if ((node as any).__destroyed) return;
-		(node as any).__mounted = false;
-		(node as any).__destroyed = true;
-
-		options.props?.['$lifecycle:destroy']?.(node);
-		options.cleanupChildren?.(node, result);
-		options.onDestroyResult?.(result, node);
-	};
-
-	const mount = (parent: HTMLElement | DocumentFragment) => {
-		// Si ya estaba montado → rerender
-		if ((node as any).__mounted) {
-			options.cleanupChildren?.(node, result);
-			result = build();
-			options.appendChildren?.(node, result);
-
-			// 🚀 activar hooks de hijos en fragments
-			if (options.isFragment) {
-				result.onMount?.();
-			}
-
-			options.props?.['$lifecycle:remount']?.(node);
-			return;
-		}
-
-		// Primer montaje
-		result = build();
-		options.appendChildren?.(node, result);
-
-		(node as any).__mounted = true;
-		(node as any).__destroyed = false;
-		everMounted = true;
-
-		options.props?.['$lifecycle:mount']?.(node);
-		parent.appendChild(node);
-		options.onMountResult?.(result, node);
-	};
-
-	const mountEffect = () => {
-		if ((node as any).__mounted) return;
-		(node as any).__mounted = true;
-		(node as any).__destroyed = false;
-
-		if (everMounted) {
-			options.props?.['$lifecycle:remount']?.(node);
-		} else {
-			options.props?.['$lifecycle:mount']?.(node);
-		}
-
-		options.onMountResult?.(result, node);
-
-		return () => destroy();
-	};
-
-	return Object.assign(node, {
-		mount,
-		destroy,
-		mountEffect,
-		isFragment: options.isFragment,
-		__boxels: true,
-		__mounted: false,
-		__destroyed: false,
-	});
-}
-
 export function $<T extends keyof HTMLElementTagNameMap>(
 	selector: BoxelsElementSelector<T>,
 	props?: BoxelsElementAttributes<T>,
@@ -254,8 +173,9 @@ export function $<T extends keyof HTMLElementTagNameMap>(
 				appendChildren: (_node, result) => {
 					// insertar entre start y end
 					for (const n of result.nodes) {
-						end.parentNode?.insertBefore(n, end);
+						// end.parentNode?.insertBefore(n, end);
 						if (isBoxelsElement(n)) n.mountEffect();
+						appendChild(end, n, 'before');
 					}
 				},
 				cleanupChildren: (_node, result) => {

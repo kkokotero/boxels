@@ -116,38 +116,40 @@ interface standartAttrs<T extends keyof HTMLElementTagNameMap>
 	[key: string]: any;
 }
 
-export type SVGAttributes = Partial<{
-	// Atributos comunes SVG
-	xmlns: MaybeSignal<string>;
-	fill: MaybeSignal<string>;
-	stroke: MaybeSignal<string>;
-	'stroke-width': MaybeSignal<string | number>;
-	viewBox: MaybeSignal<string>;
-	width: MaybeSignal<string | number>;
-	height: MaybeSignal<string | number>;
-	class: MaybeSignal<string>;
+export type SVGAttributes = Partial<
+	{
+		// Atributos comunes SVG
+		xmlns: MaybeSignal<string>;
+		fill: MaybeSignal<string>;
+		stroke: MaybeSignal<string>;
+		'stroke-width': MaybeSignal<string | number>;
+		viewBox: MaybeSignal<string>;
+		width: MaybeSignal<string | number>;
+		height: MaybeSignal<string | number>;
+		class: MaybeSignal<string>;
 
-	// Atributos de formas SVG
-	cx: MaybeSignal<string | number>;
-	cy: MaybeSignal<string | number>;
-	r: MaybeSignal<string | number>;
-	x: MaybeSignal<string | number>;
-	y: MaybeSignal<string | number>;
-	d: MaybeSignal<string>;
-	points: MaybeSignal<string>;
-	transform: MaybeSignal<string>;
-	// etc.
+		// Atributos de formas SVG
+		cx: MaybeSignal<string | number>;
+		cy: MaybeSignal<string | number>;
+		r: MaybeSignal<string | number>;
+		x: MaybeSignal<string | number>;
+		y: MaybeSignal<string | number>;
+		d: MaybeSignal<string>;
+		points: MaybeSignal<string>;
+		transform: MaybeSignal<string>;
+		// etc.
 
-	// Accesibilidad
-	role: MaybeSignal<string>;
-	'aria-label': MaybeSignal<string>;
-	'aria-hidden': MaybeSignal<boolean | 'true' | 'false'>;
+		// Accesibilidad
+		role: MaybeSignal<string>;
+		'aria-label': MaybeSignal<string>;
+		'aria-hidden': MaybeSignal<boolean | 'true' | 'false'>;
 
-	// Children usualmente es JSX.Element o similar
-	children?: MaybeSignal<JSX.Element | JSX.Element[] | string>;
+		// Children usualmente es JSX.Element o similar
+		children?: MaybeSignal<JSX.Element | JSX.Element[] | string>;
 
-	[k: string]: MaybeSignal<any>;
-}>;
+		[k: string]: MaybeSignal<any>;
+	} & BoxelsElementAttributes<'div'>
+>;
 
 // Datos extra calculados para enriquecer eventos
 export type ExtraEventData = {
