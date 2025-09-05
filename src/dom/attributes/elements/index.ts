@@ -10,6 +10,7 @@ import '../handlers/global-handlers';
 
 import { debug } from '@testing/index';
 import { createChangeOverlay, ensureChangeStyles } from './zone';
+import { appendChild } from '@dom/utils';
 
 /* -------------------------
    Tipos (sin cambios funcionales)
@@ -87,9 +88,6 @@ export function isBoxelsElement(value: any): value is BoxelsElement {
 	);
 }
 
-/* -------------------------
-   normalizeChildren optimizada
-   ------------------------- */
 export function normalizeChildren(input: Child): BoxlesChildren {
 	// Inyección condicional de estilos para overlays de cambio
 	if (debug.isShowChanges()) ensureChangeStyles();
@@ -103,16 +101,11 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 	// Helper: envuelve un BoxlesChildren con sus propios anchors (start/end)
 	function wrapScoped(
 		inner: BoxlesChildren,
-		name = 'fragment',
 	): BoxlesChildren {
-		const start = document.createComment(
-			debug.isShowCommentNames() ? `${name}:start` : '',
-		);
-		const end = document.createComment(
-			debug.isShowCommentNames() ? `${name}:end` : '',
-		);
+		const node = document.createElement('x-fragment');
+		inner.nodes.forEach((n) => appendChild(node, n));
 
-		const wrappedNodes: Node[] = [start, ...inner.nodes, end];
+		const wrappedNodes: Node[] = [node];
 
 		const onMount = () => {
 			inner.onMount();
@@ -121,8 +114,8 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 		const cleanup = () => {
 			// eliminar lo que quede entre start y end (si están montados)
 			try {
-				let next = start.nextSibling;
-				while (next && next !== end) {
+				let next = node.firstChild;
+				while (next && next !== null) {
 					const toRemove = next;
 					next = next.nextSibling;
 					if (isBoxelsElement(toRemove)) {
@@ -152,12 +145,7 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 
 			// remover anchors si quedaron sueltos
 			try {
-				start.remove();
-			} catch (e) {
-				/* swallow */
-			}
-			try {
-				end.remove();
+				node.remove();
 			} catch (e) {
 				/* swallow */
 			}
@@ -227,7 +215,7 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 					last?.nodeType === Node.COMMENT_NODE;
 
 				if (!looksWrapped) {
-					const wrapped = wrapScoped(child, 'wrapped');
+					const wrapped = wrapScoped(child);
 					nodes.push(...wrapped.nodes);
 					onMounts.push(wrapped.onMount);
 					cleanUps.push(wrapped.cleanup);
@@ -264,20 +252,16 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 				if (normalized.nodes.length > 1) {
 					normalized = (function wrapScoped(
 						inner: BoxlesChildren,
-						name = 'signal-fragment',
 					): BoxlesChildren {
-						const sStart = document.createComment(
-							debug.isShowCommentNames() ? `${name}:start` : '',
-						);
-						const sEnd = document.createComment(
-							debug.isShowCommentNames() ? `${name}:end` : '',
-						);
+						const node = document.createElement('x-fragment');
+						inner.nodes.forEach((n) => appendChild(node, n));
+
 						return {
-							nodes: [sStart, ...inner.nodes, sEnd],
+							nodes: [node],
 							onMount: inner.onMount,
 							cleanup: inner.cleanup,
-						};
-					})(normalized, 'signal-frag');
+						};															
+					})(normalized);
 				}
 
 				// Si es exactamente el mismo conjunto de nodos (misma referencia), no hacemos nada
@@ -477,7 +461,7 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 			const children = normalizeChildren(
 				Array.from(child.cloneNode(true).childNodes) as unknown as Child,
 			);
-			const wrapped = wrapScoped(children, 'docfrag');
+			const wrapped = wrapScoped(children);
 			onMounts.push(wrapped.onMount);
 			cleanUps.push(wrapped.cleanup);
 			nodes.push(...wrapped.nodes);

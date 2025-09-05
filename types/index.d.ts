@@ -78,6 +78,8 @@ declare global {
 			feSpecularLighting: SVGAttributes;
 			feTile: SVGAttributes;
 			feTurbulence: SVGAttributes;
+
+			fragment: LifecycleEventHandlers<'div'> & { children?: JSX.Element | JSX.Element[] };
 		}
 
 		/** Tipo de elemento JSX */

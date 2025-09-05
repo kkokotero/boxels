@@ -262,7 +262,13 @@ declare global {
 		feTurbulence: SVGAttributes;
 
 		// Fragment también puede tener eventos del ciclo de vida
-		Fragment: LifecycleEventHandlers<'div'> & {};
+		Fragment: LifecycleEventHandlers<'div'> & {
+			children?: JSX.Element | JSX.Element[];
+		};
+
+		fragment: LifecycleEventHandlers<'div'> & {
+			children?: JSX.Element | JSX.Element[];
+		};
 	}
 
 	/**
