@@ -1,24 +1,32 @@
 class BoxelsFragmentElement extends HTMLElement {
-	// Bloquear atributos
-	static get observedAttributes() {
-		return [];
+	#childNodes: ChildNode[] = [];
+
+	connectedCallback() {
+		const parent = this.parentNode;
+		if (!parent) return;
+
+		// Guardar hijos iniciales si es la primera vez
+		if (this.#childNodes.length === 0) {
+			this.#childNodes = Array.from(this.childNodes);
+		}
+
+		// Mover hijos al padre, justo antes del host
+		for (const child of this.#childNodes) {
+			parent.insertBefore(child, this);
+		}
+
+		// Eliminar el host: el <x-fragment> no se verá en el DOM
+		this.remove();
 	}
 
-	attributeChangedCallback() {}
+	// Si se desconecta, no queda marcador (desaparece totalmente)
+	disconnectedCallback() {
+		// Mantiene referencias, pero no toca el DOM
+	}
 
-	// Bloquear eventos en el host
-	addEventListener() {}
-
-	setAttribute() {}
+	get fragmentChildren() {
+		return this.#childNodes;
+	}
 }
 
-customElements.define('x-fragment', BoxelsFragmentElement);
-
-// Inyectar estilo global para reforzar
-const style = document.createElement('style');
-style.textContent = `
-  x-fragment {
-    display: contents !important;
-  }
-`;
-document.head.appendChild(style);
+customElements.define("x-fragment", BoxelsFragmentElement);
