@@ -56,7 +56,7 @@ type SignalProps<O> = {
  * @description
  * Main Signal type that provides better inference for nested properties
  */
-type Signalize<T> = T extends MethodType
+export type Signalize<T> = T extends MethodType
 	? (...args: Parameters<T>) => Signalize<ReturnType<T>>
 	: T extends primitive
 		? ReactiveSignal<T> & SignalProps<PrimitiveToObject<T>>
