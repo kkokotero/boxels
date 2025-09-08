@@ -1,9 +1,9 @@
-# [2.5.0](https://github.com/kkokotero/boxels/compare/864d1e4cc16ed12351b2d324772543aa8f4a6083...v2.5.0) (2025-09-05)
+# [2.6.0](https://github.com/kkokotero/boxels/compare/e8f99b70488c7b5a9665602d328d05ca645e097f...v2.6.0) (2025-09-08)
 
 
-### Features
+### Bug Fixes
 
-* **core:** mejorar manejo de fragments tratándolos como nodos reales ([864d1e4](https://github.com/kkokotero/boxels/commit/864d1e4cc16ed12351b2d324772543aa8f4a6083))
+* **types:** corregir tipo no exportado ([e8f99b7](https://github.com/kkokotero/boxels/commit/e8f99b70488c7b5a9665602d328d05ca645e097f))
 
 
 
