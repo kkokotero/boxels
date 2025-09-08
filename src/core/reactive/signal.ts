@@ -14,59 +14,77 @@ import { autoCleanup } from '@core/cleanup';
 
 /**
  * ======================================================
- * Helpers de tipos
+ * Enhanced Type Helpers
  * ======================================================
  */
 
 /**
  * @description
- * Mapea tipos primitivos a sus "objetos wrapper" correspondientes (String, Number, Boolean, ...).
- * Esto permite poder exponer también métodos y propiedades de esos wrappers en los signals.
+ * Maps primitive types to their corresponding wrapper objects while preserving methods
  */
-export type PrimitiveToObject<T> = T extends string
+type PrimitiveToObject<T> = T extends string
 	? string
 	: T extends number
 		? number
 		: T extends boolean
 			? boolean
 			: T extends bigint
-				? object
-				: Record<any, any>;
+				? bigint
+				: T extends undefined | null
+					? never
+					: T extends object
+						? T
+						: never;
 
 /**
  * @description
- * Convierte todas las propiedades de un objeto en su versión "signalizada".
- * - Si la propiedad es un método, se convierte en una función que devuelve un `Signalize<R>`.
- * - Si la propiedad es un valor, se convierte recursivamente en `Signalize`.
+ * Helper type for method signatures
  */
-export type SignalProps<O> = {
-	[K in keyof O]: O[K] extends (...args: infer P) => infer R
-		? (...args: P) => Signalize<R>
-		: Signalize<O[K]>;
+type MethodType = (...args: unknown[]) => unknown;
+
+/**
+ * @description
+ * Transforms object properties into signalized versions with proper method typing
+ */
+type SignalProps<O> = {
+	[K in keyof O]: O[K] extends MethodType
+		? (...args: Parameters<O[K]>) => Signal<ReturnType<O[K]>>
+		: Signal<O[K]>;
 };
 
 /**
  * @description
- * Tipo principal que transforma T en su versión reactiva (`Signalize<T>`).
- * - Funciones → función que retorna `Signalize<R>`.
- * - Primitivos → `ReactiveSignal<T>` extendido con métodos/props del wrapper.
- * - Objetos → `ReactiveSignal<T>` con cada propiedad envuelta en un `Signalize`.
+ * Main Signal type that provides better inference for nested properties
  */
-export type Signalize<T> = T extends (...args: infer P) => infer R
-	? (...args: P) => Signalize<R>
-	: [T] extends [string | number | boolean | bigint]
+type Signalize<T> = T extends MethodType
+	? (...args: Parameters<T>) => Signalize<ReturnType<T>>
+	: T extends primitive
 		? ReactiveSignal<T> & SignalProps<PrimitiveToObject<T>>
-		: T extends object
-			? ReactiveSignal<T> & { [K in keyof T]: Signalize<T[K]> }
-			: ReactiveSignal<T>;
+		: T extends (infer U)[] // caso Array especial
+			? ReactiveSignal<T> & {
+					[index: number]: Signalize<U>; // cada índice es un Signal
+					length: Signal<number>; // longitud como Signal
+				} & Pick<T, Exclude<keyof T, keyof any[]>> // conserva métodos de Array tal cual
+			: T extends object
+				? ReactiveSignal<T> & { [K in keyof T]: Signalize<T[K]> }
+				: ReactiveSignal<T>;
+
+/**
+ * @description
+ * Helper type for primitives
+ */
+type primitive = string | number | boolean | bigint | undefined | null;
 
 /**
  * ======================================================
- * Implementación runtime
+ * Runtime Implementation
  * ======================================================
  */
 
-export type Signal<T> = Signalize<T> & Signalize<Widen<T>> & ReactiveSignal<Widen<T>>;
+export type Signal<T> = Signalize<T> &
+	Signalize<Widen<T>> &
+	ReactiveSignal<Widen<T>> &
+	Widen<T>;
 
 /**
  * @description
@@ -201,6 +219,7 @@ export function signal<T>(initialValue: T): Signal<T> {
 	 * - Acceder a métodos como signals derivados.
 	 */
 	const proxy = new Proxy(baseSignal, {
+		// dentro de new Proxy(baseSignal, { ... })
 		get(target, prop, receiver) {
 			// Si se accede a una propiedad propia de la API, devolverla
 			if (prop in target) {
@@ -210,14 +229,56 @@ export function signal<T>(initialValue: T): Signal<T> {
 			// Valor actual de la propiedad
 			const current = value != null ? (value as any)[prop] : undefined;
 
-			// Si es un método: crear signal derivado
+			// Si es un método: crear wrapper que detecta mutaciones dinámicamente
 			if (typeof current === 'function') {
 				return (...args: any[]) => {
-					const initial =
-						value != null ? current.apply(value, args) : undefined;
+					// Snapshot superficial del "value" antes de ejecutar el método
+					let beforeSnapshot: any = value;
+					if (Array.isArray(value)) beforeSnapshot = (value as any).slice();
+					else if (value != null && typeof value === 'object')
+						beforeSnapshot = Object.assign({}, value as any);
+
+					// Ejecutar el método con el "this" correcto
+					// biome-ignore lint/suspicious/noImplicitAnyLet: <explanation>
+					let result;
+					try {
+						result = current.apply(value, args);
+					} catch (err) {
+						// Si la ejecución falla, devolvemos un derived signal con undefined
+						const errDerived = signal<any>(undefined);
+						// Suscribir para intentar recomputar si padre cambia
+						subscribe((v) => {
+							try {
+								const fn = v != null ? (v as any)[prop] : undefined;
+								if (typeof fn === 'function') {
+									const res = fn.apply(v, args);
+									if (isSignal(errDerived)) errDerived.set(res);
+								} else if (isSignal(errDerived)) errDerived.set(undefined);
+							} catch {
+								if (isSignal(errDerived)) errDerived.set(undefined);
+							}
+						});
+						return errDerived as Signal<any>;
+					}
+
+					// Detectar si hubo mutación superficial comparando beforeSnapshot y value actual
+					const mutated = !strictDeepEqual(beforeSnapshot, value);
+
+					if (mutated) {
+						// Si hubo mutación, notificar al root (no forzamos un nuevo object si la mutación fue in-place)
+						// Llamamos set con el mismo objeto para que se actualicen subscribers/children.
+						// set hace internamente strictDeepEqual, pero aquí puede ser la misma referencia cambiada,
+						// por eso no pasamos `force = true` salvo que quieras forzar siempre la notificación.
+						set(value as any, true);
+						// Si el método devuelve algo (p. ej. push -> number), devolvemos eso tal cual.
+						return result;
+					}
+
+					// Si no mutó: devolver un derived signal con el resultado (como antes)
+					const initial = result;
 					const derived = signal(initial);
 
-					// Resuscribir a cambios del padre
+					// Resuscribir a cambios del padre para recomputar el resultado dinámicamente
 					subscribe((v) => {
 						try {
 							const fn = v != null ? (v as any)[prop] : undefined;
@@ -232,7 +293,7 @@ export function signal<T>(initialValue: T): Signal<T> {
 						}
 					});
 
-					return derived as unknown as Signalize<any>;
+					return derived as unknown as Signal<any>;
 				};
 			}
 
@@ -287,8 +348,7 @@ export function signal<T>(initialValue: T): Signal<T> {
 	}
 
 	autoCleanup(proxy).onCleanup(() => {
-		if (subscribers.size === 0) destroy();
-		console.log(read());
+		destroy();
 		isDisposed = true;
 	});
 
