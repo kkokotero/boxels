@@ -170,7 +170,7 @@ export function $<T extends keyof HTMLElementTagNameMap>(
 	// --- Fragmento ---
 	if (
 		selector === Fragment ||
-		selector === document.createDocumentFragment() ||
+		selector instanceof DocumentFragment ||
 		(selector as string) === 'fragment'
 	) {
 		node = document.createElement('x-fragment');

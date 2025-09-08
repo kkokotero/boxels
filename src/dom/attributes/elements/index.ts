@@ -246,23 +246,7 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 			// función que maneja la inserción/reemplazo del valor
 			const handleValue = (val: Child) => {
 				// Normalizar nuevo valor
-				let normalized = normalizeChildren(val);
-
-				// Si el resultado tiene múltiples nodos, envolverlo en su propio scope
-				if (normalized.nodes.length > 1) {
-					normalized = (function wrapScoped(
-						inner: BoxlesChildren,
-					): BoxlesChildren {
-						const node = document.createElement('x-fragment');
-						inner.nodes.forEach((n) => appendChild(node, n));
-
-						return {
-							nodes: [node],
-							onMount: inner.onMount,
-							cleanup: inner.cleanup,
-						};															
-					})(normalized);
-				}
+				const normalized = normalizeChildren(val);
 
 				// Si es exactamente el mismo conjunto de nodos (misma referencia), no hacemos nada
 				// (evita duplicados si la señal re-emite el mismo BoxlesChildren)
