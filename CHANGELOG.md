@@ -1,9 +1,9 @@
-# [2.6.0](https://github.com/kkokotero/boxels/compare/e8f99b70488c7b5a9665602d328d05ca645e097f...v2.6.0) (2025-09-08)
+# [2.7.0](https://github.com/kkokotero/boxels/compare/a747ef4dfb1136ecb18a0746baf2e07930acef4c...v2.7.0) (2025-09-09)
 
 
 ### Bug Fixes
 
-* **types:** corregir tipo no exportado ([e8f99b7](https://github.com/kkokotero/boxels/commit/e8f99b70488c7b5a9665602d328d05ca645e097f))
+* **imports:** se corrige ruta hacia archivo inexistente ([a747ef4](https://github.com/kkokotero/boxels/commit/a747ef4dfb1136ecb18a0746baf2e07930acef4c))
 
 
 
