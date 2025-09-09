@@ -84,7 +84,11 @@ type primitive = string | number | boolean | bigint | undefined | null;
 export type Signal<T> = Signalize<T> &
 	Signalize<Widen<T>> &
 	ReactiveSignal<Widen<T>> &
-	Widen<T>;
+	Widen<T> & {
+		[Symbol.toPrimitive](): Widen<T>;
+		/** @deprecated solo para que TS lo acepte en if */
+		readonly __brand?: T;
+	};
 
 /**
  * @description
@@ -335,17 +339,6 @@ export function signal<T>(initialValue: T): Signal<T> {
 			return true;
 		},
 	});
-
-	/**
-	 * @description Registro en devtools (modo desarrollo).
-	 */
-	if (__development__) {
-		if (!(window as any).boxels) (window as any).boxels = {};
-		if (!(window as any).boxels.signals) (window as any).boxels.signals = [];
-		((window as any).boxels.signals as ReactiveSignal<unknown>[]).push(
-			proxy as ReactiveSignal<unknown>,
-		);
-	}
 
 	autoCleanup(proxy).onCleanup(() => {
 		destroy();

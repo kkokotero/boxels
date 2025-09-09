@@ -21,7 +21,7 @@ import {
 type ConditionValue = unknown | (() => unknown) | Signal<unknown>;
 
 // Una condición puede ser un solo valor o un arreglo de valores
-type ShowCondition = ConditionValue | ConditionValue[];
+type WhenCondition = ConditionValue | ConditionValue[];
 
 /**
  * Propiedades aceptadas por el componente `Show`
@@ -29,10 +29,9 @@ type ShowCondition = ConditionValue | ConditionValue[];
  * - `children`: contenido que se mostrará si la condición se cumple
  * - `fallback`: contenido alternativo si la condición NO se cumple
  */
-type ShowProps = {
-	when: ShowCondition;
+type WhenProps = {
+	condition: WhenCondition;
 	children: JSX.Element;
-	fallback?: JSX.Element;
 };
 
 /**
@@ -42,7 +41,7 @@ type ShowProps = {
  * - Si es una señal, se lee su valor actual.
  * - Se usa coerción booleana (`Boolean(...)`) para validar la "verdad" del resultado.
  */
-function isConditionTrue(condition: ShowCondition): boolean {
+function isConditionTrue(condition: WhenCondition): boolean {
 	const isTruthy = (value: ConditionValue): boolean => {
 		try {
 			// Si es una señal, se evalúa y se convierte a booleano
@@ -66,44 +65,21 @@ function isConditionTrue(condition: ShowCondition): boolean {
 		: isTruthy(condition); // Si no, evalúa una sola condición
 }
 
-/**
- * Componente reactivo `Show`
- * Este componente controla la renderización condicional de contenido basado en señales u otras condiciones reactivas.
- *
- * Ejemplo de uso:
- *
- * ```tsx
- * <Show when={estado}>
- *    <Mensaje />
- * </Show>
- * ```
- *
- * También puede usar fallback:
- *
- * ```tsx
- * <Show when={estado} fallback={<Cargando />}>
- *    <Contenido />
- * </Show>
- * ```
- */
-export function Show({
-	when,
-	children,
-	fallback = $(document.createDocumentFragment(), {}),
-}: ShowProps) {
+export function When({ condition, children }: WhenProps) {
+	const fallback = $(document.createDocumentFragment(), {});
 	// Contenedor reactivo para almacenar el contenido actual a mostrar (children o fallback)
 	const content = signal<JSX.Element>(
-		isConditionTrue(when) ? children : fallback,
+		isConditionTrue(condition) ? children : fallback,
 	);
 
 	// Extrae todas las señales contenidas en la condición para poder observarlas
 	const dependencies = extractSignalsFromValues(
-		Array.isArray(when) ? when : [when],
+		Array.isArray(condition) ? condition : [condition],
 	);
-	
+
 	// Se crea un efecto reactivo que actualiza el contenido cada vez que cambien las dependencias
 	effect(dependencies, () => {
-		content.set(isConditionTrue(when) ? children : fallback);
+		content.set(isConditionTrue(condition) ? children : fallback);
 	});
 
 	// Devuelve una señal reactiva que puede ser usada como JSX.Element en otros lugares

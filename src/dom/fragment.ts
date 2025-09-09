@@ -19,7 +19,6 @@ class BoxelsFragmentElement extends HTMLElement {
 		this.remove();
 	}
 
-	// Si se desconecta, no queda marcador (desaparece totalmente)
 	disconnectedCallback() {
 		// Mantiene referencias, pero no toca el DOM
 	}
@@ -29,4 +28,6 @@ class BoxelsFragmentElement extends HTMLElement {
 	}
 }
 
-customElements.define("x-fragment", BoxelsFragmentElement);
+if (!customElements.get('x-fragment')) {
+	customElements.define('x-fragment', BoxelsFragmentElement);
+}
