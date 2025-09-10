@@ -1,4 +1,4 @@
-import type { ReactiveSignal } from '@core/reactive/types';
+import type { MaybeSignal, ReactiveSignal } from '@core/reactive/types';
 
 /**
  * Representa un componente que puede ser:
@@ -43,6 +43,8 @@ export interface NodeHandler {
 	/** Título de la página (string, señal reactiva o función). */
 	title?: string | ReactiveSignal<string> | (() => string);
 
+	meta?: Record<string, string>;
+
 	/** Ruta a la que redirigir en caso de acceso. */
 	redirect?: string;
 }
@@ -61,6 +63,8 @@ export interface FindResult {
 	message?: string;
 
 	redirect?: string;
+
+	meta?: Record<string, string>;
 
 	component?: () => JSX.Element | (() => Promise<JSX.Element>);
 }
@@ -260,13 +264,12 @@ export class TriNode {
 			return { params: {}, message: carryMessage };
 		}
 
-		const { node, params, guardsChain } = await this.matchWithGuards(path);
+		const { node, params, guardsChain, metaChain } =
+			await this.matchWithGuardsAndMeta(path);
 		if (!node) return { params, message: carryMessage };
 
-		// Obtén el handler real
 		const handler = await this.getHandler(node);
 
-		// Si no hay handler pero hay redirect directo en el nodo
 		const redirect =
 			handler?.redirect ??
 			(typeof node.handler === 'object'
@@ -278,7 +281,7 @@ export class TriNode {
 
 		if (!handler) return { params, message: carryMessage };
 
-		// Ejecutar guards acumulados (padres + propios)
+		// Ejecutar guards acumulados
 		for (const guard of guardsChain) {
 			if (abortSignal?.aborted) {
 				return { params, message: carryMessage };
@@ -287,74 +290,90 @@ export class TriNode {
 			const result = await guard();
 
 			if (result === false) {
-				return { params, message: carryMessage };
+				return {
+					params,
+					message: carryMessage ?? 'Acceso denegado',
+					meta: metaChain,
+				};
 			}
 
 			if (typeof result === 'object' && result) {
 				const nextMessage = result.message ?? carryMessage;
 
 				if (result.component) {
-					// ✅ Ahora el guard puede retornar un componente
 					return {
 						component: result.component,
 						params,
 						message: nextMessage,
+						meta: metaChain,
 					};
 				}
 
 				if (result.redirect) {
-					return { redirect: result.redirect, params, message: nextMessage };
+					return {
+						redirect: result.redirect,
+						params,
+						message: nextMessage,
+						meta: metaChain,
+					};
 				}
 
 				if (result.message) {
-					return { params, message: nextMessage };
+					return { params, message: nextMessage, meta: metaChain };
 				}
 
-				return { params, message: nextMessage };
+				return { params, message: nextMessage, meta: metaChain };
 			}
 		}
 
-		return { handler, params, message: carryMessage };
+		// ✅ Resultado final incluye meta combinado
+		return { handler, params, message: carryMessage, meta: metaChain };
 	}
 
 	/**
 	 * Busca un nodo que coincida con la ruta dada.
 	 * - Además acumula los guards desde la raíz hasta el nodo encontrado.
 	 */
-	private async matchWithGuards(path: string): Promise<{
+	private async matchWithGuardsAndMeta(path: string): Promise<{
 		node?: Node;
 		params: Record<string, string>;
 		guardsChain: Guard[];
+		metaChain: Record<string, string>;
 	}> {
 		const parts = this.normalize(path);
 		const params: Record<string, string> = {};
 		let node: Node | undefined = this.root;
 		const guardsChain: Guard[] = [];
+		let metaChain: Record<string, string> = {};
 
-		// Recorre acumulando guards de cada nodo visitado
-		const collectGuards = async (n: Node) => {
+		// Recorre acumulando guards y metas
+		const collect = async (n: Node) => {
 			const handler = await this.getHandler(n);
 			if (handler?.guards?.length) {
 				guardsChain.push(...handler.guards);
 			}
+			if (handler?.meta) {
+				// 👉 merge incremental (padre -> hijo sobrescribe)
+				metaChain = { ...metaChain, ...handler.meta };
+			}
 		};
 
-		collectGuards(this.root);
+		await collect(this.root);
 
 		for (let i = 0; i < parts.length; i++) {
 			if (!node) break;
 			const seg = parts[i];
 
-			if (node.staticChildren && node.staticChildren.has(seg)) {
+			if (node.staticChildren?.has(seg)) {
 				node = node.staticChildren.get(seg)!;
-				await collectGuards(node);
+				await collect(node);
 				continue;
 			}
 
 			if (node.paramChild) {
 				params[node.paramChild.key] = seg;
 				node = node.paramChild.node;
-				await collectGuards(node);
+				await collect(node);
 				continue;
 			}
 
@@ -362,13 +381,13 @@ export class TriNode {
 				const rest = parts.slice(i).join('/');
 				if (rest) params.rest = rest;
 				node = node.wildcardChild;
-				await collectGuards(node);
+				await collect(node);
 				break;
 			}
 
-			return { node: undefined, params, guardsChain };
+			return { node: undefined, params, guardsChain, metaChain };
 		}
 
-		return { node, params, guardsChain };
+		return { node, params, guardsChain, metaChain };
 	}
 }

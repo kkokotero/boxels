@@ -1,4 +1,8 @@
-import { signal } from '@core/reactive';
+import {
+	signal,
+	type MaybeSignal,
+	type ReactiveUnsubscribe,
+} from '@core/reactive';
 import {
 	router,
 	setGlobalRouter,
@@ -9,6 +13,7 @@ import {
 } from '@core/routing';
 import { $ } from '@dom/index';
 import { Fragment } from './fragment';
+import { queue } from '@core/scheduler';
 
 type RouterOutletProps = {
 	config: RouterConfig;
@@ -27,6 +32,8 @@ export const RouterOutlet = async ({
 	attachBrowserEvents();
 
 	const view = signal<JSX.Element>($('div', {}));
+
+	let meta: Record<string, MaybeSignal<string>> = {};
 
 	await router.ready;
 	const update = async (node: FindResult) => {
@@ -69,6 +76,21 @@ export const RouterOutlet = async ({
 			);
 			return;
 		}
+
+		queue(async () => {
+			for (const [attr, value] of Object.entries(meta)) {
+				const metaTag = document.querySelector(`meta[${attr}]`);
+				if (metaTag) metaTag.remove();
+			}
+
+			meta = node.meta || {};
+
+			for (const [attr, value] of Object.entries(meta)) {
+				const metaTag = document.createElement('meta');
+				metaTag.setAttribute(attr, value);
+				document.head.appendChild(metaTag);
+			}
+		});
 
 		const component =
 			typeof node.handler?.component === 'function'
