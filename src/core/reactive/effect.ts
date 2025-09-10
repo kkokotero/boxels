@@ -9,6 +9,7 @@ import {
 
 // Importa el programador (scheduler), utilizado para ejecutar funciones en la cola reactiva.
 import { queue } from '../scheduler';
+import { getTrackedSignals, clearTrackedSignals } from './tracked-signal';
 
 /**
  * Ejecuta un efecto reactivo cuando una o más señales cambian.
@@ -46,14 +47,36 @@ import { queue } from '../scheduler';
  *   return () => ctrl.abort(); // Llamado antes de la próxima ejecución o limpieza final
  * });
  * ```
+ * @ejemplo
+ * Efecto asincrónico con limpieza:
+ * ```ts
+ * effect(async () => {
+ *   const ctrl = new AbortController();
+ *   await fetch("/api", { signal: ctrl.signal });
+ *   return () => ctrl.abort(); // Llamado antes de la próxima ejecución o limpieza final
+ * });
+ * ```
  */
 export function effect(
-	_dependencies: MaybeSignal<unknown>[] | MaybeSignal<unknown>,
-	run: () => Promise<void> | void,
+	_dependenciesOrCallback:
+		| (MaybeSignal<unknown>[] | MaybeSignal<unknown>)
+		| (() => Promise<void> | void),
+	maybeCallback?: () => Promise<void> | void,
 ): ReactiveUnsubscribe {
-	const dependencies = Array.isArray(_dependencies)
-		? _dependencies
-		: [_dependencies];
+	let dependencies: MaybeSignal<unknown>[] = [];
+	let run: () => void | Promise<void>;
+	if (typeof _dependenciesOrCallback === 'function') {
+		run = _dependenciesOrCallback as () => Promise<void> | void;
+		dependencies = getTrackedSignals();
+		clearTrackedSignals();
+	} else {
+		dependencies = Array.isArray(_dependenciesOrCallback)
+			? _dependenciesOrCallback
+			: [_dependenciesOrCallback];
+		if (!maybeCallback)
+			throw new Error('Callback es requerido si pasas dependencias');
+		run = maybeCallback;
+	}
 
 	let cleanups: ReactiveUnsubscribe[] = [];
 	let lastCleanup: (() => void) | void;

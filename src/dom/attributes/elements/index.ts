@@ -98,95 +98,11 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 
 	const queue: Child[] = Array.isArray(input) ? [...input] : [input];
 
-	// Helper: envuelve un BoxlesChildren con sus propios anchors (start/end)
-	function wrapScoped(
-		inner: BoxlesChildren,
-	): BoxlesChildren {
-		const node = document.createElement('x-fragment');
-		inner.nodes.forEach((n) => appendChild(node, n));
-
-		const wrappedNodes: Node[] = [node];
-
-		const onMount = () => {
-			inner.onMount();
-		};
-
-		const cleanup = () => {
-			// eliminar lo que quede entre start y end (si están montados)
-			try {
-				let next = node.firstChild;
-				while (next && next !== null) {
-					const toRemove = next;
-					next = next.nextSibling;
-					if (isBoxelsElement(toRemove)) {
-						try {
-							(toRemove as BoxelsElement).destroy?.();
-						} catch (e) {
-							/* swallow */
-						}
-					} else {
-						try {
-							toRemove.remove();
-						} catch (e) {
-							/* swallow */
-						}
-					}
-				}
-			} catch (e) {
-				/* swallow */
-			}
-
-			// delegar cleanup original
-			try {
-				inner.cleanup();
-			} catch (e) {
-				/* swallow */
-			}
-
-			// remover anchors si quedaron sueltos
-			try {
-				node.remove();
-			} catch (e) {
-				/* swallow */
-			}
-		};
-
-		return {
-			nodes: wrappedNodes,
-			onMount,
-			cleanup,
-		};
-	}
-
 	while (queue.length) {
 		const child = queue.shift();
 
 		if (isBoxelsElement(child)) {
 			const elementChild: BoxelsElement = child;
-
-			// Si es un fragmento, aplanamos su contenido
-			if (child.isFragment) {
-				// Convertimos los nodos del fragmento a un array y los agregamos a la cola
-				const fragmentNodes = Array.from(elementChild.childNodes);
-				queue.unshift(...fragmentNodes);
-
-				onMounts.push(() => {
-					const result = child.mountEffect();
-
-					// Aseguramos que se limpie el fragmento
-					cleanUps.push(() => {
-						try {
-							elementChild.destroy();
-							result();
-						} catch (e) {
-							/* swallow */
-						}
-					});
-				});
-
-				continue;
-			}
-
 			// Si no es un fragmento, continúa con el comportamiento normal
 			nodes.push(elementChild);
 			elementChild.mountEffect();
@@ -215,10 +131,9 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 					last?.nodeType === Node.COMMENT_NODE;
 
 				if (!looksWrapped) {
-					const wrapped = wrapScoped(child);
-					nodes.push(...wrapped.nodes);
-					onMounts.push(wrapped.onMount);
-					cleanUps.push(wrapped.cleanup);
+					nodes.push(...child.nodes);
+					onMounts.push(child.onMount);
+					cleanUps.push(child.cleanup);
 					continue;
 				}
 			}
@@ -445,10 +360,9 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 			const children = normalizeChildren(
 				Array.from(child.cloneNode(true).childNodes) as unknown as Child,
 			);
-			const wrapped = wrapScoped(children);
-			onMounts.push(wrapped.onMount);
-			cleanUps.push(wrapped.cleanup);
-			nodes.push(...wrapped.nodes);
+			onMounts.push(children.onMount);
+			cleanUps.push(children.cleanup);
+			nodes.push(...children.nodes);
 			continue;
 		}
 

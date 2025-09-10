@@ -1,6 +1,7 @@
-import { signal, type Signal, type Signalize } from './signal';
-import type { ReactiveSignal, Widen } from './types';
+import { signal, type Signal } from './signal';
+import type { Widen } from './types';
 import { autoCleanup } from '@core/cleanup';
+import { getTrackedSignals, clearTrackedSignals } from './tracked-signal';
 
 /**
  * Crea una **señal computada** (`computed signal`) basada en una o más dependencias reactivas.
@@ -27,46 +28,58 @@ import { autoCleanup } from '@core/cleanup';
  * ```
  */
 export function computed<T>(
-	dependencies: Signal<unknown>[],
-	compute: () => T | Widen<T>,
+	dependenciesOrCompute: Signal<unknown>[] | (() => T | Widen<T>),
+	maybeCompute?: () => T | Widen<T>,
 ): Signal<T> {
-	// Crea una señal base que almacena el resultado inicial de la función computada.
-	// Esta señal se comporta como cualquier otra, pero su valor será controlado internamente.
+	let dependencies: Signal<unknown>[] = [];
+	let compute: () => T | Widen<T>;
+
+	// Determinar si se pasaron dependencias explícitas
+	if (typeof dependenciesOrCompute === 'function') {
+		compute = dependenciesOrCompute;
+		dependencies = getTrackedSignals();
+		clearTrackedSignals();
+	} else {
+		if (!maybeCompute) {
+			throw new Error(
+				'compute callback es requerido si se pasan dependencias explícitas',
+			);
+		}
+		dependencies = dependenciesOrCompute;
+		compute = maybeCompute;
+	}
+
+	// Señal base que almacenará el resultado computado
 	const result = signal(compute());
 
-	/**
-	 * Función interna `update`.
-	 * Esta función se llama automáticamente cada vez que alguna de las dependencias cambia.
-	 * Se encarga de recalcular el valor computado y actualizar la señal `result`.
-	 */
+	// Flag para evitar destrucción múltiple
+	let destroyed = false;
+
+	// Función de actualización
 	const update = () => {
-		const value = compute(); // Vuelve a calcular el valor
-		result.set(value as Widen<T>); // Actualiza el valor de la señal resultante
+		if (destroyed) return;
+		const value = compute();
+		result.set(value as Widen<T>);
 	};
 
-	// Se suscribe a todas las señales dependientes. Cada vez que alguna cambie, se ejecutará `update`.
-	// La función `subscribe` devuelve una función de limpieza (`unsubscribe`) para cancelar la suscripción.
+	// Suscripciones a las dependencias
 	const cleanups = dependencies.map((dep) => dep.subscribe(update));
 
-	/**
-	 * Método de destrucción mejorado (`destroy`).
-	 * Este método limpia todas las suscripciones a las dependencias y también destruye la señal interna.
-	 * Se asegura de que `destroy` solo se ejecute una vez, gracias al flag `destroyed`.
-	 */
+	// Método de destrucción
 	const destroy = () => {
-		if (result.destroyed) return; // Evita destruir más de una vez
-		result.destroyed = true; // Marca la señal como destruida
+		if (destroyed) return;
+		destroyed = true;
 
-		// Llama a cada función de limpieza para cancelar las suscripciones
+		// Limpiar todas las suscripciones
 		cleanups.forEach((unsub) => unsub());
 
-		// Destruye la señal interna (libera memoria, listeners, etc.)
+		// Destruir la señal interna
 		result.destroy();
 	};
 
+	// Registrar limpieza automática
 	autoCleanup(result).onCleanup(destroy);
 
-	// Devuelve la señal computada (`result`), pero con el método `destroy` incorporado.
-	// Esto permite que los consumidores puedan limpiar manualmente si lo necesitan.
+	// Devolver señal computada con método destroy
 	return Object.assign(result, { destroy }) as Signal<T>;
 }

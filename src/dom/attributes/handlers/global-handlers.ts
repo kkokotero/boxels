@@ -1,4 +1,9 @@
-import type { ComboKey, MaybeSignal, ReactiveSignal } from '@core/index';
+import type {
+	ComboKey,
+	MaybeSignal,
+	ReactiveSignal,
+	Signal,
+} from '@core/index';
 import type { BoxelsElementNode } from '../elements';
 
 /**
@@ -66,35 +71,31 @@ type WritableStyleKeys = {
 }[keyof CSSStyleDeclaration];
 
 /**
- * Tipos válidos para los estilos:
- * - Valor estático: string o número
- * - Valor reactivo: una señal
- * - Mezcla: un arreglo de valores estáticos y/o reactivos
+ * Tipos posibles para los valores de estilo:
+ * - `StaticStyle`: un valor estático de estilo (string o number).
+ * - `ReactiveStyle`: una señal reactiva que representa un valor de estilo.
+ * - `MixedStyle`: un array que puede mezclar valores estáticos y reactivos.
+ * - `StyleValue`: un alias que puede ser cualquiera de los anteriores.
  */
-type StaticStyle = string | number;
-type ReactiveStyle = ReactiveSignal<StaticStyle>;
+type StaticStyle = string | number | null | undefined;
+type ReactiveStyle = Signal<StaticStyle>;
 type MixedStyle = Array<StaticStyle | ReactiveStyle>;
 type StyleValue = StaticStyle | ReactiveStyle | MixedStyle;
 
 /**
- * Mapa de estilos válidos. Cada clave corresponde a una propiedad de estilo
- * del DOM (filtrada por `WritableStyleKeys`) y acepta valores reactivos o estáticos.
+ * Mapa de estilos, donde cada clave corresponde a una propiedad de estilo CSS
+ * y su valor puede ser estático, reactivo o mixto.
  */
 export type StyleMap = Partial<Record<WritableStyleKeys, StyleValue>>;
 
 /**
- * Tipos admitidos para el atributo `style`:
- * - mapa de estilos
- * - string de estilo en línea
- * - señal reactiva con string
- * - `null` o `undefined` para no aplicar estilos
+ * Atributo de estilo que puede ser:
+ * - Un mapa de estilo (`StyleMap`)
+ * - Una cadena CSS cruda (ej: "color: red;")
+ * - Una señal reactiva que contiene una cadena CSS
+ * - `null` o `undefined`
  */
-export type StyleAttr =
-	| StyleMap
-	| string
-	| ReactiveSignal<string>
-	| null
-	| undefined;
+export type StyleAttr = StyleMap | string | Signal<string> | null | undefined;
 
 /**
  * Atributos estándar que pueden tener los elementos del sistema Boxels.

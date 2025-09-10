@@ -11,6 +11,7 @@ import {
 } from './types';
 import { __development__ } from '../../environment';
 import { autoCleanup } from '@core/cleanup';
+import { addTrackedSignal } from './tracked-signal';
 
 /**
  * ======================================================
@@ -344,6 +345,8 @@ export function signal<T>(initialValue: T): Signal<T> {
 		destroy();
 		isDisposed = true;
 	});
+
+	addTrackedSignal(proxy);
 
 	// Retorno final tipado como `Signalize<T>`
 	return proxy as unknown as Signal<T>;
