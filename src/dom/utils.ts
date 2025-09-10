@@ -8,7 +8,7 @@ import {
 	type BoxelsElementNode, // Nodo específico que extiende de un elemento HTML con propiedades Boxels.
 } from './attributes/elements';
 
-import { $, Fragment } from '.';
+import { $, Fragment, type BoxelsElementSelector } from '.';
 // `$`: función auxiliar para crear elementos reactivos.
 // `Fragment`: tipo especial que representa un contenedor de nodos sin un elemento padre real.
 
@@ -17,6 +17,81 @@ import {
 	removeAttributes, // Elimina atributos previamente aplicados.
 } from './attributes';
 import { debug } from '@testing/debugger';
+
+export function parseHTML(html: string): Node | HTMLElement {
+	// Caso documento completo
+	if (html.includes('<html')) {
+		const doc = new DOMParser().parseFromString(html, 'text/html');
+		return renderFromNodes(doc.body.childNodes);
+	}
+
+	// Caso fragmento o elemento
+	const tpl = document.createElement('template');
+	tpl.innerHTML = html.trim();
+	return renderFromNodes(tpl.content.childNodes);
+}
+
+function renderFromNodes(nodes: NodeList | ChildNode[]): Node | HTMLElement {
+	const arr = Array.from(nodes);
+
+	// Si hay un solo nodo, lo renderizamos directo con $
+	if (arr.length === 1) {
+		const node = arr[0];
+		if (node.nodeType === Node.TEXT_NODE) {
+			return document.createTextNode(node.textContent || '');
+		}
+		return $(mapTag(node) as BoxelsElementSelector<keyof HTMLElementTagNameMap>, mapAttrs(node), ...mapChildren(node));
+	}
+
+	// Si hay múltiples nodos → devolvemos un Fragment
+	return $(Fragment, {}, arr.map(n => {
+		if (n.nodeType === Node.TEXT_NODE) {
+			return n.textContent || '';
+		}
+		return $(mapTag(n) as BoxelsElementSelector<keyof HTMLElementTagNameMap>, mapAttrs(n), ...mapChildren(n));
+	}));
+}
+
+function mapTag(node: Node): string {
+	return (node as HTMLElement).tagName?.toLowerCase() || 'div';
+}
+
+function mapAttrs(node: Node): Record<string, any> {
+	if (!(node instanceof HTMLElement)) return {};
+	const attrs: Record<string, any> = {};
+	for (const { name, value } of Array.from(node.attributes)) {
+		attrs[name] = value;
+	}
+	return attrs;
+}
+
+function mapChildren(node: Node): any[] {
+	return Array.from(node.childNodes).map(child => {
+		if (child.nodeType === Node.TEXT_NODE) {
+			return child.textContent || '';
+		}
+		return $(mapTag(child) as BoxelsElementSelector<keyof HTMLElementTagNameMap>, mapAttrs(child), ...mapChildren(child));
+	});
+}
+
+
+export function injectStyle(css: string, id?: string): HTMLStyleElement {
+	let style: HTMLStyleElement | null = null;
+
+	// Si se pasa un id, evita duplicados
+	if (id) {
+		style = document.getElementById(id) as HTMLStyleElement | null;
+	}
+
+	if (!style) {
+		style = document.createElement('style');
+		if (id) style.id = id;
+		document.head.appendChild(style);
+	}
+
+	style.textContent = css;
+	return style;
+}
 
 /**
  * Monta (agrega) uno o varios elementos JSX a un contenedor en el DOM.
