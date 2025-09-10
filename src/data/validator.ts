@@ -165,8 +165,9 @@ export type CompiledValidator<T = any> = ((value: any) => ValidationResult) & {
 		value: any,
 		options?: ValidatorOptions,
 	) => ValidationDetailed;
-};
 
+	type: () => string;
+};
 
 // Utilidades para inferir tipos a partir de validadores
 export type InferValidator<V> = V extends CompiledValidator<infer T> ? T : any;
@@ -203,6 +204,10 @@ function compile<T>(
 	};
 
 	const addRule = (r: Rule) => compile<T>([...rules, r], { id, optional });
+
+	validator.type = () => {
+		return id;
+	};
 
 	validator.alpha = (m) =>
 		addRule(
@@ -696,12 +701,12 @@ const PHONE_RE = /^[\d+\-().\s]{7,20}$/;
 const IPV4_RE =
 	/^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
 
-const IPV6_RE =
-	/^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|::1|::)$/;
+const IPV6_RE = /^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|::1|::)$/;
 
 const HEX_RE = /^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$/;
 
-const BASE64_RE = /^(?:[A-Za-z0-9+\/]{4})*(?:[A-Za-z0-9+\/]{2}==|[A-Za-z0-9+\/]{3}=)?$/;
+const BASE64_RE =
+	/^(?:[A-Za-z0-9+\/]{4})*(?:[A-Za-z0-9+\/]{2}==|[A-Za-z0-9+\/]{3}=)?$/;
 
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -714,120 +719,140 @@ const PASSWORD_STRONG_RE =
 
 export const Validator = {
 	string: () =>
-		compile<string>([
-			mkRule(
-				'type:string',
-				(v) =>
-					typeof v !== 'string'
-						? [
-								{
-									path: '',
-									message: formatMessage(
-										ValidatorConfig.messages['type:string'],
-										{ recived: typeof v },
-									),
-								},
-							]
-						: [],
-				'type:string',
-			),
-		]),
+		compile<string>(
+			[
+				mkRule(
+					'type:string',
+					(v) =>
+						typeof v !== 'string'
+							? [
+									{
+										path: '',
+										message: formatMessage(
+											ValidatorConfig.messages['type:string'],
+											{ recived: typeof v },
+										),
+									},
+								]
+							: [],
+					'type:string',
+				),
+			],
+			{ id: 'type:string' },
+		),
 	number: () =>
-		compile<number>([
-			mkRule(
-				'type:number',
-				(v) =>
-					typeof v !== 'number' || Number.isNaN(v)
-						? [
-								{
-									path: '',
-									message: formatMessage(
-										ValidatorConfig.messages['type:number'],
-										{ recived: typeof v },
-									),
-								},
-							]
-						: [],
-				'type:number',
-			),
-		]),
+		compile<number>(
+			[
+				mkRule(
+					'type:number',
+					(v) =>
+						typeof v !== 'number' || !Number.isFinite(v)
+							? [
+									{
+										path: '',
+										message: formatMessage(
+											ValidatorConfig.messages['type:number'],
+											{
+												recived: Number.isNaN(v) ? 'un valor vacio' : typeof v,
+											},
+										),
+									},
+								]
+							: [],
+					'type:number',
+				),
+			],
+			{ id: 'type:number' },
+		),
 	boolean: () =>
-		compile<boolean>([
-			mkRule(
-				'type:boolean',
-				(v) =>
-					typeof v !== 'boolean'
-						? [
-								{
-									path: '',
-									message: formatMessage(
-										ValidatorConfig.messages['type:boolean'],
-										{ recived: typeof v },
-									),
-								},
-							]
-						: [],
-				'type:boolean',
-			),
-		]),
+		compile<boolean>(
+			[
+				mkRule(
+					'type:boolean',
+					(v) =>
+						typeof v !== 'boolean'
+							? [
+									{
+										path: '',
+										message: formatMessage(
+											ValidatorConfig.messages['type:boolean'],
+											{ recived: typeof v },
+										),
+									},
+								]
+							: [],
+					'type:boolean',
+				),
+			],
+			{ id: 'type:boolean' },
+		),
 	array: <T>() =>
-		compile<T[]>([
-			mkRule(
-				'type:array',
-				(v) =>
-					!Array.isArray(v)
-						? [
-								{
-									path: '',
-									message: formatMessage(
-										ValidatorConfig.messages['type:array'],
-										{ recived: typeof v },
-									),
-								},
-							]
-						: [],
-				'type:array',
-			),
-		]),
+		compile<T[]>(
+			[
+				mkRule(
+					'type:array',
+					(v) =>
+						!Array.isArray(v)
+							? [
+									{
+										path: '',
+										message: formatMessage(
+											ValidatorConfig.messages['type:array'],
+											{ recived: typeof v },
+										),
+									},
+								]
+							: [],
+					'type:array',
+				),
+			],
+			{ id: 'type:array' },
+		),
 	object: <O extends Record<string, any>>() =>
-		compile<O>([
-			mkRule(
-				'type:object',
-				(v) =>
-					typeof v !== 'object' || v == null || Array.isArray(v)
-						? [
-								{
-									path: '',
-									message: formatMessage(
-										ValidatorConfig.messages['type:object'],
-										{ recived: v === null ? 'null' : typeof v },
-									),
-								},
-							]
-						: [],
-				'type:object',
-			),
-		]),
+		compile<O>(
+			[
+				mkRule(
+					'type:object',
+					(v) =>
+						typeof v !== 'object' || v == null || Array.isArray(v)
+							? [
+									{
+										path: '',
+										message: formatMessage(
+											ValidatorConfig.messages['type:object'],
+											{ recived: v === null ? 'null' : typeof v },
+										),
+									},
+								]
+							: [],
+					'type:object',
+				),
+			],
+			{ id: 'type:object' },
+		),
 	any: () => compile<any>([]),
 	bigint: () =>
-		compile<bigint>([
-			mkRule(
-				'type:bigint',
-				(v) =>
-					typeof v !== 'bigint'
-						? [
-								{
-									path: '',
-									message: formatMessage(
-										'Expected bigint but received $recived',
-										{ recived: typeof v },
-									),
-								},
-							]
-						: [],
-				'type:bigint',
-			),
-		]),
+		compile<bigint>(
+			[
+				mkRule(
+					'type:bigint',
+					(v) =>
+						typeof v !== 'bigint'
+							? [
+									{
+										path: '',
+										message: formatMessage(
+											'Expected bigint but received $recived',
+											{ recived: typeof v },
+										),
+									},
+								]
+							: [],
+					'type:bigint',
+				),
+			],
+			{ id: 'type:bigint' },
+		),
 
 	// Validadores específicos
 	email: () =>
@@ -890,27 +915,30 @@ export const Validator = {
 
 	// Otros
 	oneOf: <T>(vals: readonly T[]) =>
-		compile<T>([
-			mkRule(
-				'oneOf',
-				(v) =>
-					vals.includes(v)
-						? []
-						: [
-								{
-									path: '',
-									message: formatMessage(ValidatorConfig.messages.oneOf, {
-										expected: vals.join(', '),
-									}),
-								},
-							],
-				'oneOf',
-			),
-		]),
+		compile<T>(
+			[
+				mkRule(
+					'oneOf',
+					(v) =>
+						vals.includes(v)
+							? []
+							: [
+									{
+										path: '',
+										message: formatMessage(ValidatorConfig.messages.oneOf, {
+											expected: vals.join(', '),
+										}),
+									},
+								],
+					'oneOf',
+				),
+			],
+			{ id: 'type:oneOf' },
+		),
 	shape: <S extends Record<string, CompiledValidator<any>>>(shapeObj: S) =>
 		compile<InferShape<S>>(
 			[
-				mkRule('shape', (v, o) => {
+				mkRule('type:shape', (v, o) => {
 					if (typeof v !== 'object' || v == null || Array.isArray(v))
 						return [{ path: '', message: ValidatorConfig.messages.shape }];
 					const errs: ValidationDetailed = [];
@@ -928,24 +956,27 @@ export const Validator = {
 					return errs;
 				}),
 			],
-			{ id: 'shape' },
+			{ id: 'type:shape' },
 		),
 	compose: <T>(...vs: CompiledValidator<T>[]) =>
-		compile<T>([
-			mkRule(
-				'compose',
-				(v, o) => {
-					const errs: ValidationDetailed = [];
-					for (const c of vs) {
-						const ne = c.validateDetailed(v, o);
-						ne.forEach((e) => errs.push(e));
-						if (o.fastFail && errs.length) break;
-					}
-					return errs;
-				},
-				'compose',
-			),
-		]),
+		compile<T>(
+			[
+				mkRule(
+					'type:compose',
+					(v, o) => {
+						const errs: ValidationDetailed = [];
+						for (const c of vs) {
+							const ne = c.validateDetailed(v, o);
+							ne.forEach((e) => errs.push(e));
+							if (o.fastFail && errs.length) break;
+						}
+						return errs;
+					},
+					'type:compose',
+				),
+			],
+			{ id: 'type:compose' },
+		),
 	configure: (cfg: {
 		locale?: string;
 		messages?: Record<string, string>;

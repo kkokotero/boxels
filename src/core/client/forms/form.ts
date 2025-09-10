@@ -23,6 +23,26 @@ export type FieldsMap<S extends Record<string, CompiledValidator<any>>> = {
 	[K in keyof S]: Field<InferValidator<S[K]>>;
 };
 
+function defaultValue<T>(
+	value: T | undefined,
+	validator: CompiledValidator<any>,
+): T {
+	if (value !== undefined) return value;
+
+	switch (validator.type()) {
+		case 'type:string':
+			return '' as any;
+		case 'type:number':
+			return Number.NaN as any;
+		case 'type:boolean':
+			return false as any;
+		case 'type:integer':
+			return 0 as any;
+		default:
+			return undefined as any;
+	}
+}
+
 /**
  * Clase `Form`: representa un formulario con múltiples campos (`Field`)
  * gestionados de forma reactiva y validación centralizada.
@@ -50,15 +70,14 @@ export class Form<S extends Record<string, CompiledValidator<any>>> {
 		for (const k in shape) {
 			const key = k as keyof S;
 			const validator = shape[key];
-			const initial = (initialValues as any)?.[key];
+			const initial = defaultValue((initialValues as any)?.[key], validator);
 
 			// Se crea una instancia de Field con nombre, valor inicial, validador y opciones (si se requieren).
 			this.fields[key] = new Field<InferValidator<S[typeof key]>>(
 				String(key),
-				typeof initial === 'undefined' ? '' : initial,
+				initial,
 				validator,
-				// Aquí podrían pasarse opciones como `persistentKey`, `debounce`, etc., si están soportadas por Field.
-			) as FieldsMap<S>[typeof key];
+			);
 		}
 
 		// Crear un efecto reactivo para mantener sincronizados los errores globales.
@@ -101,7 +120,7 @@ export class Form<S extends Record<string, CompiledValidator<any>>> {
 	/**
 	 * Ejecuta la validación sincrónica sobre todos los campos.
 	 * Retorna la lista total de errores.
-	 * 
+	 *
 	 * @param options - Opciones de validación como `fastFail`, etc.
 	 */
 	public validate(options?: ValidatorOptions): ValidationDetailed {
@@ -133,7 +152,7 @@ export class Form<S extends Record<string, CompiledValidator<any>>> {
 
 	/**
 	 * Asigna valores a todos los campos.
-	 * 
+	 *
 	 * @param values - Objeto parcial con los valores a setear.
 	 * @param opts - Opciones: si validar después de setear (`validate`) y si marcar como tocado (`touch`).
 	 */
@@ -157,7 +176,7 @@ export class Form<S extends Record<string, CompiledValidator<any>>> {
 
 	/**
 	 * Parchea el formulario actualizando solo las claves presentes en el objeto `patch`.
-	 * 
+	 *
 	 * @param patch - Objeto con claves y valores a actualizar parcialmente.
 	 * @param opts - Opciones de validación y marcado como tocado.
 	 */
@@ -191,7 +210,7 @@ export class Form<S extends Record<string, CompiledValidator<any>>> {
 
 	/**
 	 * Resetea todos los campos al valor inicial o a nuevos valores si se especifican.
-	 * 
+	 *
 	 * @param newInitialValues - Nuevos valores iniciales por campo (opcional).
 	 */
 	public reset(
@@ -224,7 +243,7 @@ export class Form<S extends Record<string, CompiledValidator<any>>> {
 
 	/**
 	 * Devuelve un campo del formulario por su clave.
-	 * 
+	 *
 	 * @param key - Clave del campo a obtener.
 	 */
 	public get<K extends keyof S>(key: K): Field<InferValidator<S[K]>> {
@@ -254,7 +273,7 @@ export class Form<S extends Record<string, CompiledValidator<any>>> {
 
 /**
  * Helper para crear una instancia de `Form`.
- * 
+ *
  * @param shape - Objeto de validadores por campo.
  * @param initialValues - Valores iniciales opcionales para los campos.
  * @returns Instancia de `Form` tipada.
