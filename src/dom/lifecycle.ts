@@ -1,3 +1,4 @@
+import { queue } from '@core/scheduler';
 import { handleAttributes } from './attributes';
 import type { BoxelsElementNode } from './attributes/elements';
 import { appendChild } from './utils';
@@ -61,7 +62,9 @@ export function createLifecycle<T extends keyof HTMLElementTagNameMap>(
 		options.onDestroyResult?.(result, node);
 
 		// Ejecutar efectos locales de destroy
-		localDestroyEffects.forEach((cb) => cb(node));
+		queue(() => {
+			localDestroyEffects.forEach((cb) => cb(node));
+		});
 	};
 
 	const mount = (parent: HTMLElement | DocumentFragment) => {
@@ -83,7 +86,9 @@ export function createLifecycle<T extends keyof HTMLElementTagNameMap>(
 		options.onMountResult?.(result, node);
 
 		// Ejecutar efectos locales de mount
-		localMountEffects.forEach((cb) => cb(node));
+		queue(() => {
+			localMountEffects.forEach((cb) => cb(node));
+		});
 	};
 
 	const mountEffect = () => {
@@ -98,7 +103,9 @@ export function createLifecycle<T extends keyof HTMLElementTagNameMap>(
 		options.onMountResult?.(result, node);
 
 		// Ejecutar efectos locales de mount
-		localMountEffects.forEach((cb) => cb(node));
+		queue(() => {
+			localMountEffects.forEach((cb) => cb(node));
+		});
 
 		return () => destroy();
 	};

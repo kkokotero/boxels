@@ -56,6 +56,9 @@ export type BoxelsElementNode<T extends keyof HTMLElementTagNameMap> =
 		__destroyed: boolean;
 	};
 
+export type BoxelsNode<T extends keyof HTMLElementTagNameMap> =
+	BoxelsElementNode<T>;
+
 // Alias de atributos específicos para tipos HTML dentro de JSX
 export type JSXBoxelsELementAttrs<T extends keyof HTMLElementTagNameMap> =
 	BoxelsElementAttributes<T>;

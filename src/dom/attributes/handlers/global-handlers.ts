@@ -27,7 +27,6 @@ type DOMEventHandlers = {
  */
 export type LifecycleEventHandlers<T extends keyof HTMLElementTagNameMap> = {
 	'$lifecycle:mount'?: (e: BoxelsElementNode<T>) => void;
-	'$lifecycle:remount'?: (e: BoxelsElementNode<T>) => void;
 	'$lifecycle:destroy'?: (e: BoxelsElementNode<T>) => void;
 };
 
@@ -358,7 +357,7 @@ declare global {
 				'$combo-keys'?: ComboKey[][] | ComboKey[];
 				'$on:combo-key'?: (combo: ComboKey[]) => void;
 
-				ref?: Reference<HTMLElementTagNameMap[T] | unknown>;
+				ref?: Reference<BoxelsElementNode<T> | any>;
 			};
 }
 

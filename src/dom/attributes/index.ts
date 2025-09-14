@@ -88,10 +88,7 @@ export function handleAttributes<T extends keyof HTMLElementTagNameMap>(
 			if (!(element as BoxelsElement).__destroyed) raw(element);
 			continue;
 		}
-
-		if (key === '$lifecycle:remount' && typeof raw === 'function') {
-			continue;
-		}
+		
 		if (key === '$lifecycle:destroy' && typeof raw === 'function') {
 			cleanUps.push(() => raw(element));
 			continue;
