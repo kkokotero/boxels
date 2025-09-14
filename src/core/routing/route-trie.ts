@@ -229,20 +229,23 @@ export class TriNode {
 	private async getHandler(node: Node): Promise<NodeHandler | undefined> {
 		if (!node.handler) return undefined;
 
-		if (typeof node.handler === 'object' && 'component' in node.handler) {
-			return node.handler as NodeHandler;
+		// Si es una promesa: resolverla y cachearla
+		if (node.handler instanceof Promise) {
+			const result = await node.handler;
+			node.handler = result;
+			return result;
 		}
 
+		// Si es una función (loader): ejecutarla y cachear el resultado
 		if (typeof node.handler === 'function') {
 			const result = await (node.handler as () => Promise<NodeHandler>)();
 			node.handler = result;
 			return result;
 		}
 
-		if (node.handler instanceof Promise) {
-			const result = await node.handler;
-			node.handler = result;
-			return result;
+		// Si es un objeto plano (NodeHandler), devolverlo tal cual.
+		if (typeof node.handler === 'object') {
+			return node.handler as NodeHandler;
 		}
 
 		return undefined;
@@ -346,19 +349,14 @@ export class TriNode {
 		const guardsChain: Guard[] = [];
 		let metaChain: Record<string, string> = {};
 
-		// Recorre acumulando guards y metas
+		// Función para acumular guards y meta desde el handler resuelto
 		const collect = async (n: Node) => {
 			const handler = await this.getHandler(n);
-			if (handler?.guards?.length) {
-				guardsChain.push(...handler.guards);
-			}
-			if (handler?.meta) {
-				// 👉 merge incremental (padre -> hijo sobrescribe)
-				metaChain = { ...metaChain, ...handler.meta };
-			}
+			if (handler?.guards) guardsChain.push(...handler.guards);
+			if (handler?.meta) metaChain = { ...metaChain, ...handler.meta };
 		};
 
-		await collect(this.root);
+		await collect(this.root); // Inicia con los guards de la raíz
 
 		for (let i = 0; i < parts.length; i++) {
 			if (!node) break;
@@ -378,13 +376,13 @@ export class TriNode {
 			}
 
 			if (node.wildcardChild) {
-				const rest = parts.slice(i).join('/');
-				if (rest) params.rest = rest;
+				params.rest = parts.slice(i).join('/');
 				node = node.wildcardChild;
 				await collect(node);
 				break;
 			}
 
+			// No se encontró
 			return { node: undefined, params, guardsChain, metaChain };
 		}
 

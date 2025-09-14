@@ -37,20 +37,25 @@ export const RouterOutlet = async ({
 
 	await router.ready;
 	const update = async (node: FindResult) => {
+		queue(async () => {
+			for (const [attr, value] of Object.entries(meta)) {
+				const metaTag = document.querySelector(`meta[${attr}]`);
+				if (metaTag) metaTag.remove();
+			}
+
+			meta = node.meta || {};
+
+			for (const [attr, value] of Object.entries(meta)) {
+				const metaTag = document.createElement('meta');
+				metaTag.setAttribute(attr, value);
+				document.head.appendChild(metaTag);
+			}
+		});
+		
+		beforeChange?.(router.url!());
+
 		if (node.component) {
 			view.set(await node.component());
-			return;
-		}
-
-		if (node.redirect) {
-			router.navigate(node.redirect);
-			return;
-		}
-
-		if (!node.handler && !node.message) {
-			if (router.routerConfig.onNotFound)
-				view.set(await router.routerConfig.onNotFound());
-			else view.set($('pre', {}, '404 - Ruta no encontrada: ', router.url!()));
 			return;
 		}
 
@@ -61,6 +66,11 @@ export const RouterOutlet = async ({
 				view.set(
 					$('pre', {}, '403 - Prohibido: ', router.url!(), '\n', node.message),
 				);
+			return;
+		}
+
+		if (node.redirect) {
+			router.navigate(node.redirect);
 			return;
 		}
 
@@ -77,38 +87,31 @@ export const RouterOutlet = async ({
 			return;
 		}
 
-		queue(async () => {
-			for (const [attr, value] of Object.entries(meta)) {
-				const metaTag = document.querySelector(`meta[${attr}]`);
-				if (metaTag) metaTag.remove();
-			}
-
-			meta = node.meta || {};
-
-			for (const [attr, value] of Object.entries(meta)) {
-				const metaTag = document.createElement('meta');
-				metaTag.setAttribute(attr, value);
-				document.head.appendChild(metaTag);
-			}
-		});
+		if (!node.handler && !node.message) {
+			if (router.routerConfig.onNotFound)
+				view.set(await router.routerConfig.onNotFound());
+			else view.set($('pre', {}, '404 - Ruta no encontrada: ', router.url!()));
+			return;
+		}
 
 		const component =
 			typeof node.handler?.component === 'function'
 				? await node.handler?.component()
 				: node.handler?.component;
 
-		beforeChange?.(router.url!());
 		view.set(component);
 		afterChange?.(router.url!());
 	};
 
 	const unsubscribe = router.actualRoute.subscribe(update);
 
-	return Fragment({
-		'$lifecycle:destroy': () => {
-			view.destroy();
-			unsubscribe();
+	return $(
+		document.createDocumentFragment(),
+		{
+			'$lifecycle:destroy': () => {
+				unsubscribe();
+			},
 		},
-		children: view,
-	});
+		view,
+	);
 };
