@@ -1,6 +1,5 @@
 // Importa utilidades para extraer señales de un conjunto de valores
-import { $ } from '@dom/index';
-import { Fragment } from './fragment';
+import { $, Fragment } from '@dom/index';
 import { extractSignalsFromValues } from './utils';
 
 // Importa funciones y tipos del sistema reactivo

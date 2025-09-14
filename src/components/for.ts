@@ -1,5 +1,5 @@
 import { type MaybeSignal, type ReactiveSignal } from '@core/index';
-import { Fragment } from './fragment';
+import { $, Fragment } from '@dom/index';
 
 /**
  * Propiedades que acepta el componente `For`, el cual permite renderizar listas de forma reactiva.
@@ -48,7 +48,7 @@ type ForProps<T> = {
  * @template T - Tipo de cada elemento en la lista
  */
 export function For<T>({ each, children }: ForProps<T>) {
-	return Fragment({
+	return $(Fragment, {
 		children: each.map(children),
 	});
 }
