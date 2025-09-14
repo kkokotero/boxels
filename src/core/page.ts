@@ -1,4 +1,4 @@
-import { runViewTransition, type BoxelsElement } from '@dom/index';
+import { type BoxelsElement } from '@dom/index';
 import { isSignal, type ReactiveSignal } from './reactive/types';
 
 /**
@@ -521,10 +521,7 @@ export const page = (() => {
 			target.removeEventListener(type as string, cb as EventListener, options);
 	}
 
-	const startViewTransition = () => runViewTransition();
-
 	return {
-		startViewTransition,
 		onEvent,
 		onKeyCombo,
 		title,

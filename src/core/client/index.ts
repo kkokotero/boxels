@@ -1,3 +1,4 @@
+export * from './animation';
 export * from './camera';
 export * from './http-client';
 export * from './microphone';
