@@ -1,7 +1,7 @@
 import { signal, type Signal } from './signal';
 import type { Widen } from './types';
 import { autoCleanup } from '@core/cleanup';
-import { getTrackedSignals, clearTrackedSignals } from './tracked-signal';
+import { getTrackedSignals } from './tracked-signal';
 
 /**
  * Crea una **señal computada** (`computed signal`) basada en una o más dependencias reactivas.
@@ -38,7 +38,6 @@ export function computed<T>(
 	if (typeof dependenciesOrCompute === 'function') {
 		compute = dependenciesOrCompute;
 		dependencies = getTrackedSignals();
-		clearTrackedSignals();
 	} else {
 		if (!maybeCompute) {
 			throw new Error(

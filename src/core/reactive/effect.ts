@@ -9,7 +9,7 @@ import {
 
 // Importa el programador (scheduler), utilizado para ejecutar funciones en la cola reactiva.
 import { queue } from '../scheduler';
-import { getTrackedSignals, clearTrackedSignals } from './tracked-signal';
+import { getTrackedSignals } from './tracked-signal';
 
 /**
  * Ejecuta un efecto reactivo cuando una o más señales cambian.
@@ -68,7 +68,6 @@ export function effect(
 	if (typeof _dependenciesOrCallback === 'function') {
 		run = _dependenciesOrCallback as () => Promise<void> | void;
 		dependencies = getTrackedSignals();
-		clearTrackedSignals();
 	} else {
 		dependencies = Array.isArray(_dependenciesOrCallback)
 			? _dependenciesOrCallback
