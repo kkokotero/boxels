@@ -193,7 +193,7 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 				// Insertar atómicamente con DocumentFragment
 				if (end.parentNode) {
 					const frag = document.createDocumentFragment();
-					for (const n of normalized.nodes) frag.appendChild(n);
+					for (const n of normalized.nodes) appendChild(frag, n);
 					end.parentNode.insertBefore(frag, end);
 				}
 

@@ -181,31 +181,28 @@ export function $<T extends keyof HTMLElementTagNameMap>(
 	}
 
 	// --- Nodo normal ---
-	return createLifecycle(
-		node,
-		() => handleAttributes(node as HTMLElement, props ?? {}),
-		{
-			isFragment: false,
-			props,
-			cleanupChildren: (node, result) => {
-				if (typeof (node as ChildNode).remove === 'function') {
-					(node as ChildNode).remove();
-				}
-				result['$lifecycle:destroy']?.(node);
-			},
-			onDestroyResult: (result, node) =>
-				result['$lifecycle:destroy']?.(node as any),
-			onMountResult: (result, node) => {
-				if ((node as any).__destroyed) {
-					props?.['$lifecycle:remount']?.(node as BoxelsElementNode<T>);
-				} else {
-					result['$lifecycle:mount']?.(node as BoxelsElementNode<T>);
-				}
-			},
+	return createLifecycle(node as any, {
+		isFragment: false,
+		props,
+		cleanupChildren: (node, result) => {
+			if (typeof (node as ChildNode).remove === 'function') {
+				(node as ChildNode).remove();
+			}
+			result['$lifecycle:destroy']?.(node);
 		},
-	) as unknown as BoxelsElement;
+		onDestroyResult: (result, node) =>
+			result['$lifecycle:destroy']?.(node as any),
+		onMountResult: (result, node) => {
+			if ((node as any).__destroyed) {
+				props?.['$lifecycle:remount']?.(node as BoxelsElementNode<T>);
+			} else {
+				result['$lifecycle:mount']?.(node as BoxelsElementNode<T>);
+			}
+		},
+	}) as unknown as BoxelsElement;
 }
 
 export * from './attributes/elements/index';
 export * from './attributes/handlers/index';
 export * from './utils';
+export { onMount, onDestroy } from './lifecycle';

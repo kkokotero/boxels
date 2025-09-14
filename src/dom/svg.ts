@@ -14,7 +14,7 @@ export function createSvg<T extends keyof HTMLElementTagNameMap>(
 		selector,
 	) as SVGElementTagNameMap['svg'];
 
-	return createLifecycle(node, () => handleAttributes(node, props), {
+	return createLifecycle(node as any, {
 		isFragment: false,
 		props,
 		cleanupChildren: (node, result) => {

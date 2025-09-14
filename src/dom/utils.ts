@@ -18,6 +18,14 @@ import {
 } from './attributes';
 import { debug } from '@testing/debugger';
 
+export function uniqueId(): string {
+	// número aleatorio en base36 de 4 caracteres
+	const rand = Math.random().toString(36).slice(2, 10);
+	// timestamp en base36 para acortar
+	const time = Date.now().toString(36);
+	return `${rand}${time}`;
+}
+
 export function parseHTML(html: string): Node | HTMLElement {
 	// Caso documento completo
 	if (html.includes('<html')) {
@@ -40,16 +48,28 @@ function renderFromNodes(nodes: NodeList | ChildNode[]): Node | HTMLElement {
 		if (node.nodeType === Node.TEXT_NODE) {
 			return document.createTextNode(node.textContent || '');
 		}
-		return $(mapTag(node) as BoxelsElementSelector<keyof HTMLElementTagNameMap>, mapAttrs(node), ...mapChildren(node));
+		return $(
+			mapTag(node) as BoxelsElementSelector<keyof HTMLElementTagNameMap>,
+			mapAttrs(node),
+			...mapChildren(node),
+		);
 	}
 
 	// Si hay múltiples nodos → devolvemos un Fragment
-	return $(Fragment, {}, arr.map(n => {
-		if (n.nodeType === Node.TEXT_NODE) {
-			return n.textContent || '';
-		}
-		return $(mapTag(n) as BoxelsElementSelector<keyof HTMLElementTagNameMap>, mapAttrs(n), ...mapChildren(n));
-	}));
+	return $(
+		Fragment,
+		{},
+		arr.map((n) => {
+			if (n.nodeType === Node.TEXT_NODE) {
+				return n.textContent || '';
+			}
+			return $(
+				mapTag(n) as BoxelsElementSelector<keyof HTMLElementTagNameMap>,
+				mapAttrs(n),
+				...mapChildren(n),
+			);
+		}),
+	);
 }
 
 function mapTag(node: Node): string {
@@ -66,19 +86,29 @@ function mapAttrs(node: Node): Record<string, any> {
 }
 
 function mapChildren(node: Node): any[] {
-	return Array.from(node.childNodes).map(child => {
+	return Array.from(node.childNodes).map((child) => {
 		if (child.nodeType === Node.TEXT_NODE) {
 			return child.textContent || '';
 		}
-		return $(mapTag(child) as BoxelsElementSelector<keyof HTMLElementTagNameMap>, mapAttrs(child), ...mapChildren(child));
+		return $(
+			mapTag(child) as BoxelsElementSelector<keyof HTMLElementTagNameMap>,
+			mapAttrs(child),
+			...mapChildren(child),
+		);
 	});
 }
 
+type CSSProperties = Partial<
+	Record<keyof CSSStyleDeclaration, string | number>
+>;
 
-export function injectStyle(css: string, id?: string): HTMLStyleElement {
+export function injectStyle(
+	css: string | Record<string, CSSProperties>,
+	id?: string,
+): HTMLStyleElement {
 	let style: HTMLStyleElement | null = null;
 
-	// Si se pasa un id, evita duplicados
+	// Evitar duplicados por id
 	if (id) {
 		style = document.getElementById(id) as HTMLStyleElement | null;
 	}
@@ -89,7 +119,29 @@ export function injectStyle(css: string, id?: string): HTMLStyleElement {
 		document.head.appendChild(style);
 	}
 
-	style.textContent = css;
+	// Si es un objeto, convertir a CSS string
+	if (typeof css === 'object') {
+		const lines: string[] = [];
+		for (const selector in css) {
+			const props = css[selector];
+			const propLines = Object.entries(props)
+				.map(([key, value]) => {
+					// convertir camelCase a kebab-case
+					const kebabKey = key.replace(
+						/[A-Z]/g,
+						(match) => '-' + match.toLowerCase(),
+					);
+					return `  ${kebabKey}: ${value};`;
+				})
+				.join('\n');
+			lines.push(`${selector} {\n${propLines}\n}`);
+		}
+		style.textContent = lines.join('\n');
+	} else {
+		// si es string, usar tal cual
+		style.textContent = css;
+	}
+
 	return style;
 }
 

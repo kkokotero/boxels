@@ -16,6 +16,7 @@ import { handleClassAttribute, handleStyleAttribute } from './styles/index';
 // Utilidad para hijos de elementos
 import { normalizeChildren, type BoxelsElement } from './elements/index';
 import { appendChild } from '../utils';
+import { isReference } from './reference';
 
 /**
  * Aplica atributos a un elemento HTML o SVG.
@@ -32,6 +33,7 @@ import { appendChild } from '../utils';
 export function handleAttributes<T extends keyof HTMLElementTagNameMap>(
 	element: HTMLElementTagNameMap[T] | HTMLElement | SVGElement,
 	props: BoxelsElementAttributes<T>,
+	children = true,
 ): LifecycleEventHandlers<T> {
 	const cleanUps: ReactiveUnsubscribe[] = [];
 	const mounts: (() => void)[] = [];
@@ -43,9 +45,13 @@ export function handleAttributes<T extends keyof HTMLElementTagNameMap>(
 		// --- hijos ---
 		if (key === 'children') {
 			const result = normalizeChildren(raw);
-			for (const node of result.nodes) appendChild(element, node);
 			result.onMount();
 			cleanUps.push(() => result.cleanup());
+
+			if (!children) continue;
+			for (const node of result.nodes) {
+				appendChild(element, node);
+			}
 			continue;
 		}
 
@@ -55,6 +61,13 @@ export function handleAttributes<T extends keyof HTMLElementTagNameMap>(
 				applyAttr(element, key, val);
 			});
 			cleanUps.push(unsub);
+			continue;
+		}
+
+		if (key === 'ref') {
+			if (isReference(raw)) {
+				raw.set(element);
+			}
 			continue;
 		}
 

@@ -5,6 +5,7 @@ import type {
 	Signal,
 } from '@core/index';
 import type { BoxelsElementNode } from '../elements';
+import type { Reference } from '../reference';
 
 /**
  * Manejadores de eventos del DOM.
@@ -354,12 +355,10 @@ declare global {
 				'$gesture:doubletap-ms'?: number; // Intervalo máximo entre taps para doubletap
 				'$gesture:multitap-ms'?: number; // Intervalo entre toques para multitap
 
-				'$view:name'?: string;
-				'$view:update'?: () => void;
-				'$view:finished'?: () => void;
-
 				'$combo-keys'?: ComboKey[][] | ComboKey[];
 				'$on:combo-key'?: (combo: ComboKey[]) => void;
+
+				ref?: Reference<HTMLElementTagNameMap[T] | unknown>;
 			};
 }
 
