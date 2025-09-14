@@ -8,7 +8,7 @@ import {
 	type BoxelsElementNode, // Nodo específico que extiende de un elemento HTML con propiedades Boxels.
 } from './attributes/elements';
 
-import { $, Fragment, type BoxelsElementSelector } from '.';
+import { $, Fragment, onDestroy, type BoxelsElementSelector } from '.';
 // `$`: función auxiliar para crear elementos reactivos.
 // `Fragment`: tipo especial que representa un contenedor de nodos sin un elemento padre real.
 
@@ -17,6 +17,80 @@ import {
 	removeAttributes, // Elimina atributos previamente aplicados.
 } from './attributes';
 import { debug } from '@testing/debugger';
+
+export type Placeholder = HTMLDivElement;
+
+let placeholderContainer: HTMLDivElement | null = null;
+
+/**
+ * Obtiene o crea un contenedor oculto para placeholders
+ */
+function getPlaceholderContainer() {
+  if (!placeholderContainer) {
+    placeholderContainer = document.createElement('div');
+    placeholderContainer.style.position = 'absolute';
+    placeholderContainer.style.top = '0';
+    placeholderContainer.style.left = '0';
+    placeholderContainer.style.width = '0';
+    placeholderContainer.style.height = '0';
+    placeholderContainer.style.overflow = 'visible'; // permite que los placeholders se posicionen fuera
+    placeholderContainer.style.pointerEvents = 'none';
+    document.body.appendChild(placeholderContainer);
+  }
+  return placeholderContainer;
+}
+
+/**
+ * Crea un placeholder absoluto en la posición de un elemento HTML
+ * @param el Elemento del cual copiar posición y tamaño
+ * @param options Opcional: estilos extra para el placeholder
+ * @returns El div placeholder creado
+ */
+export function createPlaceholder(
+  el: HTMLElement,
+  options?: Partial<CSSStyleDeclaration>,
+): HTMLDivElement {
+  const ph = document.createElement('div');
+  ph.style.position = 'absolute';
+  ph.style.pointerEvents = 'none';
+  ph.style.opacity = '0';
+  ph.style.zIndex = '9999';
+
+  if (options) Object.assign(ph.style, options);
+
+  // Agregamos al contenedor de placeholders en lugar de body directamente
+  getPlaceholderContainer().appendChild(ph);
+
+  const update = () => {
+    const rect = el.getBoundingClientRect();
+    ph.style.top = `${rect.top + window.scrollY}px`;
+    ph.style.left = `${rect.left + window.scrollX}px`;
+    ph.style.width = `${rect.width}px`;
+    ph.style.height = `${rect.height}px`;
+  };
+
+  // Inicializamos posición
+  requestAnimationFrame(update);
+
+  // Escuchar cambios de tamaño o scroll
+  window.addEventListener('resize', update);
+  window.addEventListener('scroll', update);
+
+  // Limpiar todo al destruir
+  onDestroy(() => {
+    window.removeEventListener('resize', update);
+    window.removeEventListener('scroll', update);
+    ph.remove();
+
+    // Si el contenedor queda vacío, también lo eliminamos
+    if (placeholderContainer?.childElementCount === 0) {
+      placeholderContainer.remove();
+      placeholderContainer = null;
+    }
+  });
+
+  return ph;
+}
 
 export function uniqueId(): string {
 	// número aleatorio en base36 de 4 caracteres
