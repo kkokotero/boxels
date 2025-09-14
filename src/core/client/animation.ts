@@ -1,3 +1,6 @@
+import { queue } from '@core/scheduler';
+import { injectStyle, uniqueId } from '@dom/utils';
+
 type MaybeElement = string | HTMLElement | null;
 type CSSProperties = Partial<CSSStyleDeclaration>;
 
@@ -71,16 +74,16 @@ function ensureObserver(opts?: IntersectionObserverInit) {
 	return sharedObserver;
 }
 
+const stylesId = uniqueId();
+
 export class Animation {
 	private source: HTMLElement | null;
 	private target: HTMLElement | null;
-	private multiElement: boolean;
 	private fromSteps: Step[] = [];
 	private toSteps: Step[] = [];
 	private useViewTransition = true;
 	private animationName: string | null = null;
 
-	/** Guardar estilos originales de cada elemento, incluyendo display */
 	private initialStyles: Map<
 		HTMLElement,
 		CSSProperties & { display?: string }
@@ -108,12 +111,11 @@ export class Animation {
 				'No se pudo resolver el/los elementos para la transición.',
 			);
 
-		this.multiElement = Boolean(to);
 		if (opts?.useViewTransition === false) this.useViewTransition = false;
 		if (opts?.name) this.animationName = opts.name;
 
+		// Asignar viewTransitionName si se permite
 		if (
-			this.multiElement &&
 			this.useViewTransition &&
 			typeof document.startViewTransition === 'function'
 		) {
@@ -121,6 +123,19 @@ export class Animation {
 			if (this.source) this.source.style.viewTransitionName = name;
 			this.target.style.viewTransitionName = name;
 		}
+
+		injectStyle(
+			`
+:root {
+    view-transition-name: none;
+}
+
+::view-transition {
+    pointer-events: none;
+}
+	`,
+			stylesId,
+		);
 	}
 
 	private emit<E extends EventName>(event: E, payload: AnimationEvents[E]) {
@@ -135,7 +150,7 @@ export class Animation {
 			if (styles) {
 				for (const key of Object.keys(styles)) {
 					if (!(key in saved))
-						(saved as Record<string, any>)[key as string] =
+						(saved as Record<string, any>)[key] =
 							el.style.getPropertyValue(key);
 				}
 			}
@@ -167,17 +182,14 @@ export class Animation {
 
 	name(name: string) {
 		this.animationName = name;
-
-		if (this.multiElement && this.useViewTransition) {
+		if (this.useViewTransition && this.target) {
 			const n = this.animationName;
 			[this.source, this.target].forEach((el) => {
 				if (!el) return;
 				el.style.viewTransitionName = n;
 				el.style.viewTransitionClass = n;
-				// if (!el.classList.contains(n)) el.classList.add(n);
 			});
 		}
-
 		return this;
 	}
 
@@ -224,7 +236,7 @@ export class Animation {
 	async start(cb?: () => void | Promise<void>, { cleanup = true } = {}) {
 		this.emit('start', undefined);
 
-		// Aplicar "from" y guardar originales
+		// Aplicar estilos "from" antes de la animación
 		for (const step of this.fromSteps) {
 			const el = step.element ? resolveElement(step.element) : this.target;
 			if (!el) continue;
@@ -232,53 +244,61 @@ export class Animation {
 			Object.assign(el.style, step.styles);
 		}
 
-		if (
-			!this.multiElement ||
-			!this.useViewTransition ||
-			typeof document.startViewTransition !== 'function'
-		) {
-			for (const step of this.toSteps) await this.applyStep(step);
-			this.emit('finish', undefined);
-			if (cleanup) this.restoreStyles();
-			return;
-		}
+		const useVT =
+			this.useViewTransition &&
+			typeof document.startViewTransition === 'function';
 
-		document
-			.startViewTransition(() => {
-				// Restaurar display original antes de la animación
-				if (this.source && this.source !== this.target)
-					this.source.style.display = 'none';
+		if (useVT) {
+			await document.startViewTransition(() => {
 				if (this.target)
 					this.target.style.display =
 						this.initialStyles.get(this.target)?.display || '';
 
+				// Aplicar "to"
 				for (const step of this.toSteps) {
 					const el = step.element ? resolveElement(step.element) : this.target;
 					if (!el) continue;
 					this.saveInitialStyles(el, step.styles);
 					Object.assign(el.style, step.styles);
 				}
+
 				cb?.();
-			})
-			?.finished.then(() => {
-				this.emit('finish', undefined);
-				if (cleanup) this.restoreStyles();
-			});
+			}).finished;
+		} else {
+			for (const step of this.toSteps) await this.applyStep(step);
+			cb?.();
+		}
+
+		this.emit('finish', undefined);
+		if (cleanup) this.restoreStyles();
+
+		if (this.target) {
+			this.target.style.viewTransitionName = '';
+			this.target.style.viewTransitionClass = '';
+		}
+
+		if (this.source) {
+			this.source.style.viewTransitionName = '';
+			this.source.style.viewTransitionClass = '';
+		}
 	}
 
 	private restoreStyles() {
 		this.initialStyles.forEach((styles, el) => {
+			// Restaurar los estilos guardados
 			for (const key in styles)
 				el.style.setProperty(key, (styles as Record<string, any>)[key]);
-			el.style.removeProperty('transition');
-			el.style.removeProperty('view-transition-name');
+
+			// Limpiar propiedades que agregamos dinámicamente
+			el.style.viewTransitionName = '';
+			el.style.viewTransitionClass = '';
 		});
+
 		this.initialStyles.clear();
 	}
 
 	reverse(cb?: () => void | Promise<void>, { cleanup = true } = {}) {
-		this.fromSteps = [...this.fromSteps].reverse();
-		this.toSteps = [...this.toSteps].reverse();
+		[this.fromSteps, this.toSteps] = [this.toSteps, this.fromSteps];
 		return this.start(cb, { cleanup });
 	}
 }
