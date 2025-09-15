@@ -204,5 +204,6 @@ export function $<T extends keyof HTMLElementTagNameMap>(
 
 export * from './attributes/elements/index';
 export * from './attributes/handlers/index';
+export * from './attributes/reference';
 export * from './utils';
 export { onMount, onDestroy } from './lifecycle';
