@@ -18,26 +18,26 @@ import {
 } from './attributes';
 import { debug } from '@testing/debugger';
 
-export type Placeholder = HTMLDivElement;
+export type Placeholder = HTMLDivElement | null;
 
-let placeholderContainer: HTMLDivElement | null = null;
+let placeholderContainer: Placeholder = null;
 
 /**
  * Obtiene o crea un contenedor oculto para placeholders
  */
 function getPlaceholderContainer() {
-  if (!placeholderContainer) {
-    placeholderContainer = document.createElement('div');
-    placeholderContainer.style.position = 'absolute';
-    placeholderContainer.style.top = '0';
-    placeholderContainer.style.left = '0';
-    placeholderContainer.style.width = '0';
-    placeholderContainer.style.height = '0';
-    placeholderContainer.style.overflow = 'visible'; // permite que los placeholders se posicionen fuera
-    placeholderContainer.style.pointerEvents = 'none';
-    document.body.appendChild(placeholderContainer);
-  }
-  return placeholderContainer;
+	if (!placeholderContainer) {
+		placeholderContainer = document.createElement('div');
+		placeholderContainer.style.position = 'absolute';
+		placeholderContainer.style.top = '0';
+		placeholderContainer.style.left = '0';
+		placeholderContainer.style.width = '0';
+		placeholderContainer.style.height = '0';
+		placeholderContainer.style.overflow = 'visible'; // permite que los placeholders se posicionen fuera
+		placeholderContainer.style.pointerEvents = 'none';
+		document.body.appendChild(placeholderContainer);
+	}
+	return placeholderContainer;
 }
 
 /**
@@ -47,49 +47,53 @@ function getPlaceholderContainer() {
  * @returns El div placeholder creado
  */
 export function createPlaceholder(
-  el: HTMLElement,
-  options?: Partial<CSSStyleDeclaration>,
+	el: string | HTMLElement,
+	options?: Partial<CSSStyleDeclaration>,
 ): HTMLDivElement {
-  const ph = document.createElement('div');
-  ph.style.position = 'absolute';
-  ph.style.pointerEvents = 'none';
-  ph.style.opacity = '0';
-  ph.style.zIndex = '9999';
+	const ph = document.createElement('div');
+	ph.style.position = 'absolute';
+	ph.style.pointerEvents = 'none';
+	ph.style.opacity = '0';
+	ph.style.zIndex = '9999';
 
-  if (options) Object.assign(ph.style, options);
+	if (options) Object.assign(ph.style, options);
 
-  // Agregamos al contenedor de placeholders en lugar de body directamente
-  getPlaceholderContainer().appendChild(ph);
+	// Agregamos al contenedor de placeholders en lugar de body directamente
+	getPlaceholderContainer().appendChild(ph);
 
-  const update = () => {
-    const rect = el.getBoundingClientRect();
-    ph.style.top = `${rect.top + window.scrollY}px`;
-    ph.style.left = `${rect.left + window.scrollX}px`;
-    ph.style.width = `${rect.width}px`;
-    ph.style.height = `${rect.height}px`;
-  };
+	const element = typeof el === 'string' ? document.querySelector(el) : el;
 
-  // Inicializamos posición
-  requestAnimationFrame(update);
+	const update = () => {
+		if (!element) return;
+		
+		const rect = element.getBoundingClientRect();
+		ph.style.top = `${rect.top + window.scrollY}px`;
+		ph.style.left = `${rect.left + window.scrollX}px`;
+		ph.style.width = `${rect.width}px`;
+		ph.style.height = `${rect.height}px`;
+	};
 
-  // Escuchar cambios de tamaño o scroll
-  window.addEventListener('resize', update);
-  window.addEventListener('scroll', update);
+	// Inicializamos posición
+	requestAnimationFrame(update);
 
-  // Limpiar todo al destruir
-  onDestroy(() => {
-    window.removeEventListener('resize', update);
-    window.removeEventListener('scroll', update);
-    ph.remove();
+	// Escuchar cambios de tamaño o scroll
+	window.addEventListener('resize', update);
+	window.addEventListener('scroll', update);
 
-    // Si el contenedor queda vacío, también lo eliminamos
-    if (placeholderContainer?.childElementCount === 0) {
-      placeholderContainer.remove();
-      placeholderContainer = null;
-    }
-  });
+	// Limpiar todo al destruir
+	onDestroy(() => {
+		window.removeEventListener('resize', update);
+		window.removeEventListener('scroll', update);
+		ph.remove();
 
-  return ph;
+		// Si el contenedor queda vacío, también lo eliminamos
+		if (placeholderContainer?.childElementCount === 0) {
+			placeholderContainer.remove();
+			placeholderContainer = null;
+		}
+	});
+
+	return ph;
 }
 
 export function uniqueId(): string {
