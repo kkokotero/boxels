@@ -15,7 +15,7 @@ import { handleClassAttribute, handleStyleAttribute } from './styles/index';
 
 // Utilidad para hijos de elementos
 import { normalizeChildren, type BoxelsElement } from './elements/index';
-import { appendChild } from '../utils';
+import { appendChild, uniqueId } from '../utils';
 import { isReference } from './reference';
 
 /**
@@ -129,6 +129,10 @@ export function handleAttributes<T extends keyof HTMLElementTagNameMap>(
 
 		// --- atributo normal ---
 		applyAttr(element, key, raw);
+	}
+
+	if (!elKey) {
+		elKey = uniqueId('element');
 	}
 
 	return {
