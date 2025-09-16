@@ -34,12 +34,13 @@ export function handleAttributes<T extends keyof HTMLElementTagNameMap>(
 	element: HTMLElementTagNameMap[T] | HTMLElement | SVGElement,
 	props: BoxelsElementAttributes<T>,
 	children = true,
-): LifecycleEventHandlers<T> {
+): LifecycleEventHandlers<T> & { key?: string } {
 	const cleanUps: ReactiveUnsubscribe[] = [];
 	const mounts: (() => void)[] = [];
 
 	const tag = (element.tagName ?? 'fragment').toLowerCase();
 	const tagHandlers = handlers[tag] ?? {};
+	let elKey: string | undefined;
 
 	for (const [key, raw] of Object.entries(props)) {
 		// --- hijos ---
@@ -64,13 +65,6 @@ export function handleAttributes<T extends keyof HTMLElementTagNameMap>(
 			continue;
 		}
 
-		if (key === 'ref') {
-			if (isReference(raw)) {
-				raw.set(element);
-			}
-			continue;
-		}
-
 		// --- class ---
 		if (key === 'class') {
 			cleanUps.push(handleClassAttribute(element, raw as ClassAttr));
@@ -88,7 +82,7 @@ export function handleAttributes<T extends keyof HTMLElementTagNameMap>(
 			if (!(element as BoxelsElement).__destroyed) raw(element);
 			continue;
 		}
-		
+
 		if (key === '$lifecycle:destroy' && typeof raw === 'function') {
 			cleanUps.push(() => raw(element));
 			continue;
@@ -99,6 +93,18 @@ export function handleAttributes<T extends keyof HTMLElementTagNameMap>(
 			const ev = key.slice(4);
 			element.addEventListener(ev, raw as EventListener);
 			cleanUps.push(() => element.removeEventListener(ev, raw));
+			continue;
+		}
+
+		if (key === '$ref') {
+			if (isReference(raw)) {
+				raw.set(element);
+			}
+			continue;
+		}
+
+		if (key === '$key') {
+			elKey = String(raw);
 			continue;
 		}
 
@@ -128,6 +134,7 @@ export function handleAttributes<T extends keyof HTMLElementTagNameMap>(
 	return {
 		'$lifecycle:destroy': () => cleanUps.forEach((fn) => fn()),
 		'$lifecycle:mount': () => mounts.forEach((fn) => fn()),
+		key: elKey,
 	};
 }
 
@@ -267,6 +274,13 @@ function applyAttr<T extends keyof HTMLElementTagNameMap>(
 		value === '' ||
 		typeof value === 'function'
 	) {
+		if (key === 'value') {
+			el.setAttribute(key, '');
+			try {
+				(el as any).value = '';
+			} catch {}
+			return;
+		}
 		removeAttributeHandler(el, key, value);
 		return;
 	}

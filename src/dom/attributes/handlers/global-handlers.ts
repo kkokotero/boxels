@@ -357,7 +357,8 @@ declare global {
 				'$combo-keys'?: ComboKey[][] | ComboKey[];
 				'$on:combo-key'?: (combo: ComboKey[]) => void;
 
-				ref?: Reference<BoxelsElementNode<T> | any>;
+				'$ref'?: Reference<BoxelsElementNode<T> | any>;
+				'$key'?: string | number;
 			};
 }
 

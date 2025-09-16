@@ -80,6 +80,8 @@ export function createLifecycle<T extends keyof HTMLElementTagNameMap>(
 			result['$lifecycle:mount']?.(node);
 		}
 
+		node.key = result.key;
+
 		appendChild(parent, node);
 
 		options.props?.['$lifecycle:mount']?.(node);
@@ -99,6 +101,8 @@ export function createLifecycle<T extends keyof HTMLElementTagNameMap>(
 		result = handleAttributes(node, options.props ?? {}, false);
 		options.appendChildren?.(node, result);
 
+		node.key = result.key;
+
 		options.props?.['$lifecycle:mount']?.(node);
 		options.onMountResult?.(result, node);
 
@@ -115,6 +119,7 @@ export function createLifecycle<T extends keyof HTMLElementTagNameMap>(
 		destroy,
 		mountEffect,
 		isFragment: options.isFragment,
+		key: result.key,
 		__boxels: true,
 		__mounted: false,
 		__destroyed: false,
