@@ -38,11 +38,7 @@ export function createLifecycle<T extends keyof HTMLElementTagNameMap>(
 ) {
 	let result = handleAttributes(node, options.props ?? {});
 
-	if (!options.props?.$key) {
-		options.props!.$key = simpleUniqueId('element');
-	}
-
-	// 📌 Capturamos y "consumimos" los efectos globales solo para este nodo
+	// Capturamos y "consumimos" los efectos globales solo para este nodo
 	const localMountEffects = Array.from(globalMountEffects);
 	const localDestroyEffects = Array.from(globalDestroyEffects);
 

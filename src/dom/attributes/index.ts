@@ -41,6 +41,8 @@ export function handleAttributes<T extends keyof HTMLElementTagNameMap>(
 	const tag = (element.tagName ?? 'fragment').toLowerCase();
 	const tagHandlers = handlers[tag] ?? {};
 
+	(element as BoxelsElement).key = undefined;
+
 	for (const [key, raw] of Object.entries(props)) {
 		// --- hijos ---
 		if (key === 'children') {
