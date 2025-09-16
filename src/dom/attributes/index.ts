@@ -103,6 +103,7 @@ export function handleAttributes<T extends keyof HTMLElementTagNameMap>(
 		}
 
 		if (key === '$key') {
+			(element as BoxelsElement).key = String(raw);
 			continue;
 		}
 

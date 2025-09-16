@@ -29,7 +29,7 @@ export function createLifecycle<T extends keyof HTMLElementTagNameMap>(
 	node: BoxelsElementNode<T>,
 	options: {
 		isFragment: boolean;
-		props?: any;
+		props?: BoxelsElementAttributes<T>;
 		appendChildren?: (node: BoxelsElementNode<T>, result: any) => void;
 		cleanupChildren?: (node: BoxelsElementNode<T>, result: any) => void;
 		onMountResult?: (result: any, node: BoxelsElementNode<T>) => void;
@@ -38,8 +38,9 @@ export function createLifecycle<T extends keyof HTMLElementTagNameMap>(
 ) {
 	let result = handleAttributes(node, options.props ?? {});
 
-
-		options.props!.$key = options.props!.$key ? options.props!.$key : simpleUniqueId('element');
+	if (!options.props?.$key) {
+		options.props!.$key = simpleUniqueId('element');
+	}
 
 	// 📌 Capturamos y "consumimos" los efectos globales solo para este nodo
 	const localMountEffects = Array.from(globalMountEffects);
@@ -55,7 +56,7 @@ export function createLifecycle<T extends keyof HTMLElementTagNameMap>(
 		options.appendChildren?.(node, result);
 	}
 
-	// 🔒 Flags de control (resetables)
+	// Flags de control (resetables)
 	let mountRan = false;
 	let destroyRan = false;
 
@@ -136,7 +137,7 @@ export function createLifecycle<T extends keyof HTMLElementTagNameMap>(
 		destroy,
 		mountEffect,
 		isFragment: options.isFragment,
-		key: options.props.$key,
+		key: options.props?.$key,
 		__boxels: true,
 		__mounted: false,
 		__destroyed: false,
