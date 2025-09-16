@@ -1,9 +1,9 @@
-# [2.11.0](https://github.com/kkokotero/boxels/compare/47ceede3505b2b188d5c50f0c6e9beee464fd254...v2.11.0) (2025-09-16)
+# [2.12.0](https://github.com/kkokotero/boxels/compare/29e10057c7ef4c61097ce0a318f3d24973422c52...v2.12.0) (2025-09-16)
 
 
 ### Features
 
-* **dom:** mejora del sistema de reconciliación con reactividad granular en el DOM ([47ceede](https://github.com/kkokotero/boxels/commit/47ceede3505b2b188d5c50f0c6e9beee464fd254))
+* Mejoras en el manejo del dom con las keys ([29e1005](https://github.com/kkokotero/boxels/commit/29e10057c7ef4c61097ce0a318f3d24973422c52))
 
 
 
