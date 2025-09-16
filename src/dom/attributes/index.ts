@@ -15,7 +15,7 @@ import { handleClassAttribute, handleStyleAttribute } from './styles/index';
 
 // Utilidad para hijos de elementos
 import { normalizeChildren, type BoxelsElement } from './elements/index';
-import { appendChild, uniqueId } from '../utils';
+import { appendChild } from '../utils';
 import { isReference } from './reference';
 
 /**
@@ -34,13 +34,12 @@ export function handleAttributes<T extends keyof HTMLElementTagNameMap>(
 	element: HTMLElementTagNameMap[T] | HTMLElement | SVGElement,
 	props: BoxelsElementAttributes<T>,
 	children = true,
-): LifecycleEventHandlers<T> & { key?: string } {
+): LifecycleEventHandlers<T> {
 	const cleanUps: ReactiveUnsubscribe[] = [];
 	const mounts: (() => void)[] = [];
 
 	const tag = (element.tagName ?? 'fragment').toLowerCase();
 	const tagHandlers = handlers[tag] ?? {};
-	let elKey: string | undefined;
 
 	for (const [key, raw] of Object.entries(props)) {
 		// --- hijos ---
@@ -104,7 +103,6 @@ export function handleAttributes<T extends keyof HTMLElementTagNameMap>(
 		}
 
 		if (key === '$key') {
-			elKey = String(raw);
 			continue;
 		}
 
@@ -131,14 +129,9 @@ export function handleAttributes<T extends keyof HTMLElementTagNameMap>(
 		applyAttr(element, key, raw);
 	}
 
-	if (!elKey) {
-		elKey = uniqueId('element');
-	}
-
 	return {
 		'$lifecycle:destroy': () => cleanUps.forEach((fn) => fn()),
 		'$lifecycle:mount': () => mounts.forEach((fn) => fn()),
-		key: elKey,
 	};
 }
 

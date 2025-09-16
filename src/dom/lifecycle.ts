@@ -1,22 +1,20 @@
 import { queue } from '@core/scheduler';
 import { handleAttributes } from './attributes';
 import type { BoxelsElementNode } from './attributes/elements';
-import { appendChild } from './utils';
+import { appendChild, simpleUniqueId } from './utils';
 
 /* -------------------------
-   Global Effects System
+   Global Effects System (DX)
 ------------------------- */
 
-// 🔹 Efectos globales de mount
+// 🔹 Efectos globales (se acumulan mientras se crea un nodo)
 const globalMountEffects = new Set<(node: Node) => void>();
+const globalDestroyEffects = new Set<(node: Node) => void>();
 
 export function onMount(cb: (node: Node) => void) {
 	globalMountEffects.add(cb);
 	return () => globalMountEffects.delete(cb);
 }
-
-// 🔹 Efectos globales de destroy
-const globalDestroyEffects = new Set<(node: Node) => void>();
 
 export function onDestroy(cb: (node: Node) => void) {
 	globalDestroyEffects.add(cb);
@@ -40,18 +38,47 @@ export function createLifecycle<T extends keyof HTMLElementTagNameMap>(
 ) {
 	let result = handleAttributes(node, options.props ?? {});
 
-	// 📌 Snapshot inmediato de efectos globales
+
+		options.props!.$key = options.props!.$key ? options.props!.$key : simpleUniqueId('element');
+
+	// 📌 Capturamos y "consumimos" los efectos globales solo para este nodo
 	const localMountEffects = Array.from(globalMountEffects);
 	const localDestroyEffects = Array.from(globalDestroyEffects);
 
-	// 🔥 Limpiar listas globales tras el snapshot
-	globalMountEffects.clear();
-	globalDestroyEffects.clear();
+	queue(() => {
+		// Se limpian después de capturarlos para que no choquen entre nodos
+		globalMountEffects.clear();
+		globalDestroyEffects.clear();
+	});
 
 	if (options.isFragment) {
 		options.appendChildren?.(node, result);
 	}
 
+	// 🔒 Flags de control (resetables)
+	let mountRan = false;
+	let destroyRan = false;
+
+	/* ----- Ejecutores seguros ----- */
+	const runMountEffects = () => {
+		if (mountRan) return;
+		mountRan = true;
+		destroyRan = false; // reset para permitir destruir luego
+		queue(() => {
+			localMountEffects.forEach((cb) => cb(node));
+		});
+	};
+
+	const runDestroyEffects = () => {
+		if (destroyRan) return;
+		destroyRan = true;
+		mountRan = false; // reset para permitir montar luego
+		queue(() => {
+			localDestroyEffects.forEach((cb) => cb(node));
+		});
+	};
+
+	/* ----- Destroy ----- */
 	const destroy = () => {
 		if ((node as any).__destroyed) return;
 		(node as any).__mounted = false;
@@ -61,12 +88,10 @@ export function createLifecycle<T extends keyof HTMLElementTagNameMap>(
 		options.cleanupChildren?.(node, result);
 		options.onDestroyResult?.(result, node);
 
-		// Ejecutar efectos locales de destroy
-		queue(() => {
-			localDestroyEffects.forEach((cb) => cb(node));
-		});
+		runDestroyEffects();
 	};
 
+	/* ----- Mount normal ----- */
 	const mount = (parent: HTMLElement | DocumentFragment) => {
 		if ((node as any).__mounted) return;
 		(node as any).__mounted = true;
@@ -80,19 +105,15 @@ export function createLifecycle<T extends keyof HTMLElementTagNameMap>(
 			result['$lifecycle:mount']?.(node);
 		}
 
-		node.key = result.key;
-
 		appendChild(parent, node);
 
 		options.props?.['$lifecycle:mount']?.(node);
 		options.onMountResult?.(result, node);
 
-		// Ejecutar efectos locales de mount
-		queue(() => {
-			localMountEffects.forEach((cb) => cb(node));
-		});
+		runMountEffects();
 	};
 
+	/* ----- Mount como efecto (retorna destroy) ----- */
 	const mountEffect = () => {
 		if ((node as any).__mounted) return;
 		(node as any).__mounted = true;
@@ -101,25 +122,21 @@ export function createLifecycle<T extends keyof HTMLElementTagNameMap>(
 		result = handleAttributes(node, options.props ?? {}, false);
 		options.appendChildren?.(node, result);
 
-		node.key = result.key;
-
 		options.props?.['$lifecycle:mount']?.(node);
 		options.onMountResult?.(result, node);
 
-		// Ejecutar efectos locales de mount
-		queue(() => {
-			localMountEffects.forEach((cb) => cb(node));
-		});
+		runMountEffects();
 
 		return () => destroy();
 	};
 
+	/* ----- Resultado final ----- */
 	return Object.assign(node, {
 		mount,
 		destroy,
 		mountEffect,
 		isFragment: options.isFragment,
-		key: result.key,
+		key: options.props.$key,
 		__boxels: true,
 		__mounted: false,
 		__destroyed: false,

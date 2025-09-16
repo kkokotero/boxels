@@ -8,7 +8,7 @@ import {
 	normalizeChildren,
 } from './attributes/elements';
 import { createSvg } from './svg';
-import { appendChild } from './utils';
+import { appendChild, simpleUniqueId } from './utils';
 import { debug } from '@testing/debugger';
 import { createLifecycle } from './lifecycle';
 
@@ -193,11 +193,7 @@ export function $<T extends keyof HTMLElementTagNameMap>(
 		onDestroyResult: (result, node) =>
 			result['$lifecycle:destroy']?.(node as any),
 		onMountResult: (result, node) => {
-			if ((node as any).__destroyed) {
-				props?.['$lifecycle:remount']?.(node as BoxelsElementNode<T>);
-			} else {
-				result['$lifecycle:mount']?.(node as BoxelsElementNode<T>);
-			}
+			result['$lifecycle:mount']?.(node as BoxelsElementNode<T>);
 		},
 	}) as unknown as BoxelsElement;
 }
