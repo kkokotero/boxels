@@ -43,6 +43,7 @@ export type BoxelsElement = HTMLElement & {
 	__boxels: true;
 	__mounted: boolean;
 	__destroyed: boolean;
+	key?: string;
 };
 
 export type BoxelsElementNode<T extends keyof HTMLElementTagNameMap> =
@@ -54,6 +55,7 @@ export type BoxelsElementNode<T extends keyof HTMLElementTagNameMap> =
 		__boxels: true;
 		__mounted: boolean;
 		__destroyed: boolean;
+		key?: string;
 	};
 
 export type BoxelsNode<T extends keyof HTMLElementTagNameMap> =
