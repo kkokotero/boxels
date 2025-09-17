@@ -10,7 +10,7 @@ import '../handlers/global-handlers';
 
 import { debug } from '@testing/index';
 import { createChangeOverlay, ensureChangeStyles } from './zone';
-import { appendChild, uniqueId } from '@dom/utils';
+import { appendChild } from '@dom/utils';
 
 /* -------------------------
    Tipos (sin cambios funcionales)
@@ -43,7 +43,6 @@ export type BoxelsElement = HTMLElement & {
 	__boxels: true;
 	__mounted: boolean;
 	__destroyed: boolean;
-	key?: string;
 };
 
 export type BoxelsElementNode<T extends keyof HTMLElementTagNameMap> =
@@ -55,7 +54,6 @@ export type BoxelsElementNode<T extends keyof HTMLElementTagNameMap> =
 		__boxels: true;
 		__mounted: boolean;
 		__destroyed: boolean;
-		key?: string;
 	};
 
 export type BoxelsNode<T extends keyof HTMLElementTagNameMap> =
@@ -91,53 +89,6 @@ export function isBoxelsElement(value: any): value is BoxelsElement {
 		typeof value.__mounted === 'boolean' &&
 		typeof value.__destroyed === 'boolean'
 	);
-}
-
-// Heurística rápida para detectar cambios visibles entre nodos reutilizados
-function quickNodesDiffer(prev: any, next: any): boolean {
-	// Caso: ambos son textos
-	if (
-		prev.nodes.length === 1 &&
-		next.nodes.length === 1 &&
-		prev.nodes[0].nodeType === Node.TEXT_NODE &&
-		next.nodes[0].nodeType === Node.TEXT_NODE
-	) {
-		return prev.nodes[0].textContent !== next.nodes[0].textContent;
-	}
-
-	// Caso: nodos raíz de distinto tipo
-	if (prev.nodes[0]?.nodeName !== next.nodes[0]?.nodeName) {
-		return true;
-	}
-
-	// Podrías extender esto comparando attrs "clave"
-	// (ejemplo: class, style, data-* importantes)
-	const prevEl = prev.nodes[0] as HTMLElement;
-	const nextEl = next.nodes[0] as HTMLElement;
-	if (prevEl instanceof HTMLElement && nextEl instanceof HTMLElement) {
-		if (prevEl.getAttribute('class') !== nextEl.getAttribute('class')) {
-			return true;
-		}
-		if (prevEl.getAttribute('style') !== nextEl.getAttribute('style')) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
-// Búsqueda rápida de un nodo previo correspondiente
-function findPrevChildFor(
-	child: any,
-	currentKeyMap: Map<string, Child>,
-	currentUnkeyed: Child[],
-): Child | null {
-	if (child.key != null) {
-		return currentKeyMap.get(child.key) ?? null;
-	}
-	// si es unchild sin key → tratamos de encontrar por posición aproximada
-	// (esto depende de cómo estés manejando los arrays)
-	return currentUnkeyed[child.index] ?? null;
 }
 
 export function normalizeChildren(input: Child): BoxlesChildren {
@@ -206,507 +157,77 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 				debug.isShowCommentNames() ? 'signal:end' : '',
 			);
 
-			// añadimos anchors inicialmente (mantener consistencia con el pipeline)
 			nodes.push(start, end);
 
-			// --- Caso especial: señal que produce primitivo -> textNode reactivo ---
-			const tryInit = (() => {
-				let initVal: any;
-				try {
-					initVal = (s as any)();
-				} catch {
-					initVal = undefined;
-				}
-				const isPrimitive =
-					initVal == null ||
-					typeof initVal === 'string' ||
-					typeof initVal === 'number' ||
-					typeof initVal === 'boolean';
-				return { initVal, isPrimitive };
-			})();
-
-			if (tryInit.isPrimitive) {
-				const textNode = document.createTextNode(
-					tryInit.initVal == null ? '' : String(tryInit.initVal),
-				);
-
-				// insertar textNode en `nodes` justo antes de `end`
-				const endIndex = nodes.indexOf(end);
-				if (endIndex >= 0) {
-					nodes.splice(endIndex, 0, textNode);
-				} else {
-					nodes.push(textNode);
-				}
-
-				// Suscribir en onMounts para actualizar textNode y limpiar al desmontar
-				onMounts.push(() => {
-					const unsub: ReactiveUnsubscribe = s.subscribe((v: any) => {
-						try {
-							textNode.textContent = v == null ? '' : String(v);
-						} catch {
-							textNode.textContent = '';
-						}
-					});
-
-					// cleanup
-					cleanUps.push(() => {
-						try {
-							unsub();
-						} catch {
-							/* swallow */
-						}
-						try {
-							textNode.remove();
-						} catch {
-							/* swallow */
-						}
-					});
-				});
-
-				continue;
-			}
-
-			// --- Reconciliación compleja (no primitivo) ---
-
 			let currentChild: BoxlesChildren | null = null;
-			// mapa key -> array de BoxlesChildren (soporta duplicados)
-			let currentKeyMap = new Map<string, BoxlesChildren[]>();
-			// array para nodos sin key (reconciliación posicional)
-			let currentUnkeyed: BoxlesChildren[] = [];
-
-			// Aux: obtener key si existe (solo si el nodo ya trae key). NO fabricar keys.
-			const getKeyIfExists = (node: any): string | null => {
-				if (isBoxelsElement(node) && node.key != null) {
-					return String(node.key);
-				}
-				return null;
-			};
-
-			// Heurística: snapshot rápida de un BoxlesChildren (puedes ajustar)
-			const snapshotOf = (child: BoxlesChildren): string => {
-				const nodes = child.nodes ?? [];
-				const parts: string[] = [String(nodes.length)];
-				for (const n of nodes) {
-					if (!n) {
-						parts.push('null');
-						continue;
-					}
-					if ((n as Node).nodeType === Node.TEXT_NODE) {
-						parts.push('T:' + String((n as Text).textContent));
-					} else if ((n as Node).nodeType === Node.ELEMENT_NODE) {
-						const el = n as Element;
-						parts.push(
-							'E:' +
-								el.tagName +
-								'#' +
-								(el.id || '') +
-								'.' +
-								(el.className || '') +
-								'[' +
-								String(el.childElementCount) +
-								']' +
-								'<' +
-								String((el.textContent || '').length) +
-								'>',
-						);
-					} else {
-						parts.push('O:' + (n as Node).nodeName);
-					}
-				}
-				return parts.join('|');
-			};
-
-			// Helper: clonar map<string, array>
-			const cloneMapOfArrays = (m: Map<string, BoxlesChildren[]>) => {
-				const out = new Map<string, BoxlesChildren[]>();
-				for (const [k, arr] of m) out.set(k, arr.slice());
-				return out;
-			};
 
 			// función que maneja la inserción/reemplazo del valor
 			const handleValue = (val: Child) => {
 				// Normalizar nuevo valor
 				const normalized = normalizeChildren(val);
 
-				// Si es exactamente el mismo conjunto, nada que hacer
+				// Si es exactamente el mismo conjunto de nodos (misma referencia), no hacemos nada
+				// (evita duplicados si la señal re-emite el mismo BoxlesChildren)
 				if (currentChild && currentChild === normalized) return;
 
-				// --- Guardar snapshot y copias del estado previo (antes de mutar currentKeyMap/currentUnkeyed) ---
-				const prevKeyMap = cloneMapOfArrays(currentKeyMap); // copia superficial de arrays
-				const prevUnkeyed = currentUnkeyed.slice();
-
-				// snapshots previos por key -> array de snapshots (coincide con prevKeyMap arrays)
-				const prevKeySnapshots = new Map<string, string[]>();
-				for (const [k, arr] of prevKeyMap) {
-					const snaps: string[] = [];
-					for (const c of arr) {
-						try {
-							snaps.push(snapshotOf(c));
-						} catch {
-							snaps.push('');
-						}
-					}
-					prevKeySnapshots.set(k, snaps);
-				}
-				// snapshots para unkeyed (posicional)
-				const prevUnkeyedSnapshots: string[] = prevUnkeyed.map((c) => {
-					try {
-						return snapshotOf(c);
-					} catch {
-						return '';
-					}
-				});
-
-				// Estructuras para la próxima representación:
-				const nextKeyMap = new Map<string, BoxlesChildren[]>(); // key -> array (posible duplicados)
-				const nextUnkeyed: BoxlesChildren[] = [];
-				const nextSequence: BoxlesChildren[] = []; // orden final de grupos (para insert/move)
-
-				// metadata por child para luego decidir overlays
-				type Meta = {
-					isNew: boolean;
-					key?: string;
-					prevSig?: string;
-					oldIndex?: number;
-				};
-				const childMeta = new Map<BoxlesChildren, Meta>();
-				const createdChildren = new Set<BoxlesChildren>();
-
-				// índice para consumo posicional de prevUnkeyed
-				let unkeyedIndex = 0;
-
-				// Recorremos cada nodo normalizado en orden, determinando su child (reusar o crear)
-				for (const n of normalized.nodes) {
-					const key = getKeyIfExists(n);
-
-					if (key !== null) {
-						// Caso: nodo con key -> reconciliación por key usando prevKeyMap (cola FIFO)
-						const queue = prevKeyMap.get(key);
-						if (queue && queue.length > 0) {
-							// reutilizamos la primera instancia disponible
-							const reused = queue.shift()!;
-							// añadir a nextKeyMap (crear array si no existe)
-							if (!nextKeyMap.has(key)) nextKeyMap.set(key, []);
-							nextKeyMap.get(key)!.push(reused);
-							nextSequence.push(reused);
-							// obtener snapshot correspondiente (si existe) y guardarla en meta
-							const snaps = prevKeySnapshots.get(key) || [];
-							const prevSig = snaps.length > 0 ? snaps.shift()! : '';
-							childMeta.set(reused, { isNew: false, key, prevSig });
+				// Borrar contenido actual entre start y end de forma segura
+				if (start.parentNode && end.parentNode) {
+					let next = start.nextSibling;
+					while (next && next !== end) {
+						const toRemove = next;
+						next = next.nextSibling;
+						// destruir si es BoxelsElement
+						if (isBoxelsElement(toRemove)) {
+							try {
+								(toRemove as BoxelsElement).destroy?.();
+							} catch (e) {
+								/* swallow */
+							}
 						} else {
-							// nuevo con key
-							const created = normalizeChildren(n);
-							if (!nextKeyMap.has(key)) nextKeyMap.set(key, []);
-							nextKeyMap.get(key)!.push(created);
-							nextSequence.push(created);
-							createdChildren.add(created);
-							childMeta.set(created, { isNew: true, key });
+							try {
+								toRemove.remove();
+							} catch (e) {
+								/* swallow */
+							}
 						}
-					} else {
-						// Caso: nodo sin key -> reconciliación posicional usando prevUnkeyed
-						const existing = prevUnkeyed[unkeyedIndex];
-						if (existing) {
-							// reutilizar el existente en esa posición
-							nextUnkeyed.push(existing);
-							nextSequence.push(existing);
-							// snapshot disponible en prevUnkeyedSnapshots[unkeyedIndex]
-							childMeta.set(existing, {
-								isNew: false,
-								oldIndex: unkeyedIndex,
-								prevSig: prevUnkeyedSnapshots[unkeyedIndex],
-							});
-						} else {
-							// crear nuevo (no hay key, es posicional)
-							const created = normalizeChildren(n);
-							nextUnkeyed.push(created);
-							nextSequence.push(created);
-							createdChildren.add(created);
-							childMeta.set(created, { isNew: true, oldIndex: unkeyedIndex });
-						}
-						unkeyedIndex++;
 					}
 				}
 
-				// Nota: prevKeyMap ahora contiene colas con lo que quedó sin consumir (sobrantes a limpiar)
-
-				// -------------- Diff en el DOM: insertar/mover por orden final --------------
+				// Insertar atómicamente con DocumentFragment
 				if (end.parentNode) {
-					const parent = end.parentNode;
-					let anchor: Node = start;
-
-					for (const child of nextSequence) {
-						const nodesOfChild = child.nodes ?? [];
-						if (nodesOfChild.length === 0) {
-							continue;
-						}
-
-						const firstNode = nodesOfChild[0] as Node;
-						const lastNode = nodesOfChild[nodesOfChild.length - 1] as Node;
-
-						const alreadyInPlace =
-							firstNode.parentNode === parent &&
-							firstNode.previousSibling === anchor;
-
-						if (alreadyInPlace) {
-							// avanzar anchor hasta el final del grupo
-							anchor = lastNode;
-							continue;
-						}
-
-						// insertar/mover el primer nodo del grupo justo después del anchor
-						try {
-							parent.insertBefore(firstNode, anchor.nextSibling);
-						} catch {
-							try {
-								parent.insertBefore(firstNode, end);
-							} catch {}
-						}
-
-						// asegurar que los demás nodos del grupo sigan en orden
-						for (let i = 1; i < nodesOfChild.length; i++) {
-							const nd = nodesOfChild[i] as Node;
-							const prev = nodesOfChild[i - 1] as Node;
-							if (nd.parentNode === parent && nd.previousSibling === prev) {
-								continue;
-							}
-							try {
-								parent.insertBefore(nd, prev.nextSibling);
-							} catch {
-								try {
-									parent.insertBefore(nd, end);
-								} catch {}
-							}
-						}
-
-						anchor = lastNode;
-					}
+					const frag = document.createDocumentFragment();
+					for (const n of normalized.nodes) appendChild(frag, n);
+					end.parentNode.insertBefore(frag, end);
 				}
 
-				// -------------- onMount / mountEffect para nuevos y cambios --------------
-				// Recopilamos los destroy/cleanup que puedan devolver los mountEffect de elementos
-				const mountEffectCleanups: (() => void)[] = [];
-
-				// 1) nuevos (keyed)
-				for (const [, arr] of nextKeyMap) {
-					for (const child of arr) {
-						const meta = childMeta.get(child);
-						if (meta && meta.isNew) {
-							try {
-								// comportamiento previo: trigger de onMount del wrapper (si existe)
-								try {
-									(child as any).onMount?.();
-								} catch (e) {
-									/* swallow wrapper onMount error */
-								}
-								// además, para cada nodo interior que sea un BoxelsElement, ejecutar mountEffect()
-								for (const n of child.nodes ?? []) {
-									if (
-										isBoxelsElement(n) &&
-										typeof (n as BoxelsElement).mountEffect === 'function'
-									) {
-										try {
-											const maybeCleanup = (n as BoxelsElement).mountEffect();
-											if (typeof maybeCleanup === 'function')
-												mountEffectCleanups.push(maybeCleanup);
-										} catch (e) {
-											console.error(
-												'mountEffect error (signal, new keyed child node):',
-												e,
-											);
-										}
-									}
-								}
-							} catch (e) {
-								console.error('onMount error (signal, new keyed child):', e);
-							}
-						}
-					}
+				// Ejecutar onMount del nuevo valor
+				try {
+					normalized.onMount();
+				} catch (e) {
+					console.error('onMount error (signal):', e);
 				}
 
-				// 2) nuevos (unkeyed / posicional)
-				for (const child of nextUnkeyed) {
-					const meta = childMeta.get(child);
-					if (meta && meta.isNew) {
-						try {
-							try {
-								(child as any).onMount?.();
-							} catch (e) {
-								/* swallow wrapper onMount error */
-							}
-							for (const n of child.nodes ?? []) {
-								if (
-									isBoxelsElement(n) &&
-									typeof (n as BoxelsElement).mountEffect === 'function'
-								) {
-									try {
-										const maybeCleanup = (n as BoxelsElement).mountEffect();
-										if (typeof maybeCleanup === 'function')
-											mountEffectCleanups.push(maybeCleanup);
-									} catch (e) {
-										console.error(
-											'mountEffect error (signal, new pos child node):',
-											e,
-										);
-									}
-								}
-							}
-						} catch (e) {
-							console.error('onMount error (signal, new pos child):', e);
-						}
-					}
+				// limpiar el anterior (solo después de montar el nuevo para evitar parpadeos)
+				try {
+					currentChild?.cleanup();
+				} catch (e) {
+					/* swallow */
 				}
 
-				// 3) reutilizados que cambiaron (misma instancia pero contenido cambiado) -> ejecutar mountEffect en sus BoxelsElement internos
-				for (const child of nextSequence) {
-					const meta = childMeta.get(child);
-					if (!meta || meta.isNew) continue;
-					const prevSig = meta.prevSig ?? '';
-					let nowSig = '';
-					try {
-						nowSig = snapshotOf(child);
-					} catch {
-						nowSig = '';
-					}
-					if (prevSig !== nowSig) {
-						// la instancia fue reutilizada pero su "snapshot" cambió -> re-ejecutar mountEffect en subcomponentes
-						for (const n of child.nodes ?? []) {
-							if (
-								isBoxelsElement(n) &&
-								typeof (n as BoxelsElement).mountEffect === 'function'
-							) {
-								try {
-									const maybeCleanup = (n as BoxelsElement).mountEffect();
-									if (typeof maybeCleanup === 'function')
-										mountEffectCleanups.push(maybeCleanup);
-								} catch (e) {
-									console.error(
-										'mountEffect error (signal, updated child node):',
-										e,
-									);
-								}
-							}
-						}
-					}
-				}
-
-				// -------------- Limpiar los antiguos que quedaron en prevKeyMap (keys ya no presentes o sobrantes) --------------
-				for (const [, arr] of prevKeyMap) {
-					for (const oldChild of arr) {
-						try {
-							oldChild.cleanup();
-						} catch {}
-						if (oldChild.nodes) {
-							for (const n of oldChild.nodes) {
-								try {
-									if (
-										isBoxelsElement(n) &&
-										typeof (n as BoxelsElement).destroy === 'function'
-									) {
-										(n as BoxelsElement).destroy();
-									}
-								} catch {}
-								try {
-									(n as ChildNode).remove();
-								} catch {}
-							}
-						}
-					}
-				}
-
-				// -------------- Limpiar los posicionales sobrantes (si la nueva lista tiene menos posicionales) --------------
-				for (let i = unkeyedIndex; i < prevUnkeyed.length; i++) {
-					const oldChild = prevUnkeyed[i];
-					try {
-						oldChild.cleanup();
-					} catch {}
-					if (oldChild.nodes) {
-						for (const n of oldChild.nodes) {
-							try {
-								if (
-									isBoxelsElement(n) &&
-									typeof (n as BoxelsElement).destroy === 'function'
-								) {
-									(n as BoxelsElement).destroy();
-								}
-							} catch {}
-							try {
-								(n as ChildNode).remove();
-							} catch {}
-						}
-					}
-				}
-
-				// -------------- Debug overlays (solo sobre los que se crearon o realmente cambiaron por instancia) --------------
+				// debug overlays: envolver cleanup si aplica (mantén tu lógica)
 				if (debug.isShowChanges()) {
 					const overlayCleanups: (() => void)[] = [];
-
-					// 1) overlay en los nuevos creados
-					for (const child of createdChildren) {
-						for (const n of child.nodes ?? []) {
-							try {
-								const cleanupOverlay = createChangeOverlay(n);
-								overlayCleanups.push(cleanupOverlay);
-							} catch {}
-						}
-					}
-
-					// 2) overlay en reutilizados que cambiaron: comparar prevSig vs nowSig por instancia
-					for (const child of nextSequence) {
-						const meta = childMeta.get(child);
-						if (!meta || meta.isNew) continue;
-
-						const prevSig = meta.prevSig ?? '';
-						let nowSig = '';
-						try {
-							nowSig = snapshotOf(child);
-						} catch {
-							nowSig = '';
-						}
-
-						if (prevSig !== nowSig) {
-							for (const n of child.nodes ?? []) {
-								try {
-									const cleanupOverlay = createChangeOverlay(n);
-									overlayCleanups.push(cleanupOverlay);
-								} catch {}
-							}
-						}
-					}
-
-					// adjuntar cleanup overlay a la normalized.cleanup
+					normalized.nodes.forEach((n) => {
+						const cleanupOverlay = createChangeOverlay(n);
+						overlayCleanups.push(cleanupOverlay);
+					});
 					const orig = normalized.cleanup;
 					normalized.cleanup = () => {
-						try {
-							orig();
-						} catch {}
-						overlayCleanups.forEach((fn) => {
-							try {
-								fn();
-							} catch {}
-						});
+						orig();
+						overlayCleanups.forEach((fn) => fn());
 					};
 				}
 
-				// -------------- Adjuntar los cleanups de mountEffect (si los hubo) a normalized.cleanup --------------
-				// Guardamos la original (que puede incluir ya los overlay cleanups) y la envolvemos
-				{
-					const orig = normalized.cleanup;
-					normalized.cleanup = () => {
-						try {
-							orig();
-						} catch {}
-						// ejecutar los destroy/cleanups devueltos por mountEffect
-						for (const fn of mountEffectCleanups) {
-							try {
-								fn();
-							} catch {}
-						}
-					};
-				}
-
-				// -------------- Actualizar estado para próximas reconciliaciones --------------
-				currentKeyMap = nextKeyMap;
-				currentUnkeyed = nextUnkeyed;
 				currentChild = normalized;
 			};
 
@@ -721,7 +242,7 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 				};
 
 				// subscribe puede llamar el handler sincrónicamente; está bien porque
-				// handleValue es idempotento en limpieza/inserción.
+				// handleValue es idempotente en limpieza/inserción.
 				const unsub: ReactiveUnsubscribe = s.subscribe(localHandler);
 
 				// cleanup para cuando el padre limpie esta normalizeChildren
