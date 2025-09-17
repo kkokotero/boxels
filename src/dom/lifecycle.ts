@@ -48,13 +48,13 @@ export function createLifecycle<T extends keyof HTMLElementTagNameMap>(
 		globalDestroyEffects.clear();
 	});
 
-	if (options.isFragment) {
-		options.appendChildren?.(node, result);
-	}
-
 	// Flags de control (resetables)
 	let mountRan = false;
 	let destroyRan = false;
+
+	if (!options.props?.$key) {
+		options.props!.$key = simpleUniqueId('element');
+	}
 
 	/* ----- Ejecutores seguros ----- */
 	const runMountEffects = () => {
@@ -97,10 +97,6 @@ export function createLifecycle<T extends keyof HTMLElementTagNameMap>(
 		options.cleanupChildren?.(node, result);
 		result = handleAttributes(node, options.props ?? {});
 		options.appendChildren?.(node, result);
-
-		if (options.isFragment) {
-			result['$lifecycle:mount']?.(node);
-		}
 
 		appendChild(parent, node);
 

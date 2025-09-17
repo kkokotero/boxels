@@ -45,9 +45,8 @@
 			"@events/*": ["src/dom/attributes/handlers/*"],
 			"@components/*": ["src/components/*"],
 			"@multiplatform/*": ["src/multiplatform/*"],
-			"@plugins": ["src/plugins/"],
-			"@runtime": ["src/runtime/"],
+			"@plugins/*": ["src/plugins/*"],
 		}
 	},
-	"include": ["src", "test", "types", "examples", "types/index.d.ts"],
+	"include": ["src", "test", "types", "examples", "types/index.d.ts", "main.tsx"],
 }

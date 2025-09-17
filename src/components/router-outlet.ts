@@ -51,7 +51,7 @@ export const RouterOutlet = async ({
 				document.head.appendChild(metaTag);
 			}
 		});
-		
+
 		beforeChange?.(router.url!());
 
 		if (node.component) {
@@ -99,7 +99,7 @@ export const RouterOutlet = async ({
 				? await node.handler?.component()
 				: node.handler?.component;
 
-		view.set(component);
+		view.set(component, true);
 		afterChange?.(router.url!());
 	};
 

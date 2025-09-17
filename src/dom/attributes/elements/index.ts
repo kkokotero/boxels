@@ -482,28 +482,109 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 					}
 				}
 
-				// -------------- onMount para nuevos --------------
-				// new keyed
-				for (const [k, arr] of nextKeyMap) {
+				// -------------- onMount / mountEffect para nuevos y cambios --------------
+				// Recopilamos los destroy/cleanup que puedan devolver los mountEffect de elementos
+				const mountEffectCleanups: (() => void)[] = [];
+
+				// 1) nuevos (keyed)
+				for (const [, arr] of nextKeyMap) {
 					for (const child of arr) {
 						const meta = childMeta.get(child);
 						if (meta && meta.isNew) {
 							try {
-								child.onMount();
+								// comportamiento previo: trigger de onMount del wrapper (si existe)
+								try {
+									(child as any).onMount?.();
+								} catch (e) {
+									/* swallow wrapper onMount error */
+								}
+								// además, para cada nodo interior que sea un BoxelsElement, ejecutar mountEffect()
+								for (const n of child.nodes ?? []) {
+									if (
+										isBoxelsElement(n) &&
+										typeof (n as BoxelsElement).mountEffect === 'function'
+									) {
+										try {
+											const maybeCleanup = (n as BoxelsElement).mountEffect();
+											if (typeof maybeCleanup === 'function')
+												mountEffectCleanups.push(maybeCleanup);
+										} catch (e) {
+											console.error(
+												'mountEffect error (signal, new keyed child node):',
+												e,
+											);
+										}
+									}
+								}
 							} catch (e) {
 								console.error('onMount error (signal, new keyed child):', e);
 							}
 						}
 					}
 				}
-				// new unkeyed
+
+				// 2) nuevos (unkeyed / posicional)
 				for (const child of nextUnkeyed) {
 					const meta = childMeta.get(child);
 					if (meta && meta.isNew) {
 						try {
-							child.onMount();
+							try {
+								(child as any).onMount?.();
+							} catch (e) {
+								/* swallow wrapper onMount error */
+							}
+							for (const n of child.nodes ?? []) {
+								if (
+									isBoxelsElement(n) &&
+									typeof (n as BoxelsElement).mountEffect === 'function'
+								) {
+									try {
+										const maybeCleanup = (n as BoxelsElement).mountEffect();
+										if (typeof maybeCleanup === 'function')
+											mountEffectCleanups.push(maybeCleanup);
+									} catch (e) {
+										console.error(
+											'mountEffect error (signal, new pos child node):',
+											e,
+										);
+									}
+								}
+							}
 						} catch (e) {
 							console.error('onMount error (signal, new pos child):', e);
+						}
+					}
+				}
+
+				// 3) reutilizados que cambiaron (misma instancia pero contenido cambiado) -> ejecutar mountEffect en sus BoxelsElement internos
+				for (const child of nextSequence) {
+					const meta = childMeta.get(child);
+					if (!meta || meta.isNew) continue;
+					const prevSig = meta.prevSig ?? '';
+					let nowSig = '';
+					try {
+						nowSig = snapshotOf(child);
+					} catch {
+						nowSig = '';
+					}
+					if (prevSig !== nowSig) {
+						// la instancia fue reutilizada pero su "snapshot" cambió -> re-ejecutar mountEffect en subcomponentes
+						for (const n of child.nodes ?? []) {
+							if (
+								isBoxelsElement(n) &&
+								typeof (n as BoxelsElement).mountEffect === 'function'
+							) {
+								try {
+									const maybeCleanup = (n as BoxelsElement).mountEffect();
+									if (typeof maybeCleanup === 'function')
+										mountEffectCleanups.push(maybeCleanup);
+								} catch (e) {
+									console.error(
+										'mountEffect error (signal, updated child node):',
+										e,
+									);
+								}
+							}
 						}
 					}
 				}
@@ -603,6 +684,23 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 								fn();
 							} catch {}
 						});
+					};
+				}
+
+				// -------------- Adjuntar los cleanups de mountEffect (si los hubo) a normalized.cleanup --------------
+				// Guardamos la original (que puede incluir ya los overlay cleanups) y la envolvemos
+				{
+					const orig = normalized.cleanup;
+					normalized.cleanup = () => {
+						try {
+							orig();
+						} catch {}
+						// ejecutar los destroy/cleanups devueltos por mountEffect
+						for (const fn of mountEffectCleanups) {
+							try {
+								fn();
+							} catch {}
+						}
 					};
 				}
 
