@@ -1,9 +1,9 @@
-## [2.12.5](https://github.com/kkokotero/boxels/compare/d8d57ee438f8e399e574160ca3741767d8bfd3b4...v2.12.5) (2025-09-19)
+## [2.12.6](https://github.com/kkokotero/boxels/compare/0f0b0520085b5257f4776ee32f1583bfa5e8f298...v2.12.6) (2025-09-19)
 
 
 ### Bug Fixes
 
-* **routes:** corrige visualización y manejo de eventos de montaje/destrucción en el DOM ([d8d57ee](https://github.com/kkokotero/boxels/commit/d8d57ee438f8e399e574160ca3741767d8bfd3b4))
+* **dom:** se corrige que los ciclos de montaje no se ejecutaban en el DOM ([0f0b052](https://github.com/kkokotero/boxels/commit/0f0b0520085b5257f4776ee32f1583bfa5e8f298))
 
 
 
