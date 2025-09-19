@@ -18,27 +18,6 @@ Incluye un sistema reactivo propio, un motor optimizado de ciclo de vida y rende
 
 > Este proyecto cuenta con un [Código de Conducta](./CODE_OF_CONDUCT.md). Por favor, revísalo antes de contribuir.
 
-Aquí tienes el fragmento que puedes insertar justo después de la sección principal y antes de la tabla de contenidos. Este mensaje explica que existe una **CLI oficial** (`box`) para facilitar el uso de Boxels:
-
----
-
-### CLI Oficial Disponible
-
-Para mejorar la experiencia de desarrollo con Boxels, puedes usar la [**CLI oficial**](https://www.npmjs.com/package/boxels-config) con el comando `box`.
-
-Te permite:
-
-- Crear nuevos proyectos Boxels
-- Servir y compilar tu aplicación con Vite
-- Ejecutar pruebas con entorno DOM incluido
-- Usar configuraciones simplificadas para producción y desarrollo
-
-```bash
-npm install -g boxels-config
-````
-
-> Una vez instalada, puedes ejecutar `box --help` para ver los comandos disponibles.
-
 ---
 
 ### Soporte Multiplataforma
@@ -103,7 +82,7 @@ npm install boxels
 ## Inicio Rápido
 
 ```tsx
-import { mount } from 'boxels/core';
+import { mount } from 'boxels/dom';
 
 const App = () => (
     <main>

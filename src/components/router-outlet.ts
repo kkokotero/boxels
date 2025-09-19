@@ -74,6 +74,13 @@ export const RouterOutlet = async ({
 			return;
 		}
 
+		if (!node.handler && !node.message) {
+			if (router.routerConfig.onNotFound)
+				view.set(await router.routerConfig.onNotFound());
+			else view.set($('pre', {}, '404 - Ruta no encontrada: ', router.url!()));
+			return;
+		}
+
 		if (!node.handler?.component) {
 			view.set(
 				$(
@@ -84,13 +91,6 @@ export const RouterOutlet = async ({
 					'\nNo hay un componente en esta ruta',
 				),
 			);
-			return;
-		}
-
-		if (!node.handler && !node.message) {
-			if (router.routerConfig.onNotFound)
-				view.set(await router.routerConfig.onNotFound());
-			else view.set($('pre', {}, '404 - Ruta no encontrada: ', router.url!()));
 			return;
 		}
 

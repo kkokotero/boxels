@@ -36,8 +36,7 @@ export function createLifecycle<T extends keyof HTMLElementTagNameMap>(
 		onDestroyResult?: (result: any, node: BoxelsElementNode<T>) => void;
 	},
 ) {
-	let result = handleAttributes(node, options.props ?? {});
-
+	let result = {};
 	// Capturamos y "consumimos" los efectos globales solo para este nodo
 	const localMountEffects = Array.from(globalMountEffects);
 	const localDestroyEffects = Array.from(globalDestroyEffects);
@@ -46,6 +45,10 @@ export function createLifecycle<T extends keyof HTMLElementTagNameMap>(
 		// Se limpian después de capturarlos para que no choquen entre nodos
 		globalMountEffects.clear();
 		globalDestroyEffects.clear();
+
+		queue(() => {
+			result = handleAttributes(node, options.props ?? {});
+		});
 	});
 
 	// Flags de control (resetables)
@@ -62,7 +65,9 @@ export function createLifecycle<T extends keyof HTMLElementTagNameMap>(
 		mountRan = true;
 		destroyRan = false; // reset para permitir destruir luego
 		queue(() => {
-			localMountEffects.forEach((cb) => cb(node));
+			localMountEffects.forEach((cb) => {
+				cb(node);
+			});
 		});
 	};
 
