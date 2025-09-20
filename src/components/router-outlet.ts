@@ -55,7 +55,7 @@ export const RouterOutlet = async ({
 		beforeChange?.(router.url!());
 
 		if (node.component) {
-			view.set(await node.component());
+			view.set(await node.component(), true);
 			return;
 		}
 
@@ -65,6 +65,7 @@ export const RouterOutlet = async ({
 			else
 				view.set(
 					$('pre', {}, '403 - Prohibido: ', router.url!(), '\n', node.message),
+					true,
 				);
 			return;
 		}
@@ -77,7 +78,11 @@ export const RouterOutlet = async ({
 		if (!node.handler && !node.message) {
 			if (router.routerConfig.onNotFound)
 				view.set(await router.routerConfig.onNotFound());
-			else view.set($('pre', {}, '404 - Ruta no encontrada: ', router.url!()));
+			else
+				view.set(
+					$('pre', {}, '404 - Ruta no encontrada: ', router.url!()),
+					true,
+				);
 			return;
 		}
 
@@ -90,6 +95,7 @@ export const RouterOutlet = async ({
 					router.url!(),
 					'\nNo hay un componente en esta ruta',
 				),
+				true,
 			);
 			return;
 		}
@@ -103,15 +109,7 @@ export const RouterOutlet = async ({
 		afterChange?.(router.url!());
 	};
 
-	const unsubscribe = router.actualRoute.subscribe(update);
+	router.actualRoute.subscribe(update);
 
-	return $(
-		document.createDocumentFragment(),
-		{
-			'$lifecycle:destroy': () => {
-				unsubscribe();
-			},
-		},
-		view,
-	);
+	return $('fragment' as 'div', {}, view);
 };

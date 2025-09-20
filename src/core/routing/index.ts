@@ -1,4 +1,4 @@
-import { signal } from '@core/reactive/signal';
+import { signal, type Signal } from '@core/reactive/signal';
 import { TriNode, type FindResult, type NodeHandler } from './route-trie';
 import type { MaybeSignal, ReactiveSignal } from '@core/reactive/types';
 import { page } from '../page';
@@ -50,10 +50,10 @@ class Router {
 	private routes = new TriNode(); // Trie para buscar rutas
 	public ready: Promise<void>; // Promesa que se resuelve al cargar rutas
 	private cache = new Map<string, NodeHandler>(); // Cache interna
-	public url: ReactiveSignal<string> = signal(window.location.href); // URL actual
+	public url: Signal<string> = signal(window.location.href); // URL actual
 	public isNavigating = false; // Estado de navegación
 	public params: Record<string, string> = {}; // Parámetros dinámicos
-	public actualRoute: ReactiveSignal<FindResult> = signal({}); // Ruta actual encontrada
+	public actualRoute: Signal<FindResult> = signal({}); // Ruta actual encontrada
 
 	constructor(public routerConfig: RouterConfig = {}) {
 		// Inicializa rutas y navega automáticamente a la URL actual

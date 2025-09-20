@@ -1,19 +1,20 @@
 import type { Hook } from '@hooks/hook';
 import { autoCleanup } from '@core/cleanup';
+import { onDestroy } from '@dom/lifecycle';
 
 /**
  * --- Scheduler global para manejar múltiples "delays" usando un único requestAnimationFrame ---
- * 
+ *
  * La idea principal de esta clase es optimizar la ejecución de múltiples temporizadores
  * que dependen de animaciones o tiempos, utilizando **un solo ciclo de requestAnimationFrame**,
  * en lugar de múltiples `setTimeout` o múltiples `requestAnimationFrame` independientes.
- * 
+ *
  * Esto reduce la sobrecarga de procesamiento y mejora el rendimiento.
  */
 class RafScheduler {
 	/**
 	 * Conjunto de tareas programadas.
-	 * 
+	 *
 	 * Cada tarea contiene:
 	 * - `runAt`: Momento exacto (en milisegundos de `performance.now()`) en el que debe ejecutarse.
 	 * - `callback`: Función que se debe ejecutar.
@@ -30,14 +31,14 @@ class RafScheduler {
 
 	/**
 	 * Bucle principal del scheduler, llamado en cada frame por requestAnimationFrame.
-	 * 
+	 *
 	 * @param time Tiempo actual proporcionado por rAF, medido en ms desde que la página inició.
 	 */
 	private loop = (time: number) => {
 		for (const task of this.tasks) {
 			// Verifica si la tarea no está cancelada y si ya llegó su momento de ejecución.
 			if (!task.canceled && time >= task.runAt) {
-				task.callback();         // Ejecuta la función programada
+				task.callback(); // Ejecuta la función programada
 				this.tasks.delete(task); // Elimina la tarea de la lista
 			}
 		}
@@ -52,7 +53,7 @@ class RafScheduler {
 
 	/**
 	 * Programa una nueva tarea para ejecutarse después de cierto tiempo.
-	 * 
+	 *
 	 * @param callback Función a ejecutar cuando se cumpla el tiempo.
 	 * @param delay Tiempo en milisegundos a esperar antes de ejecutar.
 	 * @returns Función para cancelar la tarea antes de que se ejecute.
@@ -81,10 +82,10 @@ const globalScheduler = new RafScheduler();
 
 /**
  * Clase `Delay` — Representa un delay programado, usando el scheduler global.
- * 
+ *
  * Implementa la interfaz `Hook` para integrarse fácilmente en sistemas que
  * gestionan recursos/instancias que se deben destruir.
- * 
+ *
  * Además, está integrado con `autoCleanup`, por lo que si la instancia pierde
  * todas sus referencias será recogida por el GC y se cancelará automáticamente.
  */
@@ -106,6 +107,7 @@ export class Delay implements Hook {
 		// Registro de limpieza automática con autoCleanup
 		const cleanup = autoCleanup(this);
 		cleanup.onCleanup(() => this.destroy());
+		onDestroy(() => this.destroy());
 	}
 
 	/**
@@ -121,7 +123,7 @@ export class Delay implements Hook {
 
 /**
  * Función auxiliar para crear un Delay de forma rápida.
- * 
+ *
  * @param callback Función a ejecutar después del delay.
  * @param delay Tiempo en milisegundos antes de ejecutar la función.
  * @returns Instancia de `Delay`.

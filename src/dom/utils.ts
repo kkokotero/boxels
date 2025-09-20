@@ -329,14 +329,14 @@ export function injectStyle(
  * - Internamente delega la inserción en `appendChild`, que gestiona casos especiales
  *   como señales, BoxelsElements, fragmentos y nodos DOM comunes.
  */
-export const mount = (
-	parent: HTMLElement | DocumentFragment,
-	...children: JSX.Element[]
+export const mount = async (
+  parent: HTMLElement | DocumentFragment,
+  ...children: JSX.Element[]
 ) => {
-	children.forEach(async (child) => {
-		// Insertar hijo en el contenedor
-		appendChild(parent, await (typeof child === 'function' ? child() : child));
-	});
+  for (const child of children) {
+    const resolved = await (typeof child === "function" ? child() : child);
+    appendChild(parent, resolved);
+  }
 };
 
 /**

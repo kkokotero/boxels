@@ -8,17 +8,23 @@ import { appendChild, simpleUniqueId } from './utils';
 ------------------------- */
 
 // 🔹 Efectos globales (se acumulan mientras se crea un nodo)
-const globalMountEffects = new Set<(node: Node) => void>();
-const globalDestroyEffects = new Set<(node: Node) => void>();
+// Ahora son arrays en vez de Set
+let globalMountEffects: ((node: HTMLElement) => void)[] = [];
+let globalDestroyEffects: ((node: HTMLElement) => void)[] = [];
 
-export function onMount(cb: (node: Node) => void) {
-	globalMountEffects.add(cb);
-	return () => globalMountEffects.delete(cb);
+export function onMount(cb: (node: HTMLElement) => void) {
+	globalMountEffects.push(cb);
+	// devolvemos función para eliminar solo ese callback
+	return () => {
+		globalMountEffects = globalMountEffects.filter((fn) => fn !== cb);
+	};
 }
 
-export function onDestroy(cb: (node: Node) => void) {
-	globalDestroyEffects.add(cb);
-	return () => globalDestroyEffects.delete(cb);
+export function onDestroy(cb: (node: HTMLElement) => void) {
+	globalDestroyEffects.push(cb);
+	return () => {
+		globalDestroyEffects = globalDestroyEffects.filter((fn) => fn !== cb);
+	};
 }
 
 /* -------------------------
@@ -35,19 +41,16 @@ export function createLifecycle<T extends keyof HTMLElementTagNameMap>(
 		onMountResult?: (result: any, node: BoxelsElementNode<T>) => void;
 		onDestroyResult?: (result: any, node: BoxelsElementNode<T>) => void;
 	},
-) {
-	let result = handleAttributes(node, options.props ?? {});
-
+) {	
 	// Capturamos y "consumimos" los efectos globales solo para este nodo
-	const localMountEffects = Array.from(globalMountEffects);
-	const localDestroyEffects = Array.from(globalDestroyEffects);
-
-	queue(() => {
-		// Se limpian después de capturarlos para que no choquen entre nodos
-		globalMountEffects.clear();
-		globalDestroyEffects.clear();
-	});
-
+	const localMountEffects = globalMountEffects.slice();   // copia segura
+	const localDestroyEffects = globalDestroyEffects.slice();
+	
+	globalMountEffects = [];
+	globalDestroyEffects = [];
+	
+	let result = handleAttributes(node, options.props ?? {});
+	
 	// Flags de control (resetables)
 	let mountRan = false;
 	let destroyRan = false;

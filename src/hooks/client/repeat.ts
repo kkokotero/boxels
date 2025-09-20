@@ -1,5 +1,6 @@
 import type { Hook } from '@hooks/hook';
 import { autoCleanup } from '@core/cleanup';
+import { onDestroy } from '@dom/lifecycle';
 
 /**
  * Tipo de tarea repetitiva gestionada por el scheduler.
@@ -83,6 +84,17 @@ class RafRepeatScheduler {
 		if (this.rafId === null) {
 			this.rafId = requestAnimationFrame(this.loop);
 		}
+
+		onDestroy(() => {
+			task.canceled = true;
+			this.tasks.delete(task);
+		});
+
+		const cleanup = autoCleanup(this);
+		cleanup.onCleanup(() => {
+			task.canceled = true;
+			this.tasks.delete(task);
+		});
 
 		// Devuelve la función de cancelación para este task
 		return () => {

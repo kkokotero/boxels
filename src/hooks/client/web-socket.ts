@@ -80,7 +80,6 @@ export class WSClient implements Hook {
 
 		// Evento: conexión establecida.
 		this.socket.onopen = () => {
-			console.info('[WS] Conectado');
 			this.retries = 0; // Reinicia contador de intentos.
 			this.emit('open', undefined); // Notifica apertura.
 		};

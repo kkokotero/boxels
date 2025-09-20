@@ -10,7 +10,8 @@ import '../handlers/global-handlers';
 
 import { debug } from '@testing/index';
 import { createChangeOverlay, ensureChangeStyles } from './zone';
-import { appendChild } from '@dom/utils';
+import { simpleUniqueId } from '@dom/utils';
+import { deepEqual } from 'fast-equals';
 
 /* -------------------------
    Tipos (sin cambios funcionales)
@@ -93,6 +94,90 @@ export function isBoxelsElement(value: any): value is BoxelsElement {
 	);
 }
 
+export function createComment(name: string) {
+	const comment = document.createComment(name);
+	(comment as any).key = simpleUniqueId('comment');
+	return comment;
+}
+
+export function createTextNode(name: string) {
+	const comment = document.createTextNode(name);
+	(comment as any).key = simpleUniqueId('text');
+	return comment;
+}
+
+function reconcileChildren(
+	parent: Node,
+	oldNodes: Node[],
+	newNodes: Node[],
+	start: Node | null = null,
+	end: Node | null = null,
+) {
+	const oldKeyed = new Map<string, Node>();
+	const used = new Set<Node>();
+	const finalNodes: Node[] = [];
+
+	// Indexar oldNodes con key
+	for (const oldNode of oldNodes) {
+		const key = (oldNode as any).key;
+		if (key) oldKeyed.set(key, oldNode);
+	}
+
+	// Nodo actual a recorrer desde start hasta end
+	let current: Node | null = start ? start.nextSibling : parent.firstChild;
+
+	for (const newNode of newNodes) {
+		const key = (newNode as any).key;
+
+		let matched: Node | null = null;
+
+		// Si tiene key, buscamos un nodo antiguo reutilizable
+		if (key && oldKeyed.has(key)) {
+			matched = oldKeyed.get(key)!;
+			used.add(matched);
+		}
+
+		if (matched) {
+			// Reusar nodo encontrado
+			if (matched !== current) {
+				parent.insertBefore(matched, current);
+			}
+			finalNodes.push(matched);
+		} else {
+			// Nuevo nodo → insertar antes de current
+			parent.insertBefore(newNode, current);
+			finalNodes.push(newNode);
+		}
+
+		if (isBoxelsElement(newNode)) newNode.mountEffect();
+
+		// Avanzar current hasta el siguiente nodo válido
+		if (current === newNode || current === matched) {
+			current = current!.nextSibling;
+		}
+	}
+
+	// 🔹 Eliminar los nodos sobrantes entre current y end
+	let toRemove = current;
+	while (toRemove && toRemove !== end) {
+		const next = toRemove.nextSibling;
+		if (!used.has(toRemove)) {
+			if (isBoxelsElement(toRemove)) {
+				try {
+					toRemove.destroy();
+				} catch {}
+			} else {
+				try {
+					(toRemove as ChildNode).remove();
+				} catch {}
+			}
+		}
+		toRemove = next;
+	}
+
+	return finalNodes;
+}
+
 export function normalizeChildren(input: Child): BoxlesChildren {
 	// Inyección condicional de estilos para overlays de cambio
 	if (debug.isShowChanges()) ensureChangeStyles();
@@ -152,12 +237,10 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 		// Señal reactiva
 		if (isSignal(child)) {
 			const s = child as ReactiveSignal<Child>;
-			const start = document.createComment(
+			const start = createComment(
 				debug.isShowCommentNames() ? 'signal:start' : '',
 			);
-			const end = document.createComment(
-				debug.isShowCommentNames() ? 'signal:end' : '',
-			);
+			const end = createComment(debug.isShowCommentNames() ? 'signal:end' : '');
 
 			nodes.push(start, end);
 
@@ -168,69 +251,54 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 				// Normalizar nuevo valor
 				const normalized = normalizeChildren(val);
 
-				// Si es exactamente el mismo conjunto de nodos (misma referencia), no hacemos nada
-				// (evita duplicados si la señal re-emite el mismo BoxlesChildren)
-				if (currentChild && currentChild === normalized) return;
+				// Si no hay cambios en nodos, podemos omitir
+				if (deepEqual(normalized.nodes, currentChild?.nodes)) {
+					return;
+				}
 
-				// Borrar contenido actual entre start y end de forma segura
+				// Limpia nodos previos
+				currentChild?.cleanup();
+
 				if (start.parentNode && end.parentNode) {
-					let next = start.nextSibling;
-					while (next && next !== end) {
-						const toRemove = next;
-						next = next.nextSibling;
-						// destruir si es BoxelsElement
-						if (isBoxelsElement(toRemove)) {
-							try {
-								(toRemove as BoxelsElement).destroy?.();
-							} catch (e) {
-								/* swallow */
-							}
-						} else {
-							try {
-								toRemove.remove();
-							} catch (e) {
-								/* swallow */
+					const parent = end.parentNode;
+					const oldNodes = currentChild?.nodes ?? [];
+					const newNodes = normalized.nodes;
+
+					// 🔹 reconciliamos con la nueva versión que respeta start/end
+					const reconciled = reconcileChildren(
+						parent,
+						oldNodes,
+						newNodes,
+						start,
+						end,
+					);
+
+					// 🔹 overlays
+					if (debug.isShowChanges()) {
+						const overlayCleanups: (() => void)[] = [];
+
+						// detecta cuáles son realmente nuevos o movidos
+						const oldSet = new Set(oldNodes);
+						for (const n of reconciled) {
+							if (!oldSet.has(n)) {
+								const cleanupOverlay = createChangeOverlay(n);
+								overlayCleanups.push(cleanupOverlay);
 							}
 						}
+
+						const orig = normalized.cleanup;
+						normalized.cleanup = () => {
+							orig();
+							overlayCleanups.forEach((fn) => fn());
+						};
 					}
-				}
 
-				// Insertar atómicamente con DocumentFragment
-				if (end.parentNode) {
-					const frag = document.createDocumentFragment();
-					for (const n of normalized.nodes) appendChild(frag, n);
-					end.parentNode.insertBefore(frag, end);
-				}
-
-				// Ejecutar onMount del nuevo valor
-				try {
+					// Monta los efectos de los nuevos nodos
 					normalized.onMount();
-				} catch (e) {
-					console.error('onMount error (signal):', e);
-				}
 
-				// limpiar el anterior (solo después de montar el nuevo para evitar parpadeos)
-				try {
-					currentChild?.cleanup();
-				} catch (e) {
-					/* swallow */
+					// Actualiza referencia
+					currentChild = { ...normalized, nodes: reconciled };
 				}
-
-				// debug overlays: envolver cleanup si aplica (mantén tu lógica)
-				if (debug.isShowChanges()) {
-					const overlayCleanups: (() => void)[] = [];
-					normalized.nodes.forEach((n) => {
-						const cleanupOverlay = createChangeOverlay(n);
-						overlayCleanups.push(cleanupOverlay);
-					});
-					const orig = normalized.cleanup;
-					normalized.cleanup = () => {
-						orig();
-						overlayCleanups.forEach((fn) => fn());
-					};
-				}
-
-				currentChild = normalized;
 			};
 
 			// Registramos la suscripción en onMount (deferred)
@@ -321,7 +389,7 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 
 		// Promesa
 		if (child instanceof Promise) {
-			const placeholder = document.createComment(
+			const placeholder = createComment(
 				debug.isShowCommentNames() ? 'promise:placeholder' : '',
 			);
 			nodes.push(placeholder);
@@ -391,12 +459,12 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 
 		// Objetos -> text node
 		if (typeof child === 'object') {
-			nodes.push(document.createTextNode(JSON.stringify(child, null, 2)));
+			nodes.push(createTextNode(JSON.stringify(child, null, 2)));
 			continue;
 		}
 
 		// Primitivos
-		nodes.push(document.createTextNode(String(child)));
+		nodes.push(createTextNode(String(child)));
 	}
 
 	return {
