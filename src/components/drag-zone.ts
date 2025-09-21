@@ -95,8 +95,8 @@ function resolveDropIndex(
 }
 
 // DraggableZone
-export type DraggableZoneProps<T extends keyof HTMLElementTagNameMap> = {
-	as?: keyof HTMLElementTagNameMap;
+export type DraggableZoneProps<T extends keyof ElementTagNameMap> = {
+	as?: keyof ElementTagNameMap;
 	on?: Partial<
 		Record<
 			DragEvents,
@@ -111,7 +111,7 @@ export type DraggableZoneProps<T extends keyof HTMLElementTagNameMap> = {
 };
 
 export const DraggableZone: JSX.Component<'div', DraggableZoneProps<'div'>> = <
-	T extends keyof HTMLElementTagNameMap,
+	T extends keyof ElementTagNameMap,
 >({
 	as,
 	on,
@@ -212,7 +212,7 @@ export const DraggableZone: JSX.Component<'div', DraggableZoneProps<'div'>> = <
 
 // Draggable
 export type DraggableProps<Name extends string = string> = {
-	as?: keyof HTMLElementTagNameMap;
+	as?: keyof ElementTagNameMap;
 	id?: string;
 	enable?: boolean | ReactiveSignal<boolean>;
 	children: JSX.Element | JSX.Element[];

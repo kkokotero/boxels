@@ -3,7 +3,7 @@ import { autoCleanup } from '@core/cleanup';
 import {
 	isSignal, // Verifica si un valor es una señal reactiva
 	signal, // Crea una señal reactiva
-	type ReactiveSignal, // Tipo para señales reactivas
+	type Signal, // Tipo para señales reactivas
 	type ReactiveUnsubscribe, // Tipo para funciones de limpieza de suscripción
 } from '@core/reactive';
 import type { Hook } from '@hooks/hook';
@@ -81,7 +81,7 @@ export class Range implements Hook {
 	 * @param value - Valor absoluto o señal reactiva
 	 * @returns - Señal reactiva con el valor actual normalizado
 	 */
-	public percent(value: number | ReactiveSignal<number>) {
+	public percent(value: number | Signal<number>) {
 		// Si es una señal, se suscribe a ella y actualiza en cada cambio
 		if (isSignal(value)) {
 			this.cleanUps.push(

@@ -83,11 +83,7 @@ export function effect(
 	const wrappedRun = async () => {
 		// Limpieza previa solo una vez, no repetir después en cleanup global
 		if (lastCleanup) {
-			try {
-				lastCleanup();
-			} catch (e) {
-				console.error('error en cleanup previo', e);
-			}
+			lastCleanup();
 		}
 		lastCleanup = await run();
 	};
@@ -105,11 +101,8 @@ export function effect(
 		cleanups.forEach((unsub) => unsub());
 		cleanups = [];
 		if (lastCleanup) {
-			try {
-				lastCleanup();
-			} catch (e) {
-				console.error('error en cleanup final', e);
-			}
+			lastCleanup();
+
 			lastCleanup = undefined;
 		}
 	};

@@ -25,7 +25,7 @@ type DOMEventHandlers = {
  * - `$lifecycle:mount`: se ejecuta cuando el elemento es montado en el DOM.
  * - `$lifecycle:destroy`: se ejecuta cuando el elemento es destruido.
  */
-export type LifecycleEventHandlers<T extends keyof HTMLElementTagNameMap> = {
+export type LifecycleEventHandlers<T extends keyof ElementTagNameMap> = {
 	'$lifecycle:mount'?: (e: BoxelsElementNode<T>) => void;
 	'$lifecycle:destroy'?: (e: BoxelsElementNode<T>) => void;
 };
@@ -106,7 +106,7 @@ export type StyleAttr = StyleMap | string | Signal<string> | null | undefined;
  * - `children`: hijos del elemento (puede ser cualquier tipo)
  * - cualquier otro atributo HTML válido como `id`, `name`, `tabindex`, etc.
  */
-interface standartAttrs<T extends keyof HTMLElementTagNameMap>
+interface standartAttrs<T extends keyof ElementTagNameMap>
 	extends DOMEventHandlers,
 		LifecycleEventHandlers<T> {
 	class?: ClassAttr;
@@ -213,60 +213,6 @@ declare global {
 			type?: 'button' | 'submit' | 'reset';
 		};
 
-		// Elementos SVG principales
-		svg: SVGAttributes;
-		circle: SVGAttributes;
-		ellipse: SVGAttributes;
-		line: SVGAttributes;
-		path: SVGAttributes;
-		polygon: SVGAttributes;
-		polyline: SVGAttributes;
-		rect: SVGAttributes;
-
-		// Contenedores / estructurales
-		g: SVGAttributes;
-		symbol: SVGAttributes;
-		defs: SVGAttributes;
-		use: SVGAttributes;
-
-		// Texto
-		text: SVGAttributes;
-		tspan: SVGAttributes;
-		textPath: SVGAttributes;
-
-		// Gradientes y patrones
-		linearGradient: SVGAttributes;
-		radialGradient: SVGAttributes;
-		stop: SVGAttributes;
-		pattern: SVGAttributes;
-		clipPath: SVGAttributes;
-		mask: SVGAttributes;
-
-		// Filtros
-		filter: SVGAttributes;
-		feBlend: SVGAttributes;
-		feColorMatrix: SVGAttributes;
-		feComponentTransfer: SVGAttributes;
-		feComposite: SVGAttributes;
-		feConvolveMatrix: SVGAttributes;
-		feDiffuseLighting: SVGAttributes;
-		feDisplacementMap: SVGAttributes;
-		feDropShadow: SVGAttributes;
-		feFlood: SVGAttributes;
-		feGaussianBlur: SVGAttributes;
-		feImage: SVGAttributes;
-		feMerge: SVGAttributes;
-		feMorphology: SVGAttributes;
-		feOffset: SVGAttributes;
-		feSpecularLighting: SVGAttributes;
-		feTile: SVGAttributes;
-		feTurbulence: SVGAttributes;
-
-		// Fragment también puede tener eventos del ciclo de vida
-		Fragment: LifecycleEventHandlers<'div'> & {
-			children?: JSX.Element | JSX.Element[];
-		};
-
 		fragment: LifecycleEventHandlers<'div'> & {
 			children?: JSX.Element | JSX.Element[];
 		};
@@ -284,14 +230,14 @@ declare global {
 	 * Combina atributos estándar, atributos extendidos específicos del tipo
 	 * y atributos globales. También evita sobrescribir propiedades del DOM.
 	 */
-	export type BoxelsElementAttributes<T extends keyof HTMLElementTagNameMap> =
+	export type BoxelsElementAttributes<T extends keyof ElementTagNameMap> =
 		standartAttrs<T> &
 			BoxelsElementExtendedAttributes[T] &
 			BoxelsElementGlobalAttributes & {
 				// Evita colisiones con propiedades/métodos nativos del DOM
-				[K in keyof HTMLElementTagNameMap[T] as K extends `on${string}`
+				[K in keyof ElementTagNameMap[T] as K extends `on${string}`
 					? never
-					: HTMLElementTagNameMap[T] extends Function
+					: ElementTagNameMap[T] extends Function
 						? never
 						: K]?: any;
 			} & {
@@ -362,7 +308,7 @@ declare global {
 			};
 }
 
-export type BoxelsELementNodeAttributes<T extends keyof HTMLElementTagNameMap> =
+export type BoxelsELementNodeAttributes<T extends keyof ElementTagNameMap> =
 	BoxelsElementAttributes<T>;
 
 /**
@@ -384,7 +330,7 @@ export const globalHandlers: Record<string, any> = {};
  *   es una función que recibe el elemento y el valor del atributo, devolviendo
  *   una función de limpieza (para desmontaje).
  */
-export function addCustomHandlers<T extends keyof HTMLElementTagNameMap>(
+export function addCustomHandlers<T extends keyof ElementTagNameMap>(
 	selector: T,
 	newHandlers: Record<
 		`$${string}`,

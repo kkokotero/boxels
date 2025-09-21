@@ -1,3 +1,4 @@
+export * from "./tracked-storage";
 export * from "./tracked-signal";
 export * from "./signal";
 export * from "./computed";

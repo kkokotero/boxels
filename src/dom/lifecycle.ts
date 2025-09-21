@@ -1,37 +1,14 @@
 import { queue } from '@core/scheduler';
 import { handleAttributes } from './attributes';
 import type { BoxelsElementNode } from './attributes/elements';
-import { appendChild, simpleUniqueId } from './utils';
-
-/* -------------------------
-   Global Effects System (DX)
-------------------------- */
-
-// 🔹 Efectos globales (se acumulan mientras se crea un nodo)
-// Ahora son arrays en vez de Set
-let globalMountEffects: ((node: HTMLElement) => void)[] = [];
-let globalDestroyEffects: ((node: HTMLElement) => void)[] = [];
-
-export function onMount(cb: (node: HTMLElement) => void) {
-	globalMountEffects.push(cb);
-	// devolvemos función para eliminar solo ese callback
-	return () => {
-		globalMountEffects = globalMountEffects.filter((fn) => fn !== cb);
-	};
-}
-
-export function onDestroy(cb: (node: HTMLElement) => void) {
-	globalDestroyEffects.push(cb);
-	return () => {
-		globalDestroyEffects = globalDestroyEffects.filter((fn) => fn !== cb);
-	};
-}
+import { simpleUniqueId } from './utils/unique-id';
+import { lifecycleStore } from './lifecycle-store';
 
 /* -------------------------
    Lifecycle Core
-------------------------- */
+   ------------------------- */
 
-export function createLifecycle<T extends keyof HTMLElementTagNameMap>(
+export function createLifecycle<T extends keyof ElementTagNameMap>(
 	node: BoxelsElementNode<T>,
 	options: {
 		isFragment: boolean;
@@ -41,17 +18,18 @@ export function createLifecycle<T extends keyof HTMLElementTagNameMap>(
 		onMountResult?: (result: any, node: BoxelsElementNode<T>) => void;
 		onDestroyResult?: (result: any, node: BoxelsElementNode<T>) => void;
 	},
-) {	
+) {
 	// Capturamos y "consumimos" los efectos globales solo para este nodo
-	const localMountEffects = globalMountEffects.slice();   // copia segura
-	const localDestroyEffects = globalDestroyEffects.slice();
-	
-	globalMountEffects = [];
-	globalDestroyEffects = [];
-	
+	const localMountEffects = lifecycleStore.globalMountEffects.slice();
+	const localDestroyEffects = lifecycleStore.globalDestroyEffects.slice();
+
+	// Limpiar arrays globales
+	lifecycleStore.globalMountEffects.length = 0;
+	lifecycleStore.globalDestroyEffects.length = 0;
+
 	let result = handleAttributes(node, options.props ?? {});
-	
-	// Flags de control (resetables)
+
+	// Flags de control
 	let mountRan = false;
 	let destroyRan = false;
 
@@ -63,7 +41,7 @@ export function createLifecycle<T extends keyof HTMLElementTagNameMap>(
 	const runMountEffects = () => {
 		if (mountRan) return;
 		mountRan = true;
-		destroyRan = false; // reset para permitir destruir luego
+		destroyRan = false;
 		queue(() => {
 			localMountEffects.forEach((cb) => cb(node));
 		});
@@ -72,7 +50,7 @@ export function createLifecycle<T extends keyof HTMLElementTagNameMap>(
 	const runDestroyEffects = () => {
 		if (destroyRan) return;
 		destroyRan = true;
-		mountRan = false; // reset para permitir montar luego
+		mountRan = false;
 		queue(() => {
 			localDestroyEffects.forEach((cb) => cb(node));
 		});
@@ -101,7 +79,7 @@ export function createLifecycle<T extends keyof HTMLElementTagNameMap>(
 		result = handleAttributes(node, options.props ?? {});
 		options.appendChildren?.(node, result);
 
-		appendChild(parent, node);
+		parent.appendChild(node);
 
 		options.props?.['$lifecycle:mount']?.(node);
 		options.onMountResult?.(result, node);

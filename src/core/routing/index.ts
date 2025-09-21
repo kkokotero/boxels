@@ -1,6 +1,6 @@
-import { signal, type Signal } from '@core/reactive/signal';
+import { signal } from '@core/reactive/signal';
 import { TriNode, type FindResult, type NodeHandler } from './route-trie';
-import type { MaybeSignal, ReactiveSignal } from '@core/reactive/types';
+import type { MaybeSignal, ReactiveSignal, Signal } from '@core/reactive/types';
 import { page } from '../page';
 
 /**

@@ -1,4 +1,4 @@
-import { type MaybeSignal, type ReactiveSignal } from '@core/index';
+import { type MaybeSignal, type Signal } from '@core/index';
 import { $, Fragment } from '@dom/index';
 
 /**
@@ -24,7 +24,7 @@ type ForProps<T> = {
 	children: (
 		item: T,
 		index: number,
-	) => JSX.Element | ReactiveSignal<JSX.Element>;
+	) => JSX.Element | Signal<JSX.Element>;
 };
 
 /**

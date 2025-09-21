@@ -4,7 +4,7 @@ import { createLifecycle } from './lifecycle';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-export function createSvg<T extends keyof HTMLElementTagNameMap>(
+export function createSvg<T extends keyof ElementTagNameMap>(
 	selector: T,
 	props: BoxelsElementAttributes<'div'>,
 ): BoxelsElement {

@@ -1,5 +1,5 @@
 import { $, Fragment as FRAGMENT } from '@dom/index';
 
-export const Fragment: JSX.Fragment = ({ ...props }) => {
+export const Fragment = ({ ...props }) => {
 	return $(FRAGMENT, props);
 };

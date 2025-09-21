@@ -1,5 +1,5 @@
-import { signal, type Signal } from './signal';
-import type { Widen } from './types';
+import { signal } from './signal';
+import type { Signal, Widen } from './types';
 import { autoCleanup } from '@core/cleanup';
 import { getTrackedSignals } from './tracked-signal';
 

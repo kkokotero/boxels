@@ -2,8 +2,9 @@ import { autoCleanup } from '@core/cleanup';
 import {
 	isSignal,
 	signal,
-	type ReactiveSignal,
+	type Signal,
 	type ReactiveUnsubscribe,
+	type MaybeSignal,
 } from '@core/reactive';
 import type { Hook } from '@hooks/hook';
 
@@ -33,7 +34,7 @@ export class AnimatedStyle implements Hook {
 	 *   - `ease`: (opcional) función para aplicar easing/interpolación al porcentaje
 	 */
 	constructor(
-		public percent: number | ReactiveSignal<number>,
+		public percent: MaybeSignal<number>,
 		private config: {
 			from: number;
 			to: number;
@@ -97,7 +98,7 @@ export class AnimatedStyle implements Hook {
  * @returns Instancia de `AnimatedStyle`
  */
 export const createAnimatedStyle = (
-	percent: number | ReactiveSignal<number>,
+	percent: number | Signal<number>,
 	config: {
 		from: number;
 		to: number;

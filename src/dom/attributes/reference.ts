@@ -7,7 +7,7 @@ export interface Reference<T> {
 /**
  * Crea un objeto de referencia (similar a React.createRef pero extendido)
  */
-export function reference<T>(initial?: T | null): Reference<T> {
+export function reference<T = any>(initial?: T | null): Reference<T> {
   let element: T | null = initial ?? null;
 
   return {

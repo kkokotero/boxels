@@ -1,4 +1,80 @@
-import type { Signal } from './signal';
+/**
+ * ======================================================
+ * Enhanced Type Helpers
+ * ======================================================
+ */
+
+/**
+ * @description
+ * Maps primitive types to their corresponding wrapper objects while preserving methods
+ */
+type PrimitiveToObject<T> = T extends string
+	? string
+	: T extends number
+		? number
+		: T extends boolean
+			? boolean
+			: T extends bigint
+				? bigint
+				: T extends undefined | null
+					? never
+					: T extends object
+						? T
+						: never;
+
+/**
+ * @description
+ * Helper type for method signatures
+ */
+type MethodType = (...args: unknown[]) => unknown;
+
+/**
+ * @description
+ * Transforms object properties into signalized versions with proper method typing
+ */
+type SignalProps<O> = {
+	[K in keyof O]: O[K] extends MethodType
+		? (...args: Parameters<O[K]>) => Signal<ReturnType<O[K]>>
+		: Signal<O[K]>;
+};
+
+/**
+ * @description
+ * Main Signal type that provides better inference for nested properties
+ */
+export type Signalize<T> = T extends MethodType
+	? (...args: Parameters<T>) => Signalize<ReturnType<T>>
+	: T extends primitive
+		? ReactiveSignal<T> & SignalProps<PrimitiveToObject<T>>
+		: T extends (infer U)[] // caso Array especial
+			? ReactiveSignal<T> & {
+					[index: number]: Signalize<U>; // cada índice es un Signal
+					length: Signal<number>; // longitud como Signal
+				} & Pick<T, Exclude<keyof T, keyof any[]>> // conserva métodos de Array tal cual
+			: T extends object
+				? ReactiveSignal<T> & { [K in keyof T]: Signalize<T[K]> }
+				: ReactiveSignal<T>;
+
+/**
+ * @description
+ * Helper type for primitives
+ */
+type primitive = string | number | boolean | bigint | undefined | null;
+
+/**
+ * ======================================================
+ * Runtime Implementation
+ * ======================================================
+ */
+
+export type Signal<T> = Signalize<T> &
+	Signalize<Widen<T>> &
+	ReactiveSignal<Widen<T>> &
+	Widen<T> & {
+		[Symbol.toPrimitive](): Widen<T>;
+		/** @deprecated solo para que TS lo acepte en if */
+		readonly __brand?: T;
+	};
 
 /**
  * Evita que los literales (true, false, 0, "x") se queden como literales,
@@ -152,8 +228,8 @@ export interface ReactiveSignal<T> {
  * ```
  */
 export function isSignal<T = unknown>(
-	value: ReactiveSignal<T> | any,
-): value is ReactiveSignal<T> {
+	value: Signal<T> | any,
+): value is Signal<T> {
 	return (
 		typeof value === 'function' && // La señal debe ser una función (el getter)
 		typeof value.set === 'function' && // Debe tener el método `.set()`

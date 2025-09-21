@@ -1,6 +1,6 @@
 import type { Hook } from '@hooks/hook';
 import { autoCleanup } from '@core/cleanup';
-import { onDestroy } from '@dom/lifecycle';
+import { onDestroy } from '@dom/element';
 
 /**
  * --- Scheduler global para manejar múltiples "delays" usando un único requestAnimationFrame ---

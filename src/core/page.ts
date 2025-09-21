@@ -258,11 +258,7 @@ export const page = (() => {
 		// Caso función "computed"
 		if (typeof newTitle === 'function') {
 			const computeAndSet = () => {
-				try {
-					document.title = newTitle() ?? '';
-				} catch (err) {
-					console.error('Error evaluando título reactivo:', err);
-				}
+				document.title = newTitle() ?? '';
 			};
 			computeAndSet();
 

@@ -15,12 +15,6 @@ declare module '*.css' {
 	export default classes;
 }
 
-declare module '*.box' {
-	export default <T extends keyof HTMLElementTagNameMap = 'div'>(
-		props: JSX.DOMAttributes<T>,
-	) => JSX.Component<T>;
-}
-
 declare module '*.png' {
 	const src: string;
 	export default src;

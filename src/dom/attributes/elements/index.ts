@@ -1,12 +1,10 @@
 // Importa utilidades del sistema reactivo
 import {
 	isSignal,
-	type ReactiveSignal,
+	type Signal,
 	type ReactiveUnsubscribe,
+	type MaybeSignal,
 } from '@core/reactive';
-
-// Importa controladores globales que pueden instalar efectos secundarios o listeners
-import '../handlers/global-handlers';
 
 import { debug } from '@testing/index';
 import { createChangeOverlay, ensureChangeStyles } from './zone';
@@ -16,7 +14,7 @@ import { deepEqual } from 'fast-equals';
 /* -------------------------
    Tipos (sin cambios funcionales)
    ------------------------- */
-export type Child =
+export type ChildNode =
 	| Node
 	| string
 	| number
@@ -24,11 +22,11 @@ export type Child =
 	| false
 	| true
 	| undefined
-	| BoxlesChildren
-	| Child[]
-	| ReactiveSignal<Child>
-	| ReactiveSignal<Child[]>
-	| Promise<Child>;
+	| BoxelsElement
+	| ChildNode[]
+	| BoxlesChildren;
+
+export type Child = MaybeSignal<ChildNode> | Promise<ChildNode>;
 
 export type BoxlesChildren = {
 	nodes: Node[];
@@ -47,8 +45,8 @@ export type BoxelsElement = HTMLElement & {
 	key?: string;
 };
 
-export type BoxelsElementNode<T extends keyof HTMLElementTagNameMap> =
-	HTMLElementTagNameMap[T] & {
+export type BoxelsElementNode<T extends keyof ElementTagNameMap> =
+	ElementTagNameMap[T] & {
 		mount: (parent: HTMLElement | DocumentFragment | Comment) => void;
 		destroy: () => void;
 		mountEffect: () => void;
@@ -59,15 +57,15 @@ export type BoxelsElementNode<T extends keyof HTMLElementTagNameMap> =
 		key?: string;
 	};
 
-export type BoxelsNode<T extends keyof HTMLElementTagNameMap> =
+export type BoxelsNode<T extends keyof ElementTagNameMap> =
 	BoxelsElementNode<T>;
 
 // Alias de atributos específicos para tipos HTML dentro de JSX
-export type JSXBoxelsELementAttrs<T extends keyof HTMLElementTagNameMap> =
+export type JSXBoxelsELementAttrs<T extends keyof ElementTagNameMap> =
 	BoxelsElementAttributes<T>;
 
 // Tipo general para cualquier elemento creado por Boxels
-export type JSXBoxelsElement = BoxelsElement & any & {};
+export type JSXBoxelsElement = BoxelsElement;
 
 /* -------------------------
    Helpers de type guards
@@ -163,13 +161,9 @@ function reconcileChildren(
 		const next = toRemove.nextSibling;
 		if (!used.has(toRemove)) {
 			if (isBoxelsElement(toRemove)) {
-				try {
-					toRemove.destroy();
-				} catch {}
-			} else {
-				try {
-					(toRemove as ChildNode).remove();
-				} catch {}
+				toRemove.destroy();
+			} else if (toRemove instanceof HTMLElement) {
+				toRemove.remove();
 			}
 		}
 		toRemove = next;
@@ -198,12 +192,8 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 			elementChild.mountEffect();
 			onMounts.push(() => {
 				if (!elementChild.__mounted) {
-					try {
-						const cleanup = elementChild.mountEffect();
-						if (typeof cleanup === 'function') cleanUps.push(cleanup);
-					} catch (e) {
-						console.error('mountEffect error (deferred):', e);
-					}
+					const cleanup = elementChild.mountEffect();
+					if (typeof cleanup === 'function') cleanUps.push(cleanup);
 				}
 			});
 
@@ -236,7 +226,7 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 
 		// Señal reactiva
 		if (isSignal(child)) {
-			const s = child as ReactiveSignal<Child>;
+			const s = child as Signal<Child>;
 			const start = createComment(
 				debug.isShowCommentNames() ? 'signal:start' : '',
 			);
@@ -318,11 +308,7 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 				// cleanup para cuando el padre limpie esta normalizeChildren
 				cleanUps.push(() => {
 					// limpiar el contenido actual insertado por esta suscripción
-					try {
-						localCurrent?.cleanup();
-					} catch (e) {
-						/* swallow */
-					}
+					localCurrent?.cleanup();
 
 					// eliminar nodos si todavía están en el DOM
 					if (localCurrent?.nodes) {
@@ -331,40 +317,24 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 								isBoxelsElement(n) &&
 								typeof (n as BoxelsElement).destroy === 'function'
 							) {
-								try {
-									(n as BoxelsElement).destroy();
-								} catch (e) {
-									/* swallow */
-								}
-							} else {
-								try {
-									(n as ChildNode).remove();
-								} catch (e) {
-									/* swallow */
-								}
+								(n as BoxelsElement).destroy();
+								/* swallow */
+							} else if (n instanceof HTMLElement) {
+								n.remove();
 							}
 						}
 					}
 
 					// desuscribir
-					try {
-						unsub();
-					} catch (e) {
-						/* swallow */
-					}
+
+					unsub();
 
 					// si los anchors ya no están montados, quitar anchors
 					if (!start.parentElement || !end.parentElement) {
-						try {
-							start.remove();
-						} catch (e) {
-							/* swallow */
-						}
-						try {
-							end.remove();
-						} catch (e) {
-							/* swallow */
-						}
+						start.remove();
+
+						end.remove();
+
 						return;
 					}
 
@@ -374,11 +344,8 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 						while (next && next !== end) {
 							const toRemove = next;
 							next = next.nextSibling;
-							try {
-								toRemove.remove();
-							} catch (e) {
-								/* swallow */
-							}
+
+							toRemove.remove();
 						}
 					}
 				});
@@ -400,14 +367,9 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 					if (cancelled) return;
 					const normalized = normalizeChildren(resolved);
 					placeholder.replaceWith(...normalized.nodes);
-					try {
-						normalized.onMount();
-					} catch (e) {
-						console.error(
-							'Error en onMount del contenido resuelto de la promesa:',
-							e,
-						);
-					}
+
+					normalized.onMount();
+
 					cleanUps.push(normalized.cleanup);
 				});
 				cleanUps.push(() => {
@@ -419,12 +381,9 @@ export function normalizeChildren(input: Child): BoxlesChildren {
 
 		// Función (evaluar y reintentar)
 		if (typeof child === 'function') {
-			try {
-				const result = (child as () => Child | Promise<Child>)();
-				queue.unshift(result as Child);
-			} catch (err) {
-				console.error('Error ejecutando función hijo:', err);
-			}
+			const result = (child as () => Child | Promise<Child>)();
+			queue.unshift(result as Child);
+
 			continue;
 		}
 

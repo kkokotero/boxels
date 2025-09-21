@@ -11,7 +11,7 @@
 		"allowImportingTsExtensions": true,
 		"verbatimModuleSyntax": true,
 		"moduleDetection": "force",
-		"skipLibCheck": true,
+		"skipLibCheck": false,
 		"noEmit": true,
 
 		/* Experimental Features */
@@ -48,5 +48,6 @@
 			"@plugins/*": ["src/plugins/*"],
 		}
 	},
-	"include": ["src", "test", "types", "examples", "types/index.d.ts", "main.tsx"],
+	"include": ["src", "examples", "types", "types/index.d.ts"],
+	"exclude": ["dist", "test"]
 }

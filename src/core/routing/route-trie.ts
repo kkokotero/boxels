@@ -272,19 +272,9 @@ export class TriNode {
 		if (!node) return { params, message: carryMessage };
 
 		const handler = await this.getHandler(node);
-
-		const redirect =
-			handler?.redirect ??
-			(typeof node.handler === 'object'
-				? (node.handler as NodeHandler).redirect
-				: undefined);
-		if (redirect) {
-			return { redirect, params, message: carryMessage };
-		}
-
 		if (!handler) return { params, message: carryMessage };
 
-		// Ejecutar guards acumulados
+		// Ejecutar guards primero
 		for (const guard of guardsChain) {
 			if (abortSignal?.aborted) {
 				return { params, message: carryMessage };
@@ -329,7 +319,18 @@ export class TriNode {
 			}
 		}
 
-		// ✅ Resultado final incluye meta combinado
+		// Solo si pasó todos los guards, revisar redirect en el handler
+		const redirect =
+			handler.redirect ??
+			(typeof node.handler === 'object'
+				? (node.handler as NodeHandler).redirect
+				: undefined);
+
+		if (redirect) {
+			return { redirect, params, message: carryMessage, meta: metaChain };
+		}
+
+		// Resultado final incluye meta combinado
 		return { handler, params, message: carryMessage, meta: metaChain };
 	}
 

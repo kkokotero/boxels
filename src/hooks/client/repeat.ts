@@ -1,6 +1,6 @@
 import type { Hook } from '@hooks/hook';
 import { autoCleanup } from '@core/cleanup';
-import { onDestroy } from '@dom/lifecycle';
+import { onDestroy } from '@dom/element';
 
 /**
  * Tipo de tarea repetitiva gestionada por el scheduler.

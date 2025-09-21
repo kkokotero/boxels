@@ -1,4 +1,5 @@
 import { $, Fragment } from '../dom/index';
-export * from '../dom/attributes/handlers/index';
+
+(window as any).boxels = {};
 
 export { $ as jsxDEV, $ as jsx, $ as jsxs, Fragment };

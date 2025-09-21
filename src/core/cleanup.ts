@@ -10,11 +10,7 @@ type Cleanup = () => void;
  */
 const registry = new FinalizationRegistry<CleanupRecord>((record) => {
 	for (const fn of record.fns) {
-		try {
-			fn();
-		} catch (err) {
-			console.error('Error en cleanup automático:', err);
-		}
+		fn();
 	}
 	record.fns.clear();
 	record.destroyed = true;

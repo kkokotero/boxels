@@ -12,7 +12,6 @@ import {
 	type FindResult,
 } from '@core/routing';
 import { $ } from '@dom/index';
-import { Fragment } from './fragment';
 import { queue } from '@core/scheduler';
 
 type RouterOutletProps = {
@@ -31,7 +30,7 @@ export const RouterOutlet = async ({
 	interceptLinks();
 	attachBrowserEvents();
 
-	const view = signal<JSX.Element>($('div', {}));
+	const view = signal<any>($('div', {}));
 
 	let meta: Record<string, MaybeSignal<string>> = {};
 

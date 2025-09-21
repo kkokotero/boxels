@@ -37,7 +37,7 @@ export function Lazy({
 	error = $(document.createDocumentFragment(), {}),
 	when = 'immediate',
 	...props
-}: LazyProps): JSX.Component {
+}: LazyProps): JSX.Element {
 	// Señal reactiva que contiene el componente actual o el estado de carga/error
 	const element = signal<BoxelsElement | undefined>(loading);
 

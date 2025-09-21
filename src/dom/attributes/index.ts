@@ -15,7 +15,7 @@ import { handleClassAttribute, handleStyleAttribute } from './styles/index';
 
 // Utilidad para hijos de elementos
 import { normalizeChildren, type BoxelsElement } from './elements/index';
-import { appendChild } from '../utils';
+import { appendChild } from '../utils/append-child';
 import { isReference } from './reference';
 
 /**
@@ -25,13 +25,13 @@ import { isReference } from './reference';
  * - Aplica handlers específicos de tag o globales.
  * - Controla atributos especiales (`class`, `style`, `$on:`, `$lifecycle`, etc).
  *
- * @template T Etiqueta de HTMLElementTagNameMap
+ * @template T Etiqueta de ElementTagNameMap
  * @param element Elemento al que se aplicarán atributos
  * @param props Objeto con los atributos
  * @returns Manejadores de ciclo de vida (mount/destroy)
  */
-export function handleAttributes<T extends keyof HTMLElementTagNameMap>(
-	element: HTMLElementTagNameMap[T] | HTMLElement | SVGElement,
+export function handleAttributes<T extends keyof ElementTagNameMap>(
+	element: ElementTagNameMap[T] | HTMLElement | SVGElement,
 	props: BoxelsElementAttributes<T>,
 	children = true,
 ): LifecycleEventHandlers<T> {
@@ -142,13 +142,13 @@ export function handleAttributes<T extends keyof HTMLElementTagNameMap>(
  * Elimina un atributo específico de un elemento.
  * Se encarga de casos especiales (`class`, `style`, eventos, handlers, booleanos, etc).
  *
- * @template T Etiqueta de HTMLElementTagNameMap
+ * @template T Etiqueta de ElementTagNameMap
  * @param element Elemento objetivo
  * @param key Nombre del atributo a eliminar
  * @param value Valor anterior (opcional, usado en casos como class/style)
  */
-export function removeAttributeHandler<T extends keyof HTMLElementTagNameMap>(
-	element: HTMLElementTagNameMap[T] | HTMLElement | SVGElement,
+export function removeAttributeHandler<T extends keyof ElementTagNameMap>(
+	element: ElementTagNameMap[T] | HTMLElement | SVGElement,
 	key: string,
 	value?: unknown,
 ) {
@@ -236,12 +236,12 @@ export function removeAttributeHandler<T extends keyof HTMLElementTagNameMap>(
  *
  * Internamente reutiliza `removeAttributeHandler` para evitar duplicar lógica.
  *
- * @template T Etiqueta de HTMLElementTagNameMap
+ * @template T Etiqueta de ElementTagNameMap
  * @param element Elemento objetivo
  * @param props Objeto con los atributos a eliminar
  */
-export function removeAttributes<T extends keyof HTMLElementTagNameMap>(
-	element: HTMLElementTagNameMap[T] | HTMLElement | SVGElement,
+export function removeAttributes<T extends keyof ElementTagNameMap>(
+	element: ElementTagNameMap[T] | HTMLElement | SVGElement,
 	props: Partial<BoxelsElementAttributes<T>>,
 ) {
 	for (const [key, raw] of Object.entries(props)) {
@@ -257,13 +257,13 @@ export function removeAttributes<T extends keyof HTMLElementTagNameMap>(
  * - Objetos no array → advertencia en consola.
  * - Atributos válidos → se aplican con `setAttribute`.
  *
- * @template T Etiqueta de HTMLElementTagNameMap
+ * @template T Etiqueta de ElementTagNameMap
  * @param el Elemento objetivo
  * @param key Nombre del atributo
  * @param value Valor del atributo
  */
-function applyAttr<T extends keyof HTMLElementTagNameMap>(
-	el: HTMLElementTagNameMap[T] | HTMLElement | SVGElement,
+function applyAttr<T extends keyof ElementTagNameMap>(
+	el: ElementTagNameMap[T] | HTMLElement | SVGElement,
 	key: string,
 	value: unknown,
 ) {
@@ -276,9 +276,9 @@ function applyAttr<T extends keyof HTMLElementTagNameMap>(
 	) {
 		if (key === 'value') {
 			el.setAttribute(key, '');
-			try {
-				(el as any).value = '';
-			} catch {}
+
+			(el as any).value = '';
+
 			return;
 		}
 		removeAttributeHandler(el, key, value);

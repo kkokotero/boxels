@@ -1,15 +1,32 @@
-import { onMount } from '@dom/lifecycle';
+import { onMount } from '@dom/element';
+import { store } from './tracked-storage';
 
-const trackedSignalsSet: Set<any> = new Set();
+function resetCleanupTimer() {
+	if (store.cleanupTimer) clearTimeout(store.cleanupTimer);
+
+	store.cleanupTimer = setTimeout(() => {
+		store.trackedSignals.length = 0; // vaciar la lista
+		store.cleanupTimer = null;
+	}, store.CLEANUP_INTERVAL);
+}
 
 export function addTrackedSignal(signal: any) {
-	trackedSignalsSet.add(signal);
+	// evitar duplicados
+	if (!store.trackedSignals.includes(signal)) {
+		store.trackedSignals.push(signal);
+	}
 
+	// limpieza automática
+	resetCleanupTimer();
+
+	// limpieza en desmontaje
 	onMount(() => {
-		trackedSignalsSet.delete(signal);
+		const idx = store.trackedSignals.indexOf(signal);
+		if (idx !== -1) store.trackedSignals.splice(idx, 1);
 	});
 }
 
 export function getTrackedSignals(): any[] {
-	return Array.from(trackedSignalsSet);
+	resetCleanupTimer(); // interacción = mantener vivo
+	return [...store.trackedSignals];
 }
