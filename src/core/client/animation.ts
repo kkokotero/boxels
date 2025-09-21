@@ -1,5 +1,5 @@
-import { queue } from '@core/scheduler';
-import { injectStyle, uniqueId } from '@dom/utils';
+import { injectStyle } from '@dom/utils/inject-style';
+import { uniqueId } from '@dom/utils/unique-id';
 
 type MaybeElement = string | HTMLElement | null;
 type CSSProperties = Partial<CSSStyleDeclaration>;

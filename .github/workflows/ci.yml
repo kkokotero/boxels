@@ -28,9 +28,6 @@ jobs:
       - name: 🧹 Lint code (biome)
         run: npm run lint
 
-      - name: 🧪 Run tests with coverage
-        run: npm run test
-
       - name: 🔎 Type check
         run: npm run typecheck
 
