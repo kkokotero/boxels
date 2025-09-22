@@ -1,6 +1,5 @@
-import { handleAttributes } from './attributes';
-import type { BoxelsElement } from './attributes/elements';
 import { createLifecycle } from './lifecycle';
+import type { BoxelsElement } from './types';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 

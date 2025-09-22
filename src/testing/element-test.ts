@@ -1,4 +1,5 @@
-import type { BoxelsElement } from '@dom/index';
+import type { BoxelsElement } from "@dom/elements/types";
+
 
 /**
  * Verifica si un elemento ha sido montado en el DOM reactivo de Boxels.

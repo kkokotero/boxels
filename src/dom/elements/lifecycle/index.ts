@@ -1,14 +1,14 @@
 import { queue } from '@core/scheduler';
-import { handleAttributes } from './attributes';
-import type { BoxelsElementNode } from './attributes/elements';
-import { simpleUniqueId } from './utils/unique-id';
+import { handleAttributes } from '../attributes';
+import { simpleUniqueId } from '../../utils/unique-id';
 import { lifecycleStore } from './lifecycle-store';
+import type { BoxelsElementNode, BoxelsTagNameMap } from '../types';
 
 /* -------------------------
    Lifecycle Core
    ------------------------- */
 
-export function createLifecycle<T extends keyof ElementTagNameMap>(
+export function createLifecycle<T extends keyof BoxelsTagNameMap>(
 	node: BoxelsElementNode<T>,
 	options: {
 		isFragment: boolean;

@@ -1,7 +1,6 @@
-import { Fragment } from "@components/fragment";
+import type { BoxelsElement } from "@dom/elements/types";
 import { debug } from "@testing/debugger";
-import { isSignal, type Signal } from "@core/reactive";
-import { isBoxelsElement, type BoxelsElement } from "@dom/attributes/elements";
+import { isBoxelsElement } from "./element";
 
 /**
  * Inserta un hijo en el `parent` en una posición específica (índice).

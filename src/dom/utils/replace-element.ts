@@ -1,6 +1,6 @@
-import { isSignal, type Signal } from "@core/index";
-import { isBoxelsElement, type BoxelsElement } from "@dom/attributes/elements";
+import type { BoxelsElement } from "@dom/elements/types";
 import { debug } from "@testing/debugger";
+import { isBoxelsElement } from "./element";
 
 /**
  * Reemplaza un nodo `target` en el DOM por otro hijo.

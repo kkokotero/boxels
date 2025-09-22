@@ -1,8 +1,4 @@
-import {
-	signal,
-	type MaybeSignal,
-	type ReactiveUnsubscribe,
-} from '@core/reactive';
+import { signal, type MaybeSignal } from '@core/reactive';
 import {
 	router,
 	setGlobalRouter,
@@ -104,11 +100,11 @@ export const RouterOutlet = async ({
 				? await node.handler?.component()
 				: node.handler?.component;
 
-		view.set(component, true);
+		view.set(component);
 		afterChange?.(router.url!());
 	};
 
 	router.actualRoute.subscribe(update);
 
-	return $('fragment' as 'div', {}, view);
+	return $('fragment', {}, view);
 };

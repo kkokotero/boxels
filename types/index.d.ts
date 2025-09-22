@@ -1,12 +1,13 @@
-import type { MaybeSignal } from '../src/core/reactive';
 import type {
 	BoxelsElement,
+	BoxelsTagNameMap,
 	JSXBoxelsELementAttrs,
-} from '../src/dom/attributes/elements/index';
+} from '@dom/elements/types';
+import type { MaybeSignal } from '../src/core/reactive';
 import type {
 	BoxelsELementNodeAttributes,
 	LifecycleEventHandlers,
-} from '../src/dom/attributes/handlers/global-handlers';
+} from '../src/dom/elements/attributes/handlers/global-handlers';
 import './styles.d';
 
 // ------------------------
@@ -16,17 +17,15 @@ import './styles.d';
 declare global {
 	namespace JSX {
 		/** Para compatibilidad con JSX, se reutiliza Attributes */
-		type DOMAttributes<T extends keyof ElementTagNameMap> =
+		type DOMAttributes<T extends keyof BoxelsTagNameMap> =
 			BoxelsELementNodeAttributes<T>;
 
 		/** Todas las etiquetas válidas en JSX */
 		type ElementsAttrs = {
-			[K in keyof ElementTagNameMap]: JSXBoxelsELementAttrs<K>;
+			[K in keyof BoxelsTagNameMap]: JSXBoxelsELementAttrs<K>;
 		};
 
-		interface IntrinsicElements extends ElementsAttrs {
-			fragment: LifecycleEventHandlers<'div'> & { children?: JSX.Element | JSX.Element[] };
-		}
+		interface IntrinsicElements extends ElementsAttrs {}
 
 		type CustomElement = HTMLElement & BoxelsElement & any;
 
@@ -34,9 +33,12 @@ declare global {
 		interface Element extends CustomElement {}
 
 		/** Fragmento JSX (<>...</>) */
-		type Fragment = Component<any, LifecycleEventHandlers<'div'> & {
+		type Fragment = Component<
+			any,
+			LifecycleEventHandlers<'div'> & {
 				children?: any;
-			}>;
+			}
+		>;
 
 		/** Componente funcional */
 		type FunctionComponent<P = object> = (
@@ -58,7 +60,10 @@ declare global {
 			props?: object & {
 				children?: any;
 			};
-			render: () => Element | MaybeSignal<Element> | Promise<MaybeSignal<Element>>;
+			render: () =>
+				| Element
+				| MaybeSignal<Element>
+				| Promise<MaybeSignal<Element>>;
 		};
 
 		/** Vincula prop `props` como portador de atributos JSX */

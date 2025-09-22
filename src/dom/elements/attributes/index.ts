@@ -14,9 +14,11 @@ import {
 import { handleClassAttribute, handleStyleAttribute } from './styles/index';
 
 // Utilidad para hijos de elementos
-import { normalizeChildren, type BoxelsElement } from './elements/index';
-import { appendChild } from '../utils/append-child';
-import { isReference } from './reference';
+import { normalizeChildren } from '../children/index';
+import { appendChild } from '../../utils/append-child';
+import { isReference } from '../../utils/reference';
+import type { BoxelsElement, BoxelsTagNameMap } from '@dom/elements/types';
+import { isBoxelsElement } from '@dom/utils';
 
 /**
  * Aplica atributos a un elemento HTML o SVG.
@@ -30,8 +32,8 @@ import { isReference } from './reference';
  * @param props Objeto con los atributos
  * @returns Manejadores de ciclo de vida (mount/destroy)
  */
-export function handleAttributes<T extends keyof ElementTagNameMap>(
-	element: ElementTagNameMap[T] | HTMLElement | SVGElement,
+export function handleAttributes<T extends keyof BoxelsTagNameMap>(
+	element: BoxelsTagNameMap[T] | HTMLElement | SVGElement,
 	props: BoxelsElementAttributes<T>,
 	children = true,
 ): LifecycleEventHandlers<T> {
@@ -41,7 +43,7 @@ export function handleAttributes<T extends keyof ElementTagNameMap>(
 	const tag = (element.tagName ?? 'fragment').toLowerCase();
 	const tagHandlers = handlers[tag] ?? {};
 
-	(element as BoxelsElement).key = undefined;
+	if (isBoxelsElement(element)) element.key = undefined;
 
 	for (const [key, raw] of Object.entries(props)) {
 		// --- hijos ---
@@ -147,8 +149,8 @@ export function handleAttributes<T extends keyof ElementTagNameMap>(
  * @param key Nombre del atributo a eliminar
  * @param value Valor anterior (opcional, usado en casos como class/style)
  */
-export function removeAttributeHandler<T extends keyof ElementTagNameMap>(
-	element: ElementTagNameMap[T] | HTMLElement | SVGElement,
+export function removeAttributeHandler<T extends keyof BoxelsTagNameMap>(
+	element: BoxelsTagNameMap[T] | HTMLElement | SVGElement,
 	key: string,
 	value?: unknown,
 ) {
@@ -240,8 +242,8 @@ export function removeAttributeHandler<T extends keyof ElementTagNameMap>(
  * @param element Elemento objetivo
  * @param props Objeto con los atributos a eliminar
  */
-export function removeAttributes<T extends keyof ElementTagNameMap>(
-	element: ElementTagNameMap[T] | HTMLElement | SVGElement,
+export function removeAttributes<T extends keyof BoxelsTagNameMap>(
+	element: BoxelsTagNameMap[T] | HTMLElement | SVGElement,
 	props: Partial<BoxelsElementAttributes<T>>,
 ) {
 	for (const [key, raw] of Object.entries(props)) {

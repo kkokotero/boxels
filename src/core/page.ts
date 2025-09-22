@@ -1,4 +1,4 @@
-import { type BoxelsElement } from '@dom/index';
+import type { BoxelsElement } from '@dom/elements/types';
 import { isSignal, type ReactiveSignal } from './reactive/types';
 
 /**

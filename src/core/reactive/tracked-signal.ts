@@ -1,4 +1,4 @@
-import { onMount } from '@dom/element';
+import { onMount } from '@dom/elements';
 import { store } from './tracked-storage';
 
 function resetCleanupTimer() {

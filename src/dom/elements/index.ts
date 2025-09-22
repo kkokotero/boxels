@@ -1,10 +1,3 @@
-import {
-	type BoxelsElement,
-	type BoxelsElementNode,
-	type Child,
-	isBoxelsElement,
-	normalizeChildren,
-} from './attributes/elements';
 import { createSvg } from './svg';
 import { createLifecycle } from './lifecycle';
 
@@ -14,7 +7,10 @@ import './attributes/handlers/global-handlers';
 import './fragment';
 import { queue } from '@core/scheduler';
 import { isSignal, type Signal } from '@core/index';
-import { lifecycleStore } from './lifecycle-store';
+import { lifecycleStore } from './lifecycle/lifecycle-store';
+import type { BoxelsElement, BoxelsElementNode, BoxelsTagNameMap, Child } from './types';
+import { normalizeChildren } from '@dom/elements/children';
+import { isBoxelsElement } from '@dom/utils/element';
 
 export const Fragment: unique symbol = Symbol('Boxles-Fragment');
 
@@ -91,9 +87,9 @@ const svgTags = new Set([
 export type FunctionalComponent = (props?: any) => any;
 export type ClassComponent = { new (props?: any): { render(): BoxelsElement } };
 
-export type BoxelsElementSelector<T extends keyof ElementTagNameMap> =
+export type BoxelsElementSelector<T extends keyof BoxelsTagNameMap> =
 	| T
-	| ElementTagNameMap[T]
+	| BoxelsTagNameMap[T]
 	| DocumentFragment
 	| typeof Fragment
 	// SVG
@@ -153,7 +149,7 @@ export function isClassComponent(fn: unknown): fn is ClassComponent {
 	);
 }
 
-export function $<T extends keyof ElementTagNameMap>(
+export function $<T extends keyof BoxelsTagNameMap>(
 	selector: BoxelsElementSelector<T>,
 	props?: BoxelsElementAttributes<T>,
 	...children: Child[]

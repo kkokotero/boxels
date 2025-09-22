@@ -1,5 +1,6 @@
 import { isSignal, type ReactiveSignal } from '@core/reactive';
-import { $, type BoxelsElementNode } from '@dom/index';
+import type { BoxelsElementNode } from '@dom/elements/types';
+import { $ } from '@dom/index';
 
 // Tipos y mapeo de eventos de arrastre (drag & drop)
 export type DragEvents = 'start' | 'end' | 'enter' | 'leave' | 'over' | 'drop';

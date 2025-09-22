@@ -1,7 +1,8 @@
 import { effect, signal, type ReactiveSignal } from '@core/reactive';
-import { $, type BoxelsElement } from '@dom/index';
+import { $ } from '@dom/index';
 import { Fragment } from './fragment';
 import { queue } from '@core/scheduler';
+import type { BoxelsElement } from '@dom/elements/types';
 
 /**
  * Tipos de estrategia para determinar cuándo cargar el componente de forma perezosa (lazy).

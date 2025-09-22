@@ -42,7 +42,7 @@
 			"@data/*": ["src/data/*"],
 			"@dom/*": ["src/dom/*"],
 			"@runtime/*": ["src/runtime/*"],
-			"@events/*": ["src/dom/attributes/handlers/*"],
+			"@events/*": ["src/dom/elements/attributes/handlers/*"],
 			"@components/*": ["src/components/*"],
 			"@multiplatform/*": ["src/multiplatform/*"],
 			"@plugins/*": ["src/plugins/*"],

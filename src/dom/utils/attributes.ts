@@ -1,5 +1,5 @@
-import { handleAttributes, removeAttributes } from "@dom/attributes";
-import type { BoxelsElementNode } from "@dom/attributes/elements";
+import { handleAttributes, removeAttributes } from "@dom/elements/attributes";
+import type { BoxelsElementNode, BoxelsTagNameMap } from "@dom/elements/types";
 
 /**
  * Asigna atributos a un elemento HTML usando el sistema de Boxels.
@@ -9,8 +9,8 @@ import type { BoxelsElementNode } from "@dom/attributes/elements";
  *
  * Retorna una función de limpieza que ejecuta `$lifecycle:destroy` si existe.
  */
-export const setAttribute = <T extends keyof ElementTagNameMap>(
-    element: ElementTagNameMap[T] | HTMLElement,
+export const setAttribute = <T extends keyof BoxelsTagNameMap>(
+    element: BoxelsTagNameMap[T] | HTMLElement,
     props: BoxelsElementAttributes<T>,
 ) => {
     const result = handleAttributes(element, props);
@@ -26,7 +26,7 @@ export const setAttribute = <T extends keyof ElementTagNameMap>(
  * @param element - Elemento HTML objetivo.
  * @param props - Atributos a eliminar.
  */
-export const removeAttribute = <T extends keyof ElementTagNameMap>(
-    element: ElementTagNameMap[T] | HTMLElement,
+export const removeAttribute = <T extends keyof BoxelsTagNameMap>(
+    element: BoxelsTagNameMap[T] | HTMLElement,
     props: BoxelsElementAttributes<T>,
 ) => removeAttributes(element, props);

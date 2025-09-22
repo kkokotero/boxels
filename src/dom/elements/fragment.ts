@@ -1,4 +1,4 @@
-class BoxelsFragmentElement extends HTMLElement {
+export class BoxelsFragmentElement extends HTMLElement {
 	#childNodes: ChildNode[] = [];
 
 	connectedCallback() {

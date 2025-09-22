@@ -1,4 +1,4 @@
-import { onDestroy } from "@dom/element";
+import { onDestroy } from "@dom/elements";
 
 export type Placeholder = HTMLDivElement | null;
 

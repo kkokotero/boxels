@@ -4,8 +4,8 @@ import type {
 	ReactiveSignal,
 	Signal,
 } from '@core/index';
-import type { BoxelsElementNode } from '../elements';
-import type { Reference } from '../reference';
+import type { Reference } from '../../../utils/reference';
+import type { BoxelsElementNode, BoxelsTagNameMap } from '@dom/elements/types';
 
 /**
  * Manejadores de eventos del DOM.
@@ -25,7 +25,7 @@ type DOMEventHandlers = {
  * - `$lifecycle:mount`: se ejecuta cuando el elemento es montado en el DOM.
  * - `$lifecycle:destroy`: se ejecuta cuando el elemento es destruido.
  */
-export type LifecycleEventHandlers<T extends keyof ElementTagNameMap> = {
+export type LifecycleEventHandlers<T extends keyof BoxelsTagNameMap> = {
 	'$lifecycle:mount'?: (e: BoxelsElementNode<T>) => void;
 	'$lifecycle:destroy'?: (e: BoxelsElementNode<T>) => void;
 };
@@ -106,7 +106,7 @@ export type StyleAttr = StyleMap | string | Signal<string> | null | undefined;
  * - `children`: hijos del elemento (puede ser cualquier tipo)
  * - cualquier otro atributo HTML válido como `id`, `name`, `tabindex`, etc.
  */
-interface standartAttrs<T extends keyof ElementTagNameMap>
+interface standartAttrs<T extends keyof BoxelsTagNameMap>
 	extends DOMEventHandlers,
 		LifecycleEventHandlers<T> {
 	class?: ClassAttr;
@@ -230,14 +230,14 @@ declare global {
 	 * Combina atributos estándar, atributos extendidos específicos del tipo
 	 * y atributos globales. También evita sobrescribir propiedades del DOM.
 	 */
-	export type BoxelsElementAttributes<T extends keyof ElementTagNameMap> =
+	export type BoxelsElementAttributes<T extends keyof BoxelsTagNameMap> =
 		standartAttrs<T> &
 			BoxelsElementExtendedAttributes[T] &
 			BoxelsElementGlobalAttributes & {
 				// Evita colisiones con propiedades/métodos nativos del DOM
-				[K in keyof ElementTagNameMap[T] as K extends `on${string}`
+				[K in keyof BoxelsTagNameMap[T] as K extends `on${string}`
 					? never
-					: ElementTagNameMap[T] extends Function
+					: BoxelsTagNameMap[T] extends Function
 						? never
 						: K]?: any;
 			} & {
@@ -308,7 +308,7 @@ declare global {
 			};
 }
 
-export type BoxelsELementNodeAttributes<T extends keyof ElementTagNameMap> =
+export type BoxelsELementNodeAttributes<T extends keyof BoxelsTagNameMap> =
 	BoxelsElementAttributes<T>;
 
 /**
