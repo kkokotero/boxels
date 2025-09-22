@@ -1,9 +1,9 @@
-## [2.15.1](https://github.com/kkokotero/boxels/compare/afa8d81f5c70f8d2110ac2bc18221492d6780e0c...v2.15.1) (2025-09-22)
+## [2.15.2](https://github.com/kkokotero/boxels/compare/dcf5d00d4f68045cdbe29676af973adac2842aa5...v2.15.2) (2025-09-22)
 
 
 ### Features
 
-* **dom:** mejorar zonas reactivas y reconciliación de fragments ([afa8d81](https://github.com/kkokotero/boxels/commit/afa8d81f5c70f8d2110ac2bc18221492d6780e0c))
+* Ahora los atributos pueden modificar las propiedades internas del elemento ([dcf5d00](https://github.com/kkokotero/boxels/commit/dcf5d00d4f68045cdbe29676af973adac2842aa5))
 
 
 
