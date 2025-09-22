@@ -20,7 +20,6 @@
 
 		/* Declarations */
 		"declaration": true,
-		"declarationDir": "./types",
 		"types": ["./types/index.d.ts"],
 
 		/* Strictness */

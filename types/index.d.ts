@@ -2,7 +2,7 @@ import type {
 	BoxelsElement,
 	BoxelsTagNameMap,
 	JSXBoxelsELementAttrs,
-} from '@dom/elements/types';
+} from '../src/dom/elements/types';
 import type { MaybeSignal } from '../src/core/reactive';
 import type {
 	BoxelsELementNodeAttributes,
