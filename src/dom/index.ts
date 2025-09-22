@@ -4,4 +4,5 @@ export * from './elements/attributes/handlers/index';
 export * from './utils/reference';
 export * from './utils';
 export * from './elements';
+export * from './elements/types';
 export * from './elements/lifecycle';

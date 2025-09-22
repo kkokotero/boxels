@@ -5,7 +5,7 @@ import type {
 	Signal,
 } from '@core/index';
 import type { Reference } from '../../../utils/reference';
-import type { BoxelsElementNode, BoxelsTagNameMap } from '@dom/elements/types';
+import type { BoxelsElementNode, BoxelsNode, BoxelsTagNameMap } from '@dom/elements/types';
 
 /**
  * Manejadores de eventos del DOM.
@@ -26,8 +26,8 @@ type DOMEventHandlers = {
  * - `$lifecycle:destroy`: se ejecuta cuando el elemento es destruido.
  */
 export type LifecycleEventHandlers<T extends keyof BoxelsTagNameMap> = {
-	'$lifecycle:mount'?: (e: BoxelsElementNode<T>) => void;
-	'$lifecycle:destroy'?: (e: BoxelsElementNode<T>) => void;
+	'$lifecycle:mount'?: (e: BoxelsNode<T>) => void;
+	'$lifecycle:destroy'?: (e: BoxelsNode<T>) => void;
 };
 
 /**
@@ -238,7 +238,7 @@ declare global {
 				[K in keyof BoxelsTagNameMap[T] as K extends `on${string}`
 					? never
 					: BoxelsTagNameMap[T] extends Function
-						? never
+						? (never)
 						: K]?: any;
 			} & {
 				'$interface:visible'?: (e: ExtendedIntersectionEvent) => void; // Se dispara cuando el elemento entra en el viewport

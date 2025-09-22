@@ -264,11 +264,12 @@ export function removeAttributes<T extends keyof BoxelsTagNameMap>(
  * @param key Nombre del atributo
  * @param value Valor del atributo
  */
-function applyAttr<T extends keyof ElementTagNameMap>(
-	el: ElementTagNameMap[T] | HTMLElement | SVGElement,
+function applyAttr<T extends keyof BoxelsTagNameMap>(
+	el: BoxelsTagNameMap[T] | HTMLElement | SVGElement,
 	key: string,
 	value: unknown,
 ) {
+	// valores inválidos → eliminamos
 	if (
 		value == null ||
 		value === false ||
@@ -277,19 +278,36 @@ function applyAttr<T extends keyof ElementTagNameMap>(
 		typeof value === 'function'
 	) {
 		if (key === 'value') {
-			el.setAttribute(key, '');
-
+			// caso especial: value debe resetearse explícitamente
 			(el as any).value = '';
-
+			el.setAttribute(key, '');
 			return;
 		}
 		removeAttributeHandler(el, key, value);
 		return;
 	}
 
+	// --- si la propiedad existe en el nodo (ej. readOnly, checked, disabled, etc.) ---
+	if (key in el) {
+		try {
+			// booleanos → asegurar conversión
+			if (typeof (el as any)[key] === 'boolean') {
+				(el as any)[key] = Boolean(value);
+			} else {
+				(el as any)[key] = value;
+			}
+		} catch {
+			// fallback: setAttribute si falla
+			el.setAttribute(key, String(value));
+		}
+		return;
+	}
+
+	// --- objetos no válidos ---
 	if (typeof value === 'object' && !Array.isArray(value)) {
 		console.warn(`[Attributes] "${key}" recibió un objeto no válido:`, value);
 	}
 
+	// --- fallback a atributo normal ---
 	el.setAttribute(key, String(value));
 }
