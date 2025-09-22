@@ -1,3 +1,5 @@
+import { queue } from "@core/scheduler";
+
 export class BoxelsFragmentElement extends HTMLElement {
 	#childNodes: ChildNode[] = [];
 
@@ -11,12 +13,14 @@ export class BoxelsFragmentElement extends HTMLElement {
 		}
 
 		// Mover hijos al padre, justo antes del host
-		for (const child of this.#childNodes) {
-			parent.insertBefore(child, this);
-		}
-
-		// Eliminar el host: el <x-fragment> no se verá en el DOM
-		this.remove();
+		queue(() => {
+			for (const child of this.#childNodes) {
+				parent.insertBefore(child, this);
+			}
+	
+			// Eliminar el host: el <x-fragment> no se verá en el DOM
+			this.remove();
+		})
 	}
 
 	disconnectedCallback() {

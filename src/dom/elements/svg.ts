@@ -1,11 +1,11 @@
 import { createLifecycle } from './lifecycle';
-import type { BoxelsElement } from './types';
+import type { BoxelsElement, BoxelsTagNameMap } from './types';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-export function createSvg<T extends keyof ElementTagNameMap>(
+export function createSvg<T extends keyof BoxelsTagNameMap>(
 	selector: T,
-	props: BoxelsElementAttributes<'div'>,
+	props: BoxelsElementAttributes<T>,
 ): BoxelsElement {
 	// Crear nodo en el namespace correcto y con tipado preciso
 	const node = document.createElementNS(

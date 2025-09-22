@@ -6,54 +6,52 @@ import type { BoxlesChildren, Child } from '@dom/elements/types';
 import { normalizeChildren } from '..';
 import { createChangeOverlay } from '../overlay';
 import { deepEqual } from 'fast-equals';
-import { BoxelsFragmentElement } from '@dom/elements/fragment';
 
 /**
- * Reconciliación de nodos entre anchors
- * - Soporta duplicados
- * - Overlay si el nodo se mueve o cambia (incluyendo TextNode)
+ * Reconciliación eficiente entre anchors validando directamente en el DOM
  */
-function flattenNode(node: Node): Node[] {
-	if (node instanceof BoxelsFragmentElement) {
-		// Expande los nodos del fragmento
-		return node.fragmentChildren;
-	}
-	return [node];
-}
-
 function reconcileChildrenBetweenAnchors(
 	parent: Node,
-	oldNodes: Node[],
 	newNodes: Node[],
 	start: Node,
 	end: Node,
 ): Node[] {
-	const used = new Set<Node>();
 	const finalNodes: Node[] = [];
-	let current: Node | null = start.nextSibling;
+	const usedKeys = new Map<any, Node[]>();
+	let current = start.nextSibling;
+
+	// Indexar nodos existentes por key
+	for (
+		let node = start.nextSibling;
+		node && node !== end;
+		node = node.nextSibling
+	) {
+		const key = (node as any).key;
+		if (key !== undefined) {
+			if (!usedKeys.has(key)) usedKeys.set(key, []);
+			usedKeys.get(key)!.push(node);
+		}
+	}
 
 	const findMatch = (newNode: Node): Node | null => {
-		if (newNode.nodeType === Node.TEXT_NODE) {
-			for (const old of oldNodes.flatMap(flattenNode)) {
-				if (!used.has(old) && old.nodeType === Node.TEXT_NODE && old.nodeValue === newNode.nodeValue)
-					return old;
-			}
-			return null;
-		}
-		if ((newNode as any).key) {
-			for (const old of oldNodes.flatMap(flattenNode)) {
-				if (!used.has(old) && (old as any).key === (newNode as any).key)
-					return old;
+		const key = (newNode as any).key;
+		if (key !== undefined && usedKeys.has(key)) {
+			const nodes = usedKeys.get(key)!;
+			for (let i = 0; i < nodes.length; i++) {
+				const candidate = nodes[i];
+				if (candidate.parentNode === parent) {
+					nodes.splice(i, 1); // Marcar como usado
+					return candidate;
+				}
 			}
 		}
 		return null;
 	};
 
-	for (const newNode of newNodes.flatMap(flattenNode)) {
+	for (const newNode of newNodes) {
 		const matched = findMatch(newNode);
 
 		if (matched) {
-			used.add(matched);
 			if (matched !== current) {
 				parent.insertBefore(matched, current);
 				if (debug.isShowChanges()) createChangeOverlay(matched);
@@ -70,11 +68,10 @@ function reconcileChildrenBetweenAnchors(
 			current = current?.nextSibling || null;
 	}
 
-	// Eliminar nodos sobrantes entre anchors
-	let node = start.nextSibling;
-	while (node && node !== end) {
+	// Eliminar nodos sobrantes directamente, evitando includes
+	for (let node = start.nextSibling; node && node !== end; ) {
 		const next = node.nextSibling;
-		if (!finalNodes.includes(node)) {
+		if (!finalNodes.some((n) => n === node)) {
 			if (isBoxelsElement(node)) node.destroy();
 			else node.remove();
 		}
@@ -84,7 +81,9 @@ function reconcileChildrenBetweenAnchors(
 	return finalNodes;
 }
 
-
+/**
+ * Maneja una zona reactiva entre comentarios
+ */
 export function handleReactiveZone(child: Signal<any>): handlerChild<Comment> {
 	const start = createComment(debug.isShowCommentNames() ? 'signal:start' : '');
 	const end = createComment(debug.isShowCommentNames() ? 'signal:end' : '');
@@ -99,17 +98,12 @@ export function handleReactiveZone(child: Signal<any>): handlerChild<Comment> {
 		const parent = start.parentNode;
 		if (!parent || !end.parentNode) return;
 
-		const oldNodes = currentChild?.nodes ?? [];
-		const newNodes = normalized.nodes;
-
 		const reconciled = reconcileChildrenBetweenAnchors(
 			parent,
-			oldNodes,
-			newNodes,
+			normalized.nodes,
 			start,
 			end,
 		);
-
 		normalized.onMount();
 		currentChild = { ...normalized, nodes: reconciled };
 	};
@@ -132,7 +126,7 @@ export function handleReactiveZone(child: Signal<any>): handlerChild<Comment> {
 				localCurrent?.cleanup();
 
 				if (localCurrent?.nodes) {
-					for (const n of currentChild!.nodes) {
+					for (const n of localCurrent.nodes) {
 						if (isBoxelsElement(n)) n.destroy();
 						else (n as ChildNode).remove();
 					}
@@ -140,19 +134,15 @@ export function handleReactiveZone(child: Signal<any>): handlerChild<Comment> {
 
 				unsub();
 
-				if (!start.parentElement || !end.parentElement) {
-					start.remove();
-					end.remove();
-					return;
-				}
-
 				// Limpieza final entre anchors
-				let node = start.nextSibling;
-				while (node && node !== end) {
+				for (let node = start.nextSibling; node && node !== end; ) {
 					const next = node.nextSibling;
 					node.remove();
 					node = next;
 				}
+
+				start.remove();
+				end.remove();
 			};
 		},
 		destroy,
